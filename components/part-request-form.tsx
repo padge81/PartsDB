@@ -8,7 +8,6 @@ import { getSupabaseBrowserClient } from "../lib/supabase";
 
 type Named = { id: string; name: string };
 type Machine = { id: string; model: string; name: string | null; manufacturer?: Named | null };
-type Revision = { id: string; revision: string; machine_id: string };
 type ExistingPart = { id: string; description: string; internal_part_number: string | null };
 type SupplierDraft = { supplier_id: string; supplier_part_number: string; ordering_information: string; notes: string };
 type MachineDraft = { manufacturer_id: string; machine_id: string; revision_id: string };
@@ -20,19 +19,15 @@ export function PartRequestForm() {
   const [manufacturers, setManufacturers] = useState<Named[]>([]);
   const [suppliers, setSuppliers] = useState<Named[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
-  const [revisions, setRevisions] = useState<Revision[]>([]);
-  const [tags, setTags] = useState<Named[]>([]);
   const [parts, setParts] = useState<ExistingPart[]>([]);
   const [machineId, setMachineId] = useState("");
   const [machineManufacturerId, setMachineManufacturerId] = useState("");
   const [machineManufacturer, setMachineManufacturer] = useState("");
   const [machineModel, setMachineModel] = useState("");
-  const [machineRevision, setMachineRevision] = useState("");
   const [partDescription, setPartDescription] = useState("");
   const [partManufacturer, setPartManufacturer] = useState("");
   const [manufacturerPartNumber, setManufacturerPartNumber] = useState("");
   const [supplyType, setSupplyType] = useState("unknown");
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [additionalMachines, setAdditionalMachines] = useState<MachineDraft[]>([]);
   const [relatedIds, setRelatedIds] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
@@ -48,24 +43,21 @@ export function PartRequestForm() {
       supabase.from("manufacturers").select("id,name").eq("is_active", true).order("name"),
       supabase.from("suppliers").select("id,name").eq("is_active", true).order("name"),
       supabase.from("machines").select("id,model,name,manufacturer:manufacturers(id,name)").eq("is_active", true).order("model"),
-      supabase.from("machine_revisions").select("id,revision,machine_id").eq("is_active", true).order("revision"),
-      supabase.from("tags").select("id,name").order("name"),
       supabase.from("parts").select("id,description,internal_part_number").eq("status", "active").order("description"),
-    ]).then(([mfr, supp, machine, revision, tag, existing]) => {
+    ]).then(([mfr, supp, machine, existing]) => {
       setManufacturers((mfr.data ?? []) as Named[]); setSuppliers((supp.data ?? []) as Named[]);
-      setMachines((machine.data ?? []) as unknown as Machine[]); setRevisions((revision.data ?? []) as Revision[]);
-      setTags((tag.data ?? []) as Named[]); setParts((existing.data ?? []) as ExistingPart[]);
+      setMachines((machine.data ?? []) as unknown as Machine[]); setParts((existing.data ?? []) as ExistingPart[]);
     });
   }, []);
 
   function selectMachine(id: string) {
     setMachineId(id);
     const machine = machines.find((item) => item.id === id);
-    if (machine) { setMachineManufacturer(machine.manufacturer?.name ?? ""); setMachineModel(machine.model); setMachineRevision(""); }
+    if (machine) { setMachineManufacturer(machine.manufacturer?.name ?? ""); setMachineModel(machine.model); }
   }
 
   function selectMachineManufacturer(id: string) {
-    setMachineManufacturerId(id); setMachineManufacturer(manufacturers.find((item) => item.id === id)?.name ?? ""); setMachineId(""); setMachineModel(""); setMachineRevision("");
+    setMachineManufacturerId(id); setMachineManufacturer(manufacturers.find((item) => item.id === id)?.name ?? ""); setMachineId(""); setMachineModel("");
   }
 
   function updateSupplier(index: number, field: keyof SupplierDraft, value: string) {
@@ -73,7 +65,7 @@ export function PartRequestForm() {
   }
 
   function updateAdditionalMachine(index: number, field: keyof MachineDraft, value: string) {
-    setAdditionalMachines((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, [field]: value, ...(field === "manufacturer_id" ? { machine_id: "", revision_id: "" } : {}), ...(field === "machine_id" ? { revision_id: "" } : {}) } : row));
+    setAdditionalMachines((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, [field]: value, ...(field === "manufacturer_id" ? { machine_id: "", revision_id: "" } : {}), ...(field === "machine_id" ? { revision_id: value } : {}) } : row));
   }
 
   async function submit(event: FormEvent, profile: Profile) {
@@ -81,7 +73,7 @@ export function PartRequestForm() {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
     const supplierInformation = supplierRows.filter((row) => row.supplier_id).map((row, index) => ({ ...row, preference_rank: index + 1, supplier_name: suppliers.find((supplier) => supplier.id === row.supplier_id)?.name ?? "" }));
-    const { data: request, error } = await supabase.from("part_requests").insert({ requested_by: profile.id, status: "draft", machine_manufacturer: machineManufacturer || null, machine_model: machineModel || null, machine_revision: machineRevision || null, machine_revision_ids: additionalMachines.map((row) => row.revision_id).filter(Boolean), part_description: partDescription, part_manufacturer: partManufacturer || null, manufacturer_part_number: manufacturerPartNumber || null, supplier_information: supplierInformation, supply_type: supplyType, compatibility_tags: selectedTags, commonly_ordered_part_ids: relatedIds, notes: notes || null }).select("id").single();
+    const { data: request, error } = await supabase.from("part_requests").insert({ requested_by: profile.id, status: "draft", machine_manufacturer: machineManufacturer || null, machine_model: machineModel || null, machine_revision: null, machine_revision_ids: additionalMachines.map((row) => row.machine_id).filter(Boolean), part_description: partDescription, part_manufacturer: partManufacturer || null, manufacturer_part_number: manufacturerPartNumber || null, supplier_information: supplierInformation, supply_type: supplyType, compatibility_tags: [], commonly_ordered_part_ids: relatedIds, notes: notes || null }).select("id").single();
     if (error || !request) { setMessage(error?.message ?? "The request could not be created."); setSaving(false); return; }
 
     for (const [index, file] of files.entries()) {
@@ -102,9 +94,7 @@ export function PartRequestForm() {
       <section className="form-card"><div className="detail-card-heading"><h2>Machine compatibility</h2></div><div className="form-grid">
         <label>Machine Manufacturer<select value={machineManufacturerId} onChange={(e) => selectMachineManufacturer(e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
         <label>Machine Name<select value={machineId} onChange={(e) => selectMachine(e.target.value)} disabled={!machineManufacturerId}><option value="">Select machine</option>{machines.filter((machine) => machine.manufacturer?.id === machineManufacturerId).map((machine) => <option key={machine.id} value={machine.id}>{machine.name ?? machine.model} · {machine.model}</option>)}</select></label>
-        <label>Machine Rev<select value={machineRevision} onChange={(e) => setMachineRevision(e.target.value)} disabled={!machineId}><option value="">Select revision</option>{revisions.filter((item) => item.machine_id === machineId).map((item) => <option key={item.id} value={item.revision}>{item.revision}</option>)}</select></label>
-        <label>Compatibility tags<select multiple value={selectedTags} onChange={(e) => setSelectedTags(Array.from(e.target.selectedOptions, (option) => option.value))}>{tags.map((tag) => <option key={tag.id} value={tag.name}>{tag.name}</option>)}</select><small>Hold Ctrl/Cmd to select multiple.</small></label>
-      </div><div className="additional-machines"><div className="detail-card-heading"><h3>Additional compatible machines</h3><button type="button" className="button secondary compact" onClick={() => setAdditionalMachines((current) => [...current, { manufacturer_id: "", machine_id: "", revision_id: "" }])}>+ Add machine</button></div>{additionalMachines.length ? <div className="machine-link-list">{additionalMachines.map((row, index) => <div className="machine-link-row" key={index}><label>Machine Manufacturer<select value={row.manufacturer_id} onChange={(e) => updateAdditionalMachine(index, "manufacturer_id", e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((manufacturer) => <option key={manufacturer.id} value={manufacturer.id}>{manufacturer.name}</option>)}</select></label><label>Machine Name<select value={row.machine_id} onChange={(e) => updateAdditionalMachine(index, "machine_id", e.target.value)} disabled={!row.manufacturer_id}><option value="">Select machine</option>{machines.filter((machine) => machine.id !== machineId && machine.manufacturer?.id === row.manufacturer_id).map((machine) => <option key={machine.id} value={machine.id}>{machine.name ?? machine.model}</option>)}</select></label><label>Machine Rev<select value={row.revision_id} onChange={(e) => updateAdditionalMachine(index, "revision_id", e.target.value)} disabled={!row.machine_id}><option value="">Select revision</option>{revisions.filter((revision) => revision.machine_id === row.machine_id).map((revision) => <option key={revision.id} value={revision.id}>{revision.revision}</option>)}</select></label><button type="button" className="icon-remove" aria-label="Remove compatible machine" onClick={() => setAdditionalMachines((current) => current.filter((_, rowIndex) => rowIndex !== index))}>×</button></div>)}</div> : <p className="empty-detail">No additional machines added.</p>}</div></section>
+      </div><div className="additional-machines"><div className="detail-card-heading"><h3>Additional compatible machines</h3><button type="button" className="button secondary compact" onClick={() => setAdditionalMachines((current) => [...current, { manufacturer_id: "", machine_id: "", revision_id: "" }])}>+ Add machine</button></div>{additionalMachines.length ? <div className="machine-link-list">{additionalMachines.map((row, index) => <div className="machine-link-row" key={index}><label>Machine Manufacturer<select value={row.manufacturer_id} onChange={(e) => updateAdditionalMachine(index, "manufacturer_id", e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((manufacturer) => <option key={manufacturer.id} value={manufacturer.id}>{manufacturer.name}</option>)}</select></label><label>Machine Name<select value={row.machine_id} onChange={(e) => updateAdditionalMachine(index, "machine_id", e.target.value)} disabled={!row.manufacturer_id}><option value="">Select machine</option>{machines.filter((machine) => machine.id !== machineId && machine.manufacturer?.id === row.manufacturer_id).map((machine) => <option key={machine.id} value={machine.id}>{machine.name ?? machine.model}</option>)}</select></label><button type="button" className="icon-remove" aria-label="Remove compatible machine" onClick={() => setAdditionalMachines((current) => current.filter((_, rowIndex) => rowIndex !== index))}>×</button></div>)}</div> : <p className="empty-detail">No additional machines added.</p>}</div></section>
       <section className="form-card"><div className="detail-card-heading"><h2>Part information</h2><span>Required fields marked *</span></div><div className="form-grid">
         <label className="span-2">Part Description *<input required value={partDescription} onChange={(e) => setPartDescription(e.target.value)} /></label>
         <label>Part manufacturer<select value={partManufacturer} onChange={(e) => setPartManufacturer(e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label>
