@@ -24,6 +24,7 @@ export function PartRequestForm() {
   const [tags, setTags] = useState<Named[]>([]);
   const [parts, setParts] = useState<ExistingPart[]>([]);
   const [machineId, setMachineId] = useState("");
+  const [machineManufacturerId, setMachineManufacturerId] = useState("");
   const [machineManufacturer, setMachineManufacturer] = useState("");
   const [machineModel, setMachineModel] = useState("");
   const [machineRevision, setMachineRevision] = useState("");
@@ -63,6 +64,10 @@ export function PartRequestForm() {
     if (machine) { setMachineManufacturer(machine.manufacturer?.name ?? ""); setMachineModel(machine.model); setMachineRevision(""); }
   }
 
+  function selectMachineManufacturer(id: string) {
+    setMachineManufacturerId(id); setMachineManufacturer(manufacturers.find((item) => item.id === id)?.name ?? ""); setMachineId(""); setMachineModel(""); setMachineRevision("");
+  }
+
   function updateSupplier(index: number, field: keyof SupplierDraft, value: string) {
     setSupplierRows((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, [field]: value } : row));
   }
@@ -95,9 +100,9 @@ export function PartRequestForm() {
     <section className="workspace-heading"><div><p className="eyebrow accent">New database request</p><h1>Add part</h1><p>Provide the available ordering and machine information for administrator review.</p></div></section>
     <form className="record-form" onSubmit={(event) => submit(event, profile)}>
       <section className="form-card"><div className="detail-card-heading"><h2>Machine compatibility</h2></div><div className="form-grid">
-        <label className="span-2">Machine Name<select value={machineId} onChange={(e) => selectMachine(e.target.value)}><option value="">Select an existing machine</option>{machines.map((machine) => <option key={machine.id} value={machine.id}>{machine.name ?? machine.model} · {machine.model}</option>)}</select></label>
-        <label>Machine Rev<select value={machineRevision} onChange={(e) => setMachineRevision(e.target.value)}><option value="">Select revision</option>{revisions.filter((item) => !machineId || item.machine_id === machineId).map((item) => <option key={item.id} value={item.revision}>{item.revision}</option>)}</select></label>
-        <label>Machine Manufacturer<select value={machineManufacturer} onChange={(e) => setMachineManufacturer(e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label>
+        <label>Machine Manufacturer<select value={machineManufacturerId} onChange={(e) => selectMachineManufacturer(e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label>Machine Name<select value={machineId} onChange={(e) => selectMachine(e.target.value)} disabled={!machineManufacturerId}><option value="">Select machine</option>{machines.filter((machine) => machine.manufacturer?.id === machineManufacturerId).map((machine) => <option key={machine.id} value={machine.id}>{machine.name ?? machine.model} · {machine.model}</option>)}</select></label>
+        <label>Machine Rev<select value={machineRevision} onChange={(e) => setMachineRevision(e.target.value)} disabled={!machineId}><option value="">Select revision</option>{revisions.filter((item) => item.machine_id === machineId).map((item) => <option key={item.id} value={item.revision}>{item.revision}</option>)}</select></label>
         <label>Compatibility tags<select multiple value={selectedTags} onChange={(e) => setSelectedTags(Array.from(e.target.selectedOptions, (option) => option.value))}>{tags.map((tag) => <option key={tag.id} value={tag.name}>{tag.name}</option>)}</select><small>Hold Ctrl/Cmd to select multiple.</small></label>
       </div><div className="additional-machines"><div className="detail-card-heading"><h3>Additional compatible machines</h3><button type="button" className="button secondary compact" onClick={() => setAdditionalMachines((current) => [...current, { manufacturer_id: "", machine_id: "", revision_id: "" }])}>+ Add machine</button></div>{additionalMachines.length ? <div className="machine-link-list">{additionalMachines.map((row, index) => <div className="machine-link-row" key={index}><label>Machine Manufacturer<select value={row.manufacturer_id} onChange={(e) => updateAdditionalMachine(index, "manufacturer_id", e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((manufacturer) => <option key={manufacturer.id} value={manufacturer.id}>{manufacturer.name}</option>)}</select></label><label>Machine Name<select value={row.machine_id} onChange={(e) => updateAdditionalMachine(index, "machine_id", e.target.value)} disabled={!row.manufacturer_id}><option value="">Select machine</option>{machines.filter((machine) => machine.id !== machineId && machine.manufacturer?.id === row.manufacturer_id).map((machine) => <option key={machine.id} value={machine.id}>{machine.name ?? machine.model}</option>)}</select></label><label>Machine Rev<select value={row.revision_id} onChange={(e) => updateAdditionalMachine(index, "revision_id", e.target.value)} disabled={!row.machine_id}><option value="">Select revision</option>{revisions.filter((revision) => revision.machine_id === row.machine_id).map((revision) => <option key={revision.id} value={revision.id}>{revision.revision}</option>)}</select></label><button type="button" className="icon-remove" aria-label="Remove compatible machine" onClick={() => setAdditionalMachines((current) => current.filter((_, rowIndex) => rowIndex !== index))}>×</button></div>)}</div> : <p className="empty-detail">No additional machines added.</p>}</div></section>
       <section className="form-card"><div className="detail-card-heading"><h2>Part information</h2><span>Required fields marked *</span></div><div className="form-grid">
