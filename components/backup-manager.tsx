@@ -56,6 +56,9 @@ export function BackupManager() {
     if (mode === "restore" && confirmation !== "RESTORE") { setMessage("Type RESTORE exactly before running a full restore."); setIsError(true); return; }
     const supabase = getSupabaseBrowserClient(); if (!supabase) return;
     setWorking(true); setMessage(""); setIsError(false);
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user) { setMessage("Your administrator session could not be verified."); setIsError(true); setWorking(false); return; }
+    const importingUserId = authData.user.id;
     if (mode === "restore") for (const table of deleteOrder) {
       const { error } = await supabase.from(table.name).delete().not(table.deleteColumn, "is", null);
       if (error) { setMessage(`Restore stopped while clearing ${table.name}: ${error.message}`); setIsError(true); setWorking(false); return; }
@@ -64,7 +67,8 @@ export function BackupManager() {
     for (const table of importOrder) {
       const rows = backup.tables[table.name] ?? [];
       for (let index = 0; index < rows.length; index += 200) {
-        const chunk = rows.slice(index, index + 200); const { error } = await supabase.from(table.name).upsert(chunk);
+        const chunk = rows.slice(index, index + 200).map((row) => table.name === "request_images" || table.name === "part_images" ? { ...row, uploaded_by: importingUserId } : row);
+        const { error } = await supabase.from(table.name).upsert(chunk);
         if (error) { setMessage(`Import stopped at ${table.name}: ${error.message}`); setIsError(true); setWorking(false); return; }
         imported += chunk.length;
       }
