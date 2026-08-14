@@ -1,6 +1,13 @@
 -- Development-only sample data. All names and identifiers are fictional.
 begin;
 
+insert into public.supply_types (code, name)
+values
+  ('unknown', 'Unknown'),
+  ('local', 'Local'),
+  ('dfl', 'DFL')
+on conflict do nothing;
+
 insert into public.manufacturers (id, name)
 values
   ('00000000-0000-0000-0000-000000000101', 'Example Machine Co'),
