@@ -1,5 +1,10 @@
 begin;
 
+-- Remove unused legacy relationships before clearing their referenced records.
+drop table if exists public.machine_tags;
+drop table if exists public.part_tags;
+drop table if exists public.tags;
+
 -- Clear all business, catalogue and reference data while preserving auth users and profiles.
 truncate table
   public.audit_log,
@@ -19,10 +24,5 @@ truncate table
   public.manufacturers,
   public.supply_types
 restart identity;
-
--- Remove legacy tag structures no longer used by the application.
-drop table if exists public.machine_tags;
-drop table if exists public.part_tags;
-drop table if exists public.tags;
 
 commit;
