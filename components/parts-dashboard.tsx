@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { AppShell } from "./app-shell";
 import { ArrowIcon, BoxIcon, PlusIcon, SearchIcon } from "./icons";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "../lib/supabase";
@@ -36,7 +37,7 @@ export function PartsDashboard() {
     <AppShell>{() => <main className="workspace">
       <section className="workspace-heading">
         <div><p className="eyebrow accent">Parts repository</p><h1>Find the part you need</h1><p>Search approved ordering information across machines, suppliers and manufacturers.</p></div>
-        <button className="button primary"><PlusIcon/>Request a part</button>
+        <Link className="button primary" href="/parts/new"><PlusIcon/>Add part</Link>
       </section>
 
       <section className="search-surface">
