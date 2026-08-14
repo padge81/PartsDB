@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { AppShell, type Profile } from "./app-shell";
 import { PlusIcon } from "./icons";
 import { getSupabaseBrowserClient } from "../lib/supabase";
+import { formatBytes, prepareImage, type PreparedImage } from "../lib/image-compression";
 
 type Named = { id: string; name: string };
 type Machine = { id: string; model: string; name: string | null; manufacturer?: Named | null };
@@ -32,7 +34,9 @@ export function PartRequestForm() {
   const [relatedIds, setRelatedIds] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [supplierRows, setSupplierRows] = useState<SupplierDraft[]>([emptySupplier(), emptySupplier(), emptySupplier()]);
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<PreparedImage[]>([]);
+  const previewUrls = useRef<string[]>([]);
+  const [processingImages, setProcessingImages] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -49,6 +53,18 @@ export function PartRequestForm() {
       setMachines((machine.data ?? []) as unknown as Machine[]); setParts((existing.data ?? []) as ExistingPart[]);
     });
   }, []);
+  useEffect(() => () => previewUrls.current.forEach(URL.revokeObjectURL), []);
+
+  async function selectImages(event: ChangeEvent<HTMLInputElement>) {
+    const selected = Array.from(event.target.files ?? []); event.target.value = ""; if (!selected.length) return;
+    if (files.length + selected.length > 8) { setMessage("A maximum of 8 images can be added to one request."); return; }
+    setProcessingImages(true); setMessage("");
+    try { const prepared = await Promise.all(selected.map(prepareImage)); previewUrls.current.push(...prepared.map((image) => image.previewUrl)); setFiles((current) => [...current, ...prepared]); }
+    catch (error) { setMessage(error instanceof Error ? error.message : "One or more images could not be processed."); }
+    setProcessingImages(false);
+  }
+
+  function removeImage(index: number) { setFiles((current) => { URL.revokeObjectURL(current[index].previewUrl); return current.filter((_, imageIndex) => imageIndex !== index); }); }
 
   function selectMachine(id: string) {
     setMachineId(id);
@@ -76,7 +92,8 @@ export function PartRequestForm() {
     const { data: request, error } = await supabase.from("part_requests").insert({ requested_by: profile.id, status: "draft", machine_manufacturer: machineManufacturer || null, machine_model: machineModel || null, machine_revision: null, machine_revision_ids: additionalMachines.map((row) => row.machine_id).filter(Boolean), part_description: partDescription, part_manufacturer: partManufacturer || null, manufacturer_part_number: manufacturerPartNumber || null, supplier_information: supplierInformation, supply_type: supplyType, compatibility_tags: [], commonly_ordered_part_ids: relatedIds, notes: notes || null }).select("id").single();
     if (error || !request) { setMessage(error?.message ?? "The request could not be created."); setSaving(false); return; }
 
-    for (const [index, file] of files.entries()) {
+    for (const [index, prepared] of files.entries()) {
+      const file = prepared.file;
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
       const path = `${profile.id}/${request.id}/${index}-${safeName}`;
       const upload = await supabase.storage.from("request-images").upload(path, file);
@@ -105,10 +122,11 @@ export function PartRequestForm() {
       <section className="form-card"><div className="detail-card-heading"><h2>Additional information</h2></div><div className="form-grid">
         <label className="span-2">Commonly ordered parts<select multiple value={relatedIds} onChange={(e) => setRelatedIds(Array.from(e.target.selectedOptions, (option) => option.value))}>{parts.map((part) => <option key={part.id} value={part.id}>{part.internal_part_number ?? "No internal number"} · {part.description}</option>)}</select></label>
         <label className="span-2">Notes<textarea rows={5} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
-        <label className="span-2">Part images<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => setFiles(Array.from(e.target.files ?? []))} /><small>{files.length ? `${files.length} image(s) selected` : "JPEG, PNG or WebP; multiple images allowed."}</small></label>
+        <label className="span-2 image-picker">Part images<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={selectImages} disabled={processingImages}/><small>{processingImages ? "Compressing images…" : "Images are resized to 1600 px and compressed to WebP before upload. Maximum 8."}</small></label>
+        {files.length > 0 && <div className="upload-preview-grid span-2">{files.map((image, index) => <article key={image.previewUrl}><Image unoptimized width={360} height={270} src={image.previewUrl} alt={`Selected part image ${index + 1}`}/><div><strong>{image.file.name}</strong><small>{formatBytes(image.originalBytes)} → {formatBytes(image.compressedBytes)}</small></div><button type="button" onClick={() => removeImage(index)} aria-label={`Remove ${image.file.name}`}>×</button></article>)}</div>}
       </div></section>
       {message && <p className="form-message">{message}</p>}
-      <div className="form-actions"><a className="button secondary" href="/dashboard">Cancel</a><button className="button primary" disabled={saving}><PlusIcon/>{saving ? "Submitting…" : "Submit add request"}</button></div>
+      <div className="form-actions"><a className="button secondary" href="/dashboard">Cancel</a><button className="button primary" disabled={saving || processingImages}><PlusIcon/>{saving ? "Submitting…" : "Submit add request"}</button></div>
     </form>
   </main>}</AppShell>;
 }
