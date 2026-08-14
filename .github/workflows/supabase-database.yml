@@ -24,14 +24,41 @@ concurrency:
 
 env:
   SUPABASE_PROJECT_REF: jvrhyjnjvduvmuzbxzui
-  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-  SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
 jobs:
+  local-validation:
+    name: Execute migrations locally
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start disposable local database
+        run: supabase db start
+
+      - name: Apply migrations and fictional seed data
+        run: supabase db reset --local
+
+      - name: Lint database
+        run: supabase db lint --local --level error
+
+      - name: Remove disposable database
+        if: always()
+        run: supabase stop --no-backup
+
   migration-plan:
     name: Check pending migrations
     if: github.event_name == 'pull_request'
+    needs: local-validation
     runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -50,8 +77,12 @@ jobs:
   deploy:
     name: Apply database migrations
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: local-validation
     runs-on: ubuntu-latest
     environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
