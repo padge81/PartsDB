@@ -53,7 +53,7 @@ export function PartsDashboard() {
         <div className="results-meta"><div><h2>Approved parts</h2><span>{visible.length} results</span></div><label>Sort<select><option>Most relevant</option><option>Description A–Z</option></select></label></div>
         <div className="parts-table" aria-live="polite">
           <div className="table-head"><span>Part</span><span>Manufacturer</span><span>Part number</span><span>Supply</span><span></span></div>
-          {loading ? <div className="empty-row">Loading approved parts…</div> : visible.map((part) => <a className="part-row" key={part.id} href={`#part-${part.id}`}>
+          {loading ? <div className="empty-row">Loading approved parts…</div> : visible.map((part) => <a className="part-row" key={part.id} href={`/parts/${part.id}`}>
             <span className="part-title"><i><BoxIcon/></i><span><strong>{part.description}</strong><small>{part.internal_part_number ?? "No internal number"}</small></span></span>
             <span>{part.manufacturer?.name ?? "—"}</span><span className="mono">{part.manufacturer_part_number ?? "—"}</span><span><em className={`supply ${part.supply_type}`}>{part.supply_type.toUpperCase()}</em></span><span className="row-arrow"><ArrowIcon/></span>
           </a>)}

@@ -1,0 +1,117 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import { AppShell } from "./app-shell";
+import { ArrowIcon, BoxIcon } from "./icons";
+import { getSupabaseBrowserClient } from "../lib/supabase";
+
+type PartRecord = {
+  id: string;
+  description: string;
+  manufacturer_part_number: string | null;
+  internal_part_number: string | null;
+  notes: string | null;
+  supply_type: string;
+  status: string;
+  manufacturer?: { name: string } | null;
+};
+
+type SupplierRow = {
+  preference_rank: number;
+  supplier_part_number: string | null;
+  ordering_information: string | null;
+  notes: string | null;
+  supplier?: { name: string; website_url: string | null; ordering_information: string | null } | null;
+};
+
+type CompatibilityRow = {
+  notes: string | null;
+  revision?: { revision: string; machine?: { model: string; name: string | null; manufacturer?: { name: string } | null } | null } | null;
+};
+
+type ImageRow = { id: string; storage_path: string; caption: string | null; kind: string; signedUrl?: string };
+type RelatedPart = { id: string; description: string; internal_part_number: string | null; manufacturer_part_number: string | null };
+
+const demoParts: Record<string, PartRecord> = {
+  "1": { id: "1", description: "Sealed deep groove ball bearing", manufacturer_part_number: "6204-2RSH", internal_part_number: "BRG-0204", notes: "Sealed bearing for high-speed conveyor drive assemblies. Confirm shaft condition before replacement.", supply_type: "local", status: "active", manufacturer: { name: "SKF" } },
+  "2": { id: "2", description: "Photoelectric diffuse sensor, 300 mm", manufacturer_part_number: "WTB4-3P2161", internal_part_number: "SNS-1108", notes: "PNP switching output with M8 connector. Record alignment after installation.", supply_type: "dfl", status: "active", manufacturer: { name: "SICK" } },
+  "3": { id: "3", description: "Timing belt, 25 mm width", manufacturer_part_number: "HTD-800-8M-25", internal_part_number: "BLT-0800", notes: "Inspect both pulleys and tensioner when replacing the belt.", supply_type: "local", status: "active", manufacturer: { name: "Gates" } },
+  "4": { id: "4", description: "Pneumatic solenoid valve 5/2 way", manufacturer_part_number: "VUVG-L14-M52", internal_part_number: "VLV-0522", notes: "24 VDC valve used on pneumatic actuator manifolds.", supply_type: "dfl", status: "active", manufacturer: { name: "Festo" } },
+};
+
+export function PartDetails({ partId }: { partId: string }) {
+  const [part, setPart] = useState<PartRecord | null>(demoParts[partId] ?? null);
+  const [suppliers, setSuppliers] = useState<SupplierRow[]>([]);
+  const [compatibility, setCompatibility] = useState<CompatibilityRow[]>([]);
+  const [images, setImages] = useState<ImageRow[]>([]);
+  const [related, setRelated] = useState<RelatedPart[]>([]);
+  const [loading, setLoading] = useState(!demoParts[partId]);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+
+    async function loadPart() {
+      const [partResult, supplierResult, compatibilityResult, imageResult, relationshipResult] = await Promise.all([
+        supabase!.from("parts").select("id, description, manufacturer_part_number, internal_part_number, notes, supply_type, status, manufacturer:manufacturers(name)").eq("id", partId).single(),
+        supabase!.from("part_suppliers").select("preference_rank, supplier_part_number, ordering_information, notes, supplier:suppliers(name, website_url, ordering_information)").eq("part_id", partId).eq("is_active", true).order("preference_rank"),
+        supabase!.from("part_machine_revisions").select("notes, revision:machine_revisions(revision, machine:machines(model, name, manufacturer:manufacturers(name)))").eq("part_id", partId),
+        supabase!.from("part_images").select("id, storage_path, caption, kind").eq("part_id", partId).order("sort_order"),
+        supabase!.from("commonly_ordered_parts").select("related_part_id").eq("part_id", partId),
+      ]);
+
+      if (partResult.error || !partResult.data) {
+        if (!demoParts[partId]) setError("This part could not be found or is not available to your account.");
+        setLoading(false);
+        return;
+      }
+
+      setPart(partResult.data as unknown as PartRecord);
+      if (supplierResult.data) setSuppliers(supplierResult.data as unknown as SupplierRow[]);
+      if (compatibilityResult.data) setCompatibility(compatibilityResult.data as unknown as CompatibilityRow[]);
+
+      if (imageResult.data?.length) {
+        const rows = imageResult.data as ImageRow[];
+        const { data: signed } = await supabase!.storage.from("part-images").createSignedUrls(rows.map((image) => image.storage_path), 3600);
+        setImages(rows.map((image, index) => ({ ...image, signedUrl: signed?.[index]?.signedUrl })));
+      }
+
+      const relatedIds = relationshipResult.data?.map((item) => item.related_part_id) ?? [];
+      if (relatedIds.length) {
+        const { data } = await supabase!.from("parts").select("id, description, internal_part_number, manufacturer_part_number").in("id", relatedIds);
+        if (data) setRelated(data as RelatedPart[]);
+      }
+      setLoading(false);
+    }
+
+    loadPart();
+  }, [partId]);
+
+  return <AppShell>{() => <main className="workspace detail-workspace">
+    <a className="back-link" href="/dashboard">← Back to parts search</a>
+    {loading ? <section className="detail-state"><div className="spinner"/><p>Loading part information…</p></section> : error || !part ? <section className="detail-state"><BoxIcon/><h1>Part unavailable</h1><p>{error}</p><a className="button primary" href="/dashboard">Return to search</a></section> : <>
+      <section className="detail-hero">
+        <div className="detail-icon"><BoxIcon/></div>
+        <div><p className="eyebrow accent">Approved part</p><h1>{part.description}</h1><div className="detail-identifiers"><span>Internal <strong>{part.internal_part_number ?? "Not assigned"}</strong></span><span>Manufacturer part <strong className="mono">{part.manufacturer_part_number ?? "Not supplied"}</strong></span></div></div>
+        <div className="detail-status"><em className={`supply ${part.supply_type}`}>{part.supply_type.toUpperCase()}</em><span>{part.status}</span></div>
+      </section>
+
+      <div className="detail-grid">
+        <div className="detail-main">
+          <section className="detail-card"><div className="detail-card-heading"><h2>Part information</h2></div><dl className="facts-grid"><div><dt>Manufacturer</dt><dd>{part.manufacturer?.name ?? "Not specified"}</dd></div><div><dt>Manufacturer part number</dt><dd className="mono">{part.manufacturer_part_number ?? "—"}</dd></div><div><dt>Company part number</dt><dd className="mono">{part.internal_part_number ?? "—"}</dd></div><div><dt>Supply type</dt><dd>{part.supply_type.toUpperCase()}</dd></div></dl>{part.notes && <div className="notes-block"><h3>Notes</h3><p>{part.notes}</p></div>}</section>
+
+          <section className="detail-card"><div className="detail-card-heading"><h2>Preferred suppliers</h2><span>{suppliers.length} listed</span></div>{suppliers.length ? <div className="supplier-list">{suppliers.map((row) => <article key={`${row.preference_rank}-${row.supplier?.name}`}><span className="supplier-rank">{row.preference_rank}</span><div><strong>{row.supplier?.name ?? "Supplier"}</strong><small>{row.supplier_part_number ? `Supplier part: ${row.supplier_part_number}` : "No supplier part number"}</small>{(row.ordering_information || row.supplier?.ordering_information) && <p>{row.ordering_information || row.supplier?.ordering_information}</p>}{row.notes && <p>{row.notes}</p>}</div>{row.supplier?.website_url && <a href={row.supplier.website_url} target="_blank" rel="noreferrer">Supplier site ↗</a>}</article>)}</div> : <p className="empty-detail">No preferred suppliers have been added.</p>}</section>
+
+          <section className="detail-card"><div className="detail-card-heading"><h2>Machine compatibility</h2><span>{compatibility.length} machines</span></div>{compatibility.length ? <div className="compatibility-list">{compatibility.map((row, index) => <article key={index}><strong>{row.revision?.machine?.manufacturer?.name ?? "Machine"} {row.revision?.machine?.model ?? ""}</strong><span>{row.revision?.machine?.name ?? ""}</span><em>Revision {row.revision?.revision ?? "—"}</em>{row.notes && <p>{row.notes}</p>}</article>)}</div> : <p className="empty-detail">No machine compatibility records have been linked.</p>}</section>
+        </div>
+
+        <aside className="detail-side">
+          <section className="detail-card"><div className="detail-card-heading"><h2>Images</h2><span>{images.length}</span></div>{images.length ? <div className="image-grid">{images.map((image) => image.signedUrl ? <figure key={image.id}><Image unoptimized width={420} height={420} src={image.signedUrl} alt={image.caption ?? `${image.kind} view of ${part.description}`}/><figcaption>{image.caption ?? image.kind}</figcaption></figure> : null)}</div> : <div className="image-placeholder"><BoxIcon/><p>No part images uploaded</p></div>}</section>
+          <section className="detail-card"><div className="detail-card-heading"><h2>Commonly ordered with</h2></div>{related.length ? <div className="related-list">{related.map((item) => <a key={item.id} href={`/parts/${item.id}`}><span><strong>{item.description}</strong><small>{item.internal_part_number ?? item.manufacturer_part_number ?? "No part number"}</small></span><ArrowIcon/></a>)}</div> : <p className="empty-detail">No related parts have been added.</p>}</section>
+        </aside>
+      </div>
+    </>}
+  </main>}</AppShell>;
+}
