@@ -8,9 +8,9 @@ type BackupTable = { name: string; deleteColumn: string };
 type BackupFile = { format: "PartsDB backup"; version: 1; exported_at: string; tables: Record<string, Record<string, unknown>[]> };
 
 const importOrder: BackupTable[] = [
-  { name: "manufacturers", deleteColumn: "id" }, { name: "suppliers", deleteColumn: "id" },
+  { name: "supply_types", deleteColumn: "id" }, { name: "manufacturers", deleteColumn: "id" }, { name: "suppliers", deleteColumn: "id" },
   { name: "machines", deleteColumn: "id" }, { name: "machine_revisions", deleteColumn: "id" },
-  { name: "categories", deleteColumn: "id" }, { name: "supply_types", deleteColumn: "id" },
+  { name: "categories", deleteColumn: "id" },
   { name: "parts", deleteColumn: "id" }, { name: "part_requests", deleteColumn: "id" },
   { name: "part_suppliers", deleteColumn: "part_id" }, { name: "part_machine_revisions", deleteColumn: "part_id" },
   { name: "part_categories", deleteColumn: "part_id" },
@@ -59,19 +59,30 @@ export function BackupManager() {
     if (mode === "restore" && confirmation !== "RESTORE") { setMessage("Type RESTORE exactly before running a full restore."); setIsError(true); return; }
     const supabase = getSupabaseBrowserClient(); if (!supabase) return;
     setWorking(true); setMessage(""); setIsError(false);
+    if (mode === "restore") {
+      const { error: unlinkError } = await supabase.from("manufacturers").update({ default_supplier_id: null }).not("default_supplier_id", "is", null);
+      if (unlinkError) { setMessage(`Restore stopped while clearing manufacturer supplier links: ${unlinkError.message}`); setIsError(true); setWorking(false); return; }
+    }
     if (mode === "restore") for (const table of deleteOrder) {
       const { error } = await supabase.from(table.name).delete().not(table.deleteColumn, "is", null);
       if (error) { setMessage(`Restore stopped while clearing ${table.name}: ${error.message}`); setIsError(true); setWorking(false); return; }
     }
     let imported = 0;
+    const manufacturerSupplierLinks = (backup.tables.manufacturers ?? []).flatMap((row) =>
+      typeof row.id === "string" && typeof row.default_supplier_id === "string" ? [{ manufacturerId: row.id, supplierId: row.default_supplier_id }] : []
+    );
     for (const table of restorableOrder) {
       const rows = backup.tables[table.name] ?? [];
       for (let index = 0; index < rows.length; index += 200) {
-        const chunk = rows.slice(index, index + 200);
+        const chunk = rows.slice(index, index + 200).map((row) => table.name === "manufacturers" ? { ...row, default_supplier_id: null } : row);
         const { error } = await supabase.from(table.name).upsert(chunk);
         if (error) { setMessage(`Import stopped at ${table.name}: ${error.message}`); setIsError(true); setWorking(false); return; }
         imported += chunk.length;
       }
+    }
+    for (const link of manufacturerSupplierLinks) {
+      const { error } = await supabase.from("manufacturers").update({ default_supplier_id: link.supplierId }).eq("id", link.manufacturerId);
+      if (error) { setMessage(`Import stopped while restoring manufacturer supplier links: ${error.message}`); setIsError(true); setWorking(false); return; }
     }
     setMessage(`${mode === "restore" ? "Full restore" : "Merge import"} completed: ${imported} records processed. Image records were left unchanged.`); setConfirmation(""); setWorking(false);
   }
