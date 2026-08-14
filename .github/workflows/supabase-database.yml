@@ -1,0 +1,68 @@
+name: Supabase database
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/config.toml"
+      - ".github/workflows/supabase-database.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/config.toml"
+      - ".github/workflows/supabase-database.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-database-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SUPABASE_PROJECT_REF: jvrhyjnjvduvmuzbxzui
+  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+  SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+jobs:
+  migration-plan:
+    name: Check pending migrations
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link hosted project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Preview pending migrations
+        run: supabase db push --dry-run
+
+  deploy:
+    name: Apply database migrations
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link hosted project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Apply pending migrations
+        run: supabase db push
