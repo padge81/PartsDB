@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { AppShell, type Profile } from "./app-shell";
 import { ShieldIcon } from "./icons";
 import { getSupabaseBrowserClient } from "../lib/supabase";
@@ -12,6 +13,7 @@ type Named = { id: string; name: string };
 type MachineOption = { id: string; model: string; name: string | null; manufacturer?: Named | null };
 type PartOption = { id: string; description: string; internal_part_number: string | null };
 type MachineDraft = { manufacturer_id: string; machine_id: string; revision_id: string };
+type RequestImage = { id: string; storage_path: string; kind: string; sort_order: number; signedUrl?: string };
 
 export function AdminRequestEditor({ requestId }: { requestId: string }) {
   const router = useRouter();
@@ -25,6 +27,7 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
   const [machineId, setMachineId] = useState("");
   const [machineManufacturerId, setMachineManufacturerId] = useState("");
   const [additionalMachines, setAdditionalMachines] = useState<MachineDraft[]>([]);
+  const [requestImages, setRequestImages] = useState<RequestImage[]>([]);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient(); if (!supabase) return;
@@ -35,7 +38,8 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
       supabase.from("machines").select("id,model,name,manufacturer:manufacturers(id,name)").eq("is_active", true).order("model"),
       supabase.from("machine_revisions").select("id,machine_id,revision").eq("is_active", true).order("revision"),
       supabase.from("parts").select("id,description,internal_part_number").eq("status", "active").order("description"),
-    ]).then(([requestResult, manufacturerResult, supplierResult, machineResult, revisionResult, partResult]) => {
+      supabase.from("request_images").select("id,storage_path,kind,sort_order").eq("request_id", requestId).order("sort_order"),
+    ]).then(async ([requestResult, manufacturerResult, supplierResult, machineResult, revisionResult, partResult, imageResult]) => {
       if (requestResult.error) setMessage(requestResult.error.message); else {
         const loadedRequest = requestResult.data as EditableRequest;
         setRequest(loadedRequest);
@@ -46,6 +50,7 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
       }
       setManufacturers((manufacturerResult.data ?? []) as Named[]); setSuppliers((supplierResult.data ?? []) as Named[]);
       setMachines((machineResult.data ?? []) as unknown as MachineOption[]); setParts((partResult.data ?? []) as PartOption[]);
+      if (imageResult.data?.length) { const rows = imageResult.data as RequestImage[]; const { data: signed } = await supabase.storage.from("request-images").createSignedUrls(rows.map((image) => image.storage_path), 3600); setRequestImages(rows.map((image, index) => ({ ...image, signedUrl: signed?.[index]?.signedUrl }))); }
     });
   }, [requestId]);
   function field(name: keyof EditableRequest, value: string) { setRequest((current) => current ? { ...current, [name]: value } : current); }
@@ -91,6 +96,15 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
     }
 
     if (request.commonly_ordered_part_ids?.length) await supabase.from("commonly_ordered_parts").insert(request.commonly_ordered_part_ids.map((related_part_id) => ({ part_id: createdPart.data.id, related_part_id, created_by: profile.id })));
+    for (const [index, image] of requestImages.entries()) {
+      const downloaded = await supabase.storage.from("request-images").download(image.storage_path);
+      if (downloaded.error || !downloaded.data) { setMessage(`Part created, but image ${index + 1} could not be copied: ${downloaded.error?.message ?? "download failed"}`); setSaving(false); return; }
+      const targetPath = `${createdPart.data.id}/${crypto.randomUUID()}.webp`;
+      const uploaded = await supabase.storage.from("part-images").upload(targetPath, downloaded.data, { contentType: downloaded.data.type || "image/webp" });
+      if (uploaded.error) { setMessage(`Part created, but image ${index + 1} could not be stored: ${uploaded.error.message}`); setSaving(false); return; }
+      const imageRow = await supabase.from("part_images").insert({ part_id: createdPart.data.id, storage_path: targetPath, uploaded_by: profile.id, kind: image.kind || "other", sort_order: index });
+      if (imageRow.error) { setMessage(`Part created, but image ${index + 1} could not be linked: ${imageRow.error.message}`); setSaving(false); return; }
+    }
     for (const compatibilityId of request.machine_revision_ids ?? []) {
       const legacyRevision = await supabase.from("machine_revisions").select("id").eq("id", compatibilityId).maybeSingle();
       let revisionId = legacyRevision.data?.id ?? null;
@@ -129,6 +143,7 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
     <section className="form-card"><div className="detail-card-heading"><h2>Machine information</h2><span>Multiple machines supported</span></div><div className="form-grid"><label>Machine Manufacturer<select value={machineManufacturerId} onChange={(e) => selectMachineManufacturer(e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Machine Name<select value={machineId} onChange={(e) => selectMachine(e.target.value)} disabled={!machineManufacturerId}><option value="">Select machine</option>{machines.filter((machine) => machine.manufacturer?.id === machineManufacturerId).map((machine) => <option key={machine.id} value={machine.id}>{machine.name ?? machine.model} · {machine.model}</option>)}</select></label></div><div className="additional-machines"><div className="detail-card-heading"><h3>Additional compatible machines</h3><button type="button" className="button secondary compact" onClick={() => setMachineRows([...additionalMachines, { manufacturer_id: "", machine_id: "", revision_id: "" }])}>+ Add machine</button></div>{additionalMachines.length ? <div className="machine-link-list">{additionalMachines.map((row, index) => <div className="machine-link-row" key={index}><label>Machine Manufacturer<select value={row.manufacturer_id} onChange={(e) => updateAdditionalMachine(index, "manufacturer_id", e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((manufacturer) => <option key={manufacturer.id} value={manufacturer.id}>{manufacturer.name}</option>)}</select></label><label>Machine Name<select value={row.machine_id} onChange={(e) => updateAdditionalMachine(index, "machine_id", e.target.value)} disabled={!row.manufacturer_id}><option value="">Select machine</option>{machines.filter((machine) => machine.id !== machineId && machine.manufacturer?.id === row.manufacturer_id).map((machine) => <option key={machine.id} value={machine.id}>{machine.name ?? machine.model}</option>)}</select></label><button type="button" className="icon-remove" aria-label="Remove compatible machine" onClick={() => setMachineRows(additionalMachines.filter((_, rowIndex) => rowIndex !== index))}>×</button></div>)}</div> : <p className="empty-detail">No additional machines added.</p>}</div></section>
     <section className="form-card"><div className="detail-card-heading"><h2>Part information</h2><span>Database linked</span></div><div className="form-grid"><label className="span-2">Part Description *<input required value={request.part_description} onChange={(e) => field("part_description", e.target.value)}/></label><label>Part manufacturer<select value={request.part_manufacturer ?? ""} onChange={(e) => field("part_manufacturer", e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label><label>Part Number Manufacturer<input value={request.manufacturer_part_number ?? ""} onChange={(e) => field("manufacturer_part_number", e.target.value)}/></label><label>Supply type<select value={request.supply_type} onChange={(e) => field("supply_type", e.target.value)}><option value="unknown">Unknown</option><option value="local">Local</option><option value="dfl">DFL</option></select></label></div></section>
     <section className="form-card"><div className="detail-card-heading"><h2>Part supplier information</h2><span>Database linked · up to three</span></div><div className="supplier-form-list">{Array.from({ length: 3 }, (_, index) => request.supplier_information?.[index] ?? { preference_rank: index + 1 }).map((supplier, index) => <div className="supplier-form-row" key={index}><span>{index + 1}</span><label>{index === 0 ? "Part Supplier" : "Additional Supplier"}<select value={supplier.supplier_id ?? ""} onChange={(e) => updateSupplier(index, "supplier_id", e.target.value)}><option value="">Not selected</option>{suppliers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>{index === 0 ? "Part Number local supplier" : "Supplier part number"}<input value={supplier.supplier_part_number ?? ""} onChange={(e) => updateSupplier(index, "supplier_part_number", e.target.value)}/></label><label>Ordering information<input value={supplier.ordering_information ?? ""} onChange={(e) => updateSupplier(index, "ordering_information", e.target.value)}/></label></div>)}</div></section>
+    <section className="form-card"><div className="detail-card-heading"><h2>Submitted images</h2><span>{requestImages.length}</span></div>{requestImages.length ? <div className="review-image-grid">{requestImages.map((image, index) => image.signedUrl ? <a href={image.signedUrl} target="_blank" rel="noreferrer" key={image.id}><Image unoptimized width={360} height={270} src={image.signedUrl} alt={`Submitted part image ${index + 1}`}/><span>Image {index + 1} · open full size</span></a> : null)}</div> : <p className="empty-detail">No images were submitted.</p>}</section>
     <section className="form-card"><div className="detail-card-heading"><h2>Related information</h2><span>Database linked</span></div><div className="form-grid"><label className="span-2">Commonly ordered parts<select multiple value={request.commonly_ordered_part_ids ?? []} onChange={(e) => setRequest({ ...request, commonly_ordered_part_ids: Array.from(e.target.selectedOptions, (option) => option.value) })}>{parts.map((part) => <option key={part.id} value={part.id}>{part.internal_part_number ?? "No internal number"} · {part.description}</option>)}</select></label><label className="span-2">Part notes<textarea rows={5} value={request.notes ?? ""} onChange={(e) => field("notes", e.target.value)}/></label><label className="span-2">Administrator review notes<textarea rows={4} value={request.review_notes ?? ""} onChange={(e) => field("review_notes", e.target.value)}/></label></div></section>
     {message && <p className="form-message success-message">{message}</p>}<div className="form-actions admin-actions"><button type="button" className="button danger" disabled={saving} onClick={() => reject(profile)}>Reject request</button><button className="button secondary" disabled={saving}>Save changes</button><button type="button" className="button primary" disabled={saving} onClick={() => approve(profile)}>{saving ? "Processing…" : "Approve & add to database"}</button></div></form></>}</main>}</AppShell>;
 }

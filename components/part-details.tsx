@@ -48,6 +48,7 @@ export function PartDetails({ partId }: { partId: string }) {
   const [related, setRelated] = useState<RelatedPart[]>([]);
   const [loading, setLoading] = useState(!demoParts[partId]);
   const [error, setError] = useState("");
+  const [selectedImage, setSelectedImage] = useState<ImageRow | null>(null);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -108,10 +109,10 @@ export function PartDetails({ partId }: { partId: string }) {
         </div>
 
         <aside className="detail-side">
-          <section className="detail-card"><div className="detail-card-heading"><h2>Images</h2><span>{images.length}</span></div>{images.length ? <div className="image-grid">{images.map((image) => image.signedUrl ? <figure key={image.id}><Image unoptimized width={420} height={420} src={image.signedUrl} alt={image.caption ?? `${image.kind} view of ${part.description}`}/><figcaption>{image.caption ?? image.kind}</figcaption></figure> : null)}</div> : <div className="image-placeholder"><BoxIcon/><p>No part images uploaded</p></div>}</section>
+          <section className="detail-card"><div className="detail-card-heading"><h2>Images</h2><span>{images.length}</span></div>{images.length ? <div className="image-grid">{images.map((image) => image.signedUrl ? <figure key={image.id}><button type="button" onClick={() => setSelectedImage(image)} aria-label={`Open ${image.caption ?? image.kind} image`}><Image unoptimized width={420} height={420} src={image.signedUrl} alt={image.caption ?? `${image.kind} view of ${part.description}`}/></button><figcaption>{image.caption ?? image.kind}</figcaption></figure> : null)}</div> : <div className="image-placeholder"><BoxIcon/><p>No part images uploaded</p></div>}</section>
           <section className="detail-card"><div className="detail-card-heading"><h2>Commonly ordered with</h2></div>{related.length ? <div className="related-list">{related.map((item) => <a key={item.id} href={`/parts/${item.id}`}><span><strong>{item.description}</strong><small>{item.internal_part_number ?? item.manufacturer_part_number ?? "No part number"}</small></span><ArrowIcon/></a>)}</div> : <p className="empty-detail">No related parts have been added.</p>}</section>
         </aside>
       </div>
-    </>}
+    </>}{selectedImage?.signedUrl && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label="Part image preview" onClick={() => setSelectedImage(null)}><button className="lightbox-close" type="button" onClick={() => setSelectedImage(null)} aria-label="Close image">×</button><div onClick={(event) => event.stopPropagation()}><Image unoptimized width={1400} height={1400} src={selectedImage.signedUrl} alt={selectedImage.caption ?? `${selectedImage.kind} view of ${part?.description ?? "part"}`}/><p>{selectedImage.caption ?? selectedImage.kind}</p></div></div>}
   </main>}</AppShell>;
 }
