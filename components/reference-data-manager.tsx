@@ -38,7 +38,7 @@ export function ReferenceDataManager() {
   }, [load]);
 
   async function add(event: FormEvent<HTMLFormElement>, table: "manufacturers" | "suppliers" | "machines" | "machine_revisions" | "tags") {
-    event.preventDefault(); setMessage(""); const form = new FormData(event.currentTarget); const supabase = getSupabaseBrowserClient(); if (!supabase) return;
+    event.preventDefault(); setMessage(""); const formElement = event.currentTarget; const form = new FormData(formElement); const supabase = getSupabaseBrowserClient(); if (!supabase) return;
     let values: Record<string, string | null> = {};
     if (table === "manufacturers") values = { name: String(form.get("name") ?? ""), notes: String(form.get("notes") ?? "") || null };
     if (table === "suppliers") values = { name: String(form.get("name") ?? ""), website_url: String(form.get("website_url") ?? "") || null, ordering_information: String(form.get("ordering_information") ?? "") || null };
@@ -46,9 +46,11 @@ export function ReferenceDataManager() {
     if (table === "machine_revisions") values = { machine_id: String(form.get("machine_id") ?? ""), revision: String(form.get("revision") ?? "") };
     if (table === "tags") values = { name: String(form.get("name") ?? ""), description: String(form.get("description") ?? "") || null };
     const { error } = await supabase.from(table).insert(values); if (error) setMessage(error.message); else {
-      event.currentTarget.reset();
+      formElement.reset();
       await load();
-      window.location.reload();
+      const refreshUrl = new URL(window.location.href);
+      refreshUrl.searchParams.set("refresh", Date.now().toString());
+      window.location.replace(refreshUrl.toString());
     }
   }
 
