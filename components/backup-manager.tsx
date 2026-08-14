@@ -16,7 +16,9 @@ const importOrder: BackupTable[] = [
   { name: "tags", deleteColumn: "id" }, { name: "part_tags", deleteColumn: "part_id" },
   { name: "commonly_ordered_parts", deleteColumn: "part_id" },
 ];
-const deleteOrder = [...importOrder].reverse();
+const imageTables = new Set(["part_images", "request_images"]);
+const restorableOrder = importOrder.filter((table) => !imageTables.has(table.name));
+const deleteOrder = [...restorableOrder].reverse();
 
 export function BackupManager() {
   const [backup, setBackup] = useState<BackupFile | null>(null);
@@ -56,30 +58,27 @@ export function BackupManager() {
     if (mode === "restore" && confirmation !== "RESTORE") { setMessage("Type RESTORE exactly before running a full restore."); setIsError(true); return; }
     const supabase = getSupabaseBrowserClient(); if (!supabase) return;
     setWorking(true); setMessage(""); setIsError(false);
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError || !authData.user) { setMessage("Your administrator session could not be verified."); setIsError(true); setWorking(false); return; }
-    const importingUserId = authData.user.id;
     if (mode === "restore") for (const table of deleteOrder) {
       const { error } = await supabase.from(table.name).delete().not(table.deleteColumn, "is", null);
       if (error) { setMessage(`Restore stopped while clearing ${table.name}: ${error.message}`); setIsError(true); setWorking(false); return; }
     }
     let imported = 0;
-    for (const table of importOrder) {
+    for (const table of restorableOrder) {
       const rows = backup.tables[table.name] ?? [];
       for (let index = 0; index < rows.length; index += 200) {
-        const chunk = rows.slice(index, index + 200).map((row) => table.name === "request_images" || table.name === "part_images" ? { ...row, uploaded_by: importingUserId } : row);
+        const chunk = rows.slice(index, index + 200);
         const { error } = await supabase.from(table.name).upsert(chunk);
         if (error) { setMessage(`Import stopped at ${table.name}: ${error.message}`); setIsError(true); setWorking(false); return; }
         imported += chunk.length;
       }
     }
-    setMessage(`${mode === "restore" ? "Full restore" : "Merge import"} completed: ${imported} records processed.`); setConfirmation(""); setWorking(false);
+    setMessage(`${mode === "restore" ? "Full restore" : "Merge import"} completed: ${imported} records processed. Image records were left unchanged.`); setConfirmation(""); setWorking(false);
   }
 
   return <AppShell requireAdmin>{() => <main className="workspace backup-workspace"><a className="back-link" href="/admin">← Back to admin</a>
     <section className="workspace-heading"><div><p className="eyebrow accent">Administrator tools</p><h1>Backup, export & import</h1><p>Download a portable copy of PartsDB data or restore a previous export.</p></div></section>
     <div className="backup-grid"><section className="form-card backup-card"><div className="detail-card-heading"><h2>Export backup</h2><span>Versioned JSON</span></div><div className="backup-card-body"><p>Exports parts, requests, suppliers, manufacturers, machines and their relationships. Image database records are included; stored image files remain in Supabase Storage.</p><button className="button primary" type="button" disabled={working} onClick={exportBackup}>{working ? "Working…" : "Download backup"}</button></div></section>
       <section className="form-card backup-card"><div className="detail-card-heading"><h2>Import backup</h2><span>Administrator only</span></div><div className="backup-card-body"><label className="file-picker">Backup JSON file<input type="file" accept="application/json,.json" onChange={selectFile}/><small>{fileName || "No file selected"}</small></label><fieldset><legend>Import mode</legend><label><input type="radio" name="mode" checked={mode === "merge"} onChange={() => { setMode("merge"); setConfirmation(""); }}/><span><strong>Merge safely</strong><small>Add new records and update matching IDs. Existing unmatched records remain.</small></span></label><label><input type="radio" name="mode" checked={mode === "restore"} onChange={() => setMode("restore")}/><span><strong>Full restore</strong><small>Delete current business data, then restore the selected backup.</small></span></label></fieldset>{mode === "restore" && <label className="restore-confirm">Type RESTORE to confirm<input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off"/></label>}<button className={`button ${mode === "restore" ? "danger" : "primary"}`} type="button" disabled={working || !backup || (mode === "restore" && confirmation !== "RESTORE")} onClick={runImport}>{working ? "Working…" : mode === "restore" ? "Run full restore" : "Import and merge"}</button></div></section></div>
-    {message && <p className={`backup-message ${isError ? "error" : "success"}`} role="status">{message}</p>}<section className="backup-note"><strong>Not included</strong><p>User authentication accounts, passwords and binary image files in Supabase Storage are not changed by import. Their database references are included.</p></section>
+    {message && <p className={`backup-message ${isError ? "error" : "success"}`} role="status">{message}</p>}<section className="backup-note"><strong>Not included</strong><p>User authentication accounts, passwords and binary image files in Supabase Storage are not changed by import. Image metadata is retained in exports for reference, but image database records are left unchanged during merge and full restore.</p></section>
   </main>}</AppShell>;
 }
