@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import { BoxIcon, ClipboardIcon, LogOutIcon, SearchIcon, ShieldIcon } from "./icons";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "../lib/supabase";
 
@@ -48,7 +49,7 @@ export function AppShell({ children, requireAdmin = false }: { children: (profil
         <a className="brand" href="/dashboard"><span className="brand-mark"><BoxIcon /></span><span>PartsDB</span></a>
         <nav aria-label="Main navigation">
           <a className={pathname === "/dashboard" ? "active" : ""} href="/dashboard"><SearchIcon/>Parts</a>
-          <a href="#requests"><ClipboardIcon/>My requests</a>
+          <Link className={pathname === "/requests" ? "active" : ""} href="/requests"><ClipboardIcon/>My requests</Link>
           {profile.role === "admin" && <a className={pathname === "/admin" ? "active" : ""} href="/admin"><ShieldIcon/>Admin</a>}
         </nav>
         <div className="account"><span className="avatar">{initials}</span><span className="account-copy"><strong>{profile.display_name ?? "Parts user"}</strong><small>{profile.role === "admin" ? "Administrator" : "Standard user"}</small></span><button title="Sign out" onClick={signOut}><LogOutIcon/></button></div>
