@@ -39,9 +39,16 @@ function validate(data: ImportData): ValidationIssue[] {
   };
   duplicateCheck("manufacturers", "Manufacturer Name", "Manufacturer Name");
   duplicateCheck("suppliers", "Supplier Name", "Supplier Name");
-  duplicateCheck("machines", "Machine Name", "Machine Name");
+  const seenMachines = new Set<string>();
   data.machines.forEach((row, index) => {
-    if (!row[key("Manufacturer")]) issues.push({ sheet: "machines", row: index + 2, message: "Manufacturer is required." });
+    const name = row[key("Machine Name")]; const manufacturer = row[key("Manufacturer")];
+    if (!name) issues.push({ sheet: "machines", row: index + 2, message: "Machine Name is required." });
+    if (!manufacturer) issues.push({ sheet: "machines", row: index + 2, message: "Manufacturer is required." });
+    if (name && manufacturer) {
+      const machineKey = `${key(manufacturer)}:${key(name)}`;
+      if (seenMachines.has(machineKey)) issues.push({ sheet: "machines", row: index + 2, message: `Duplicate machine for ${manufacturer}: ${name}` });
+      else seenMachines.add(machineKey);
+    }
   });
   return issues;
 }
@@ -103,6 +110,7 @@ export function BulkReferenceImport() {
       const manufacturers = new Map((manufacturerResult.data ?? []).map((item) => [key(item.name), item]));
       const suppliers = new Map((supplierResult.data ?? []).map((item) => [key(item.name), item]));
       const supplyTypes = new Map<string, string>();
+      const manufacturersEligibleForDefault = new Set<string>();
       (supplyTypeResult.data ?? []).forEach((item) => { supplyTypes.set(key(item.name), item.code); supplyTypes.set(key(item.code), item.code); });
 
       // Create manufacturers first without the optional supplier link.
@@ -113,7 +121,7 @@ export function BulkReferenceImport() {
         const query = existing ? supabase.from("manufacturers").update(values).eq("id", existing.id).select("id,name").single() : supabase.from("manufacturers").insert(values).select("id,name").single();
         const { data: saved, error } = await query;
         if (error || !saved) { result.failed++; rowErrors.push(`Manufacturers, row ${index + 2}: ${error?.message ?? "Could not save row."}`); }
-        else { manufacturers.set(key(name), saved); if (existing) result.updated++; else result.added++; }
+        else { manufacturers.set(key(name), saved); manufacturersEligibleForDefault.add(key(name)); if (existing) result.updated++; else result.added++; }
       }
 
       for (const [index, row] of data.suppliers.entries()) {
@@ -133,6 +141,7 @@ export function BulkReferenceImport() {
       for (const [index, row] of data.manufacturers.entries()) {
         const defaultName = row[key("Default Supplier")];
         if (!defaultName) continue;
+        if (!manufacturersEligibleForDefault.has(key(row[key("Manufacturer Name")]))) continue;
         const manufacturer = manufacturers.get(key(row[key("Manufacturer Name")]));
         const supplier = suppliers.get(key(defaultName));
         if (!manufacturer || !supplier) { result.failed++; rowErrors.push(`Manufacturers, row ${index + 2}: Default Supplier “${defaultName}” does not exist.`); continue; }
