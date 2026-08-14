@@ -13,7 +13,6 @@ const importOrder: BackupTable[] = [
   { name: "categories", deleteColumn: "id" }, { name: "supply_types", deleteColumn: "id" },\n  { name: "parts", deleteColumn: "id" }, { name: "part_requests", deleteColumn: "id" },
   { name: "part_suppliers", deleteColumn: "part_id" }, { name: "part_machine_revisions", deleteColumn: "part_id" },\n  { name: "part_categories", deleteColumn: "part_id" },
   { name: "part_images", deleteColumn: "id" }, { name: "request_images", deleteColumn: "id" },
-  { name: "tags", deleteColumn: "id" }, { name: "part_tags", deleteColumn: "part_id" },
   { name: "commonly_ordered_parts", deleteColumn: "part_id" },
 ];
 const imageTables = new Set(["part_images", "request_images"]);
