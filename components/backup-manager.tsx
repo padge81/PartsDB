@@ -10,10 +10,11 @@ type BackupFile = { format: "PartsDB backup"; version: 1; exported_at: string; t
 const importOrder: BackupTable[] = [
   { name: "manufacturers", deleteColumn: "id" }, { name: "suppliers", deleteColumn: "id" },
   { name: "machines", deleteColumn: "id" }, { name: "machine_revisions", deleteColumn: "id" },
+  { name: "categories", deleteColumn: "id" }, { name: "supply_types", deleteColumn: "id" },
   { name: "parts", deleteColumn: "id" }, { name: "part_requests", deleteColumn: "id" },
   { name: "part_suppliers", deleteColumn: "part_id" }, { name: "part_machine_revisions", deleteColumn: "part_id" },
+  { name: "part_categories", deleteColumn: "part_id" },
   { name: "part_images", deleteColumn: "id" }, { name: "request_images", deleteColumn: "id" },
-  { name: "tags", deleteColumn: "id" }, { name: "part_tags", deleteColumn: "part_id" },
   { name: "commonly_ordered_parts", deleteColumn: "part_id" },
 ];
 const imageTables = new Set(["part_images", "request_images"]);
