@@ -45,7 +45,11 @@ export function ReferenceDataManager() {
     if (table === "machines") values = { manufacturer_id: String(form.get("manufacturer_id") ?? ""), model: String(form.get("model") ?? ""), name: String(form.get("name") ?? "") || null };
     if (table === "machine_revisions") values = { machine_id: String(form.get("machine_id") ?? ""), revision: String(form.get("revision") ?? "") };
     if (table === "tags") values = { name: String(form.get("name") ?? ""), description: String(form.get("description") ?? "") || null };
-    const { error } = await supabase.from(table).insert(values); if (error) setMessage(error.message); else { event.currentTarget.reset(); setMessage("Reference data added successfully."); await load(); }
+    const { error } = await supabase.from(table).insert(values); if (error) setMessage(error.message); else {
+      event.currentTarget.reset();
+      await load();
+      window.location.reload();
+    }
   }
 
   return <AppShell requireAdmin>{() => <main className="workspace reference-workspace"><a className="back-link" href="/admin">← Back to administrator portal</a><section className="workspace-heading"><div><p className="eyebrow accent">Database administration</p><h1>Reference data</h1><p>Add controlled values used by the user and approval dropdown lists.</p></div><span className="admin-badge"><ShieldIcon/>Administrator</span></section>{message && <p className="form-message success-message">{message}</p>}<div className="reference-grid">
