@@ -43,7 +43,7 @@ export function LoginScreen() {
           <h1>The right part.<br />The first time.</h1>
           <p className="story-copy">A reliable source for machine compatibility, supplier ordering details and approved parts information.</p>
           <div className="feature-list">
-            <div><span><SearchIcon /></span><p><strong>Search with context</strong>Find by machine, revision, supplier or part number.</p></div>
+            <div><span><SearchIcon /></span><p><strong>Search with context</strong>Find by machine, supplier or part number.</p></div>
             <div><span><ShieldIcon /></span><p><strong>Controlled information</strong>Every new part passes through administrator approval.</p></div>
           </div>
         </div>
