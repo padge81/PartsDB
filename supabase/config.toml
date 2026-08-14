@@ -1,0 +1,10 @@
+# Local Supabase project configuration.
+# The hosted project reference is supplied explicitly by CI.
+project_id = "partsdb"
+
+[db]
+major_version = 17
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
