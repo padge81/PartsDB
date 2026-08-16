@@ -11,8 +11,7 @@ Known Issues:
 
 Future Improvements
 - Need ability to edit Machine name and model
-- Add ability to edit all fields for suppliers (website, ordering info)
-- Add ability to edit / add notes to manufacturers
+-Merge Manufactures and suppliers reference into one Manufactures/Distributors/suppliers, keep default supplier, notes, website and supply type feilds, default supplier should set to itself by default unless modified, all these fields should be able to be edited after being created
 - Add ability to add and edit pics for machines, only one and same compression as parts pics
     -Add a separate search feature to main page to look up machines, future proof to add manuals, service notes (submission same as parts, title, notes and ability to upload pics)
     -Add machine categories option, not compulsory, ability to add categories, only one per machine, add this to machine search as a filter
