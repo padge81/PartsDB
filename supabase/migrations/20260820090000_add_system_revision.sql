@@ -1,4 +1,3 @@
-fatal: path 'supabase/migrations/20260820090000_add_system_revision.sql' exists on disk, but not in 'HEAD'
 begin;
 
 create table if not exists public.system_metadata (
