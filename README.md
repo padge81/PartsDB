@@ -6,8 +6,8 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.2.0` |
-| Database | `0.2.0` |
+| Application | `0.2.1` |
+| Database | `0.2.1` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
 
@@ -24,15 +24,7 @@ The application footer displays both revisions so a frontend/database mismatch i
 
 ### Phase 1 — Current defects
 
-#### 1. Fix category saving and audit logging
-
-- Update `write_audit_log()` to support tables with composite keys.
-- Record part/category links using both `part_id` and `category_id`.
-- Check every audited relationship table for the same null `record_id` failure.
-- Test adding, editing and removing multiple categories.
-- Confirm the resulting audit history remains readable.
-
-#### 2. Correct machine identity rules
+#### 1. Correct machine identity rules
 
 - Make Machine Name required and Machine Model optional.
 - Backfill missing machine names from the existing model value.
@@ -41,7 +33,7 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Add appropriate case-insensitive manufacturer/name lookup protection.
 - Update add-part, approval, editing, bulk-import and search forms.
 
-#### 3. Fix custom supply types
+#### 2. Fix custom supply types
 
 - Replace hard-coded supply-type options with one shared database loader.
 - Use the shared list in Add Part, admin review, part editing, supplier editing, search and bulk import.
@@ -51,7 +43,7 @@ The application footer displays both revisions so a frontend/database mismatch i
 
 ### Phase 2 — Consolidate companies
 
-#### 4. Replace separate manufacturers and suppliers with companies
+#### 3. Replace separate manufacturers and suppliers with companies
 
 - Add a common company record containing name, website, notes, supply type and active status.
 - Allow each company to have Manufacturer, Supplier and/or Distributor roles.
@@ -64,14 +56,14 @@ The application footer displays both revisions so a frontend/database mismatch i
 
 ### Phase 3 — Machine management
 
-#### 5. Full machine editing and images
+#### 4. Full machine editing and images
 
 - Add an administrator machine editor for name, optional model, company, notes and status.
 - Support one machine image with the same WebP compression used for part images.
 - Add image preview, replacement and removal.
 - Store machine images in a separate Supabase Storage bucket with appropriate policies.
 
-#### 6. Machine categories and search
+#### 5. Machine categories and search
 
 - Add administrator-managed machine categories.
 - Allow one optional category per machine.
@@ -81,7 +73,7 @@ The application footer displays both revisions so a frontend/database mismatch i
 
 ### Phase 4 — Duplicate prevention
 
-#### 7. Similar-part warnings during approval
+#### 6. Similar-part warnings during approval
 
 - Search active parts using exact and partial manufacturer part numbers.
 - Rank similar descriptions using PostgreSQL trigram search.
@@ -97,6 +89,13 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.2.1` — 20 August 2026
+
+- Fixed category relationship auditing for tables that use composite primary keys.
+- Changed the audit trigger to derive record identifiers from each table's actual primary key columns.
+- Added a deterministic fallback identifier for any audited table without a primary key.
+- Restored adding, editing and removing part categories without a null `audit_log.record_id` failure.
 
 ### `0.2.0` — 20 August 2026
 
