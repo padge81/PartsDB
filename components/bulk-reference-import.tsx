@@ -57,7 +57,7 @@ async function makeTemplate() {
   const buffer = createXlsx({
     Manufacturers: [["Manufacturer Name", "Default Supplier", "Notes"], ["Example Manufacturer", "Example Supplier", ""]],
     Suppliers: [["Supplier Name", "Supply Type", "Website URL", "Ordering Information", "Notes"], ["Example Supplier", "Unknown", "", "", ""]],
-    Machines: [["Machine Name", "Manufacturer"], ["Example Machine", "Example Manufacturer"]],
+    Machines: [["Machine Name", "Machine Model", "Manufacturer"], ["Example Machine", "Optional model", "Example Manufacturer"]],
   });
   const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   const url = URL.createObjectURL(blob); const anchor = document.createElement("a");
@@ -102,7 +102,7 @@ export function BulkReferenceImport() {
       const [manufacturerResult, supplierResult, machineResult, supplyTypeResult] = await Promise.all([
         supabase.from("manufacturers").select("id,name"),
         supabase.from("suppliers").select("id,name"),
-        supabase.from("machines").select("id,model,manufacturer_id"),
+        supabase.from("machines").select("id,name,model,manufacturer_id"),
         supabase.from("supply_types").select("code,name").eq("is_active", true),
       ]);
       const firstError = manufacturerResult.error || supplierResult.error || machineResult.error || supplyTypeResult.error;
@@ -149,14 +149,14 @@ export function BulkReferenceImport() {
         if (error) { result.failed++; rowErrors.push(`Manufacturers, row ${index + 2}: ${error.message}`); }
       }
 
-      const machines = new Map((machineResult.data ?? []).map((item) => [`${item.manufacturer_id}:${key(item.model)}`, item]));
+      const machines = new Map((machineResult.data ?? []).map((item) => [`${item.manufacturer_id}:${key(item.name)}`, item]));
       for (const [index, row] of data.machines.entries()) {
-        const name = row[key("Machine Name")]; const manufacturer = manufacturers.get(key(row[key("Manufacturer")]));
+        const name = row[key("Machine Name")]; const model = row[key("Machine Model")]; const manufacturer = manufacturers.get(key(row[key("Manufacturer")]));
         if (!manufacturer) { result.failed++; rowErrors.push(`Machines, row ${index + 2}: Manufacturer “${row[key("Manufacturer")]}” does not exist.`); continue; }
         const machineKey = `${manufacturer.id}:${key(name)}`; const existing = machines.get(machineKey);
-        const values = { manufacturer_id: manufacturer.id, model: name, name, is_active: true };
+        const values = { manufacturer_id: manufacturer.id, name, model: model || null, is_active: true };
         if (existing && mode === "skip") { result.skipped++; continue; }
-        const query = existing ? supabase.from("machines").update(values).eq("id", existing.id).select("id,model,manufacturer_id").single() : supabase.from("machines").insert(values).select("id,model,manufacturer_id").single();
+        const query = existing ? supabase.from("machines").update(values).eq("id", existing.id).select("id,name,model,manufacturer_id").single() : supabase.from("machines").insert(values).select("id,name,model,manufacturer_id").single();
         const { data: saved, error } = await query;
         if (error || !saved) { result.failed++; rowErrors.push(`Machines, row ${index + 2}: ${error?.message ?? "Could not save row."}`); }
         else { machines.set(machineKey, saved); if (existing) result.updated++; else result.added++; }
