@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { BoxIcon, ClipboardIcon, LogOutIcon, SearchIcon, ShieldIcon } from "./icons";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "../lib/supabase";
+import { APP_REVISION } from "../lib/version";
 
 export type Profile = { id: string; display_name: string | null; role: "user" | "admin"; is_active: boolean };
 
@@ -14,6 +15,7 @@ export function AppShell({ children, requireAdmin = false }: { children: (profil
   const [profile, setProfile] = useState<Profile | null>(() => isSupabaseConfigured ? null : { id: "preview", display_name: "Stuart Padgett", role: "admin", is_active: true });
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [error, setError] = useState("");
+  const [databaseRevision, setDatabaseRevision] = useState(isSupabaseConfigured ? "checking" : "not connected");
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -23,7 +25,11 @@ export function AppShell({ children, requireAdmin = false }: { children: (profil
         router.replace("/");
         return;
       }
-      const { data: profileData, error: profileError } = await supabase.from("profiles").select("id, display_name, role, is_active").eq("id", data.user.id).single();
+      const [{ data: profileData, error: profileError }, { data: revisionData }] = await Promise.all([
+        supabase.from("profiles").select("id, display_name, role, is_active").eq("id", data.user.id).single(),
+        supabase.from("system_metadata").select("value").eq("key", "database_revision").maybeSingle(),
+      ]);
+      setDatabaseRevision(revisionData?.value ?? "unavailable");
       if (profileError || !profileData) setError("Your PartsDB profile could not be loaded.");
       else if (!profileData.is_active) setError("This PartsDB account is inactive.");
       else setProfile(profileData as Profile);
@@ -56,6 +62,7 @@ export function AppShell({ children, requireAdmin = false }: { children: (profil
       </header>
       {!isSupabaseConfigured && <div className="preview-banner">Interface preview · connect the Supabase browser key to use live data</div>}
       {children(profile)}
+      <footer className="revision-footer">App v{APP_REVISION} · DB v{databaseRevision}</footer>
     </div>
   );
 }

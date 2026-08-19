@@ -1,18 +1,106 @@
 # PartsDB
 
-A centralised, searchable repository for external machine parts, supplier ordering information, machine compatibility, images, and controlled add-part approvals.
+A centralised, searchable repository for external machine parts, supplier ordering information, machine compatibility, images and controlled add-part approvals.
 
-The project is in initial database-design setup. Application code and Supabase migrations will be proposed through pull requests.
+## Current revision
 
-Known Issues:
-- Part Categories not saving when adding part, following error when saving edited part selecting a category "null value in column "record_id" of relation "audit_log" violates not-null constraint"
-- Machine Model field needs to be set to non mandatory, also currently unable to have same model (per manufacturer?).
-- new supply types flag error when submitting parts request
+| Component | Revision |
+| --- | --- |
+| Application | `0.2.0` |
+| Database | `0.2.0` |
 
-Future Improvements
-- Need ability to edit Machine name and model
-- Merge Manufactures and suppliers reference into one Manufactures/Distributors/suppliers, keep default supplier, notes, website and supply type feilds, default supplier should set to itself by default unless modified, all these fields should be able to be edited after being created
-- Add ability to add and edit pics for machines, only one and same compression as parts pics
-    - Add a separate search feature to main page to look up machines, future proof to add manuals, service notes (submission same as parts, title, notes and ability to upload pics)
-    - Add machine categories option, not compulsory, ability to add categories, only one per machine, add this to machine search as a filter
-In admin section, pending parts request, show a list of possible existing entries searched by similar part number and or description
+PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
+
+The application footer displays both revisions so a frontend/database mismatch is visible immediately.
+
+## Delivery process
+
+- Work is delivered as small, independently testable pull requests.
+- Database migrations must be backward-safe and pass the Supabase workflow before merge.
+- Completed roadmap items are removed from **Action plan** and recorded under **Updates**.
+- Backup/export/import compatibility must be checked whenever tables or relationships change.
+
+## Action plan
+
+### Phase 1 — Current defects
+
+#### 1. Fix category saving and audit logging
+
+- Update `write_audit_log()` to support tables with composite keys.
+- Record part/category links using both `part_id` and `category_id`.
+- Check every audited relationship table for the same null `record_id` failure.
+- Test adding, editing and removing multiple categories.
+- Confirm the resulting audit history remains readable.
+
+#### 2. Correct machine identity rules
+
+- Make Machine Name required and Machine Model optional.
+- Backfill missing machine names from the existing model value.
+- Remove the unique `(manufacturer_id, model)` constraint.
+- Allow the same model to be used by multiple machines for one manufacturer.
+- Add appropriate case-insensitive manufacturer/name lookup protection.
+- Update add-part, approval, editing, bulk-import and search forms.
+
+#### 3. Fix custom supply types
+
+- Replace hard-coded supply-type options with one shared database loader.
+- Use the shared list in Add Part, admin review, part editing, supplier editing, search and bulk import.
+- Store the supply-type code while displaying its editable name.
+- Prevent deactivation of a supply type that is in use unless a replacement is selected.
+- Test a newly created supply type through request submission and approval.
+
+### Phase 2 — Consolidate companies
+
+#### 4. Replace separate manufacturers and suppliers with companies
+
+- Add a common company record containing name, website, notes, supply type and active status.
+- Allow each company to have Manufacturer, Supplier and/or Distributor roles.
+- Preserve the default-supplier relationship.
+- Default a manufacturer to itself when it also has a supplier role, while allowing an administrator override.
+- Migrate existing manufacturers and suppliers without losing machine, part or request links.
+- Produce a migration report for duplicate or ambiguous company names.
+- Replace separate reference screens with one editable Companies section.
+- Update bulk import, backup export and restore before retiring the old tables.
+
+### Phase 3 — Machine management
+
+#### 5. Full machine editing and images
+
+- Add an administrator machine editor for name, optional model, company, notes and status.
+- Support one machine image with the same WebP compression used for part images.
+- Add image preview, replacement and removal.
+- Store machine images in a separate Supabase Storage bucket with appropriate policies.
+
+#### 6. Machine categories and search
+
+- Add administrator-managed machine categories.
+- Allow one optional category per machine.
+- Add a separate machine search on the main page.
+- Filter machines by company, category, name and model.
+- Add a machine details page showing its image, company, name, model, category, notes and compatible parts.
+
+### Phase 4 — Duplicate prevention
+
+#### 7. Similar-part warnings during approval
+
+- Search active parts using exact and partial manufacturer part numbers.
+- Rank similar descriptions using PostgreSQL trigram search.
+- Prefer matches linked to the same machine.
+- Display likely matches, match reasons and scores beside the pending request.
+- Allow each possible match to open in a new tab.
+- Warn before approving a high-confidence duplicate while allowing an administrator override.
+
+### Later expansion
+
+- Add machine manuals and service notes after machine search/details are stable.
+- Add controlled machine change requests with title, notes and compressed images.
+- Keep machine documents, notes, requests and images separate from part-request records.
+
+## Updates
+
+### `0.2.0` — 20 August 2026
+
+- Added formal application and database revision tracking.
+- Added visible application/database revision information to the frontend.
+- Replaced the informal known-issues list with a dependency-ordered delivery plan.
+- Established the rule that completed work moves from the action plan into this Updates section.
