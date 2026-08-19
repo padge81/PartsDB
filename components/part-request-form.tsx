@@ -9,7 +9,7 @@ import { getSupabaseBrowserClient } from "../lib/supabase";
 import { formatBytes, prepareImage, type PreparedImage } from "../lib/image-compression";
 
 type Named = { id: string; name: string };
-type Machine = { id: string; model: string; name: string | null; manufacturer?: Named | null };
+type Machine = { id: string; model: string | null; name: string; manufacturer?: Named | null };
 type ExistingPart = { id: string; description: string; internal_part_number: string | null };
 type SupplierDraft = { supplier_id: string; supplier_part_number: string; ordering_information: string; notes: string };
 type MachineDraft = { manufacturer_id: string; machine_id: string; revision_id: string };
@@ -25,6 +25,7 @@ export function PartRequestForm() {
   const [machineId, setMachineId] = useState("");
   const [machineManufacturerId, setMachineManufacturerId] = useState("");
   const [machineManufacturer, setMachineManufacturer] = useState("");
+  const [machineName, setMachineName] = useState("");
   const [machineModel, setMachineModel] = useState("");
   const [partDescription, setPartDescription] = useState("");
   const [partManufacturer, setPartManufacturer] = useState("");
@@ -46,7 +47,7 @@ export function PartRequestForm() {
     Promise.all([
       supabase.from("manufacturers").select("id,name").eq("is_active", true).order("name"),
       supabase.from("suppliers").select("id,name").eq("is_active", true).order("name"),
-      supabase.from("machines").select("id,model,name,manufacturer:manufacturers(id,name)").eq("is_active", true).order("model"),
+      supabase.from("machines").select("id,model,name,manufacturer:manufacturers(id,name)").eq("is_active", true).order("name"),
       supabase.from("parts").select("id,description,internal_part_number").eq("status", "active").order("description"),
     ]).then(([mfr, supp, machine, existing]) => {
       setManufacturers((mfr.data ?? []) as Named[]); setSuppliers((supp.data ?? []) as Named[]);
@@ -69,11 +70,11 @@ export function PartRequestForm() {
   function selectMachine(id: string) {
     setMachineId(id);
     const machine = machines.find((item) => item.id === id);
-    if (machine) { setMachineManufacturer(machine.manufacturer?.name ?? ""); setMachineModel(machine.model); }
+    if (machine) { setMachineManufacturer(machine.manufacturer?.name ?? ""); setMachineName(machine.name); setMachineModel(machine.model ?? ""); }
   }
 
   function selectMachineManufacturer(id: string) {
-    setMachineManufacturerId(id); setMachineManufacturer(manufacturers.find((item) => item.id === id)?.name ?? ""); setMachineId(""); setMachineModel("");
+    setMachineManufacturerId(id); setMachineManufacturer(manufacturers.find((item) => item.id === id)?.name ?? ""); setMachineId(""); setMachineName(""); setMachineModel("");
   }
 
   function updateSupplier(index: number, field: keyof SupplierDraft, value: string) {
@@ -89,7 +90,7 @@ export function PartRequestForm() {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
     const supplierInformation = supplierRows.filter((row) => row.supplier_id).map((row, index) => ({ ...row, preference_rank: index + 1, supplier_name: suppliers.find((supplier) => supplier.id === row.supplier_id)?.name ?? "" }));
-    const { data: request, error } = await supabase.from("part_requests").insert({ requested_by: profile.id, status: "draft", machine_manufacturer: machineManufacturer || null, machine_model: machineModel || null, machine_revision: null, machine_revision_ids: additionalMachines.map((row) => row.machine_id).filter(Boolean), part_description: partDescription, part_manufacturer: partManufacturer || null, manufacturer_part_number: manufacturerPartNumber || null, supplier_information: supplierInformation, supply_type: supplyType, compatibility_tags: [], commonly_ordered_part_ids: relatedIds, notes: notes || null }).select("id").single();
+    const { data: request, error } = await supabase.from("part_requests").insert({ requested_by: profile.id, status: "draft", machine_manufacturer: machineManufacturer || null, machine_name: machineName || null, machine_model: machineModel || null, machine_revision: null, machine_revision_ids: additionalMachines.map((row) => row.machine_id).filter(Boolean), part_description: partDescription, part_manufacturer: partManufacturer || null, manufacturer_part_number: manufacturerPartNumber || null, supplier_information: supplierInformation, supply_type: supplyType, compatibility_tags: [], commonly_ordered_part_ids: relatedIds, notes: notes || null }).select("id").single();
     if (error || !request) { setMessage(error?.message ?? "The request could not be created."); setSaving(false); return; }
 
     for (const [index, prepared] of files.entries()) {

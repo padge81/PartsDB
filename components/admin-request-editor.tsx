@@ -8,9 +8,9 @@ import { ShieldIcon } from "./icons";
 import { getSupabaseBrowserClient } from "../lib/supabase";
 
 type SupplierInfo = { supplier_id?: string; supplier_name?: string; supplier_part_number?: string; ordering_information?: string; notes?: string; preference_rank?: number };
-type EditableRequest = { id: string; requested_by: string; part_description: string; part_manufacturer: string; manufacturer_part_number: string; machine_manufacturer: string; machine_model: string; machine_revision: string; machine_revision_ids: string[]; supply_type: string; compatibility_tags: string[]; commonly_ordered_part_ids: string[]; supplier_information: SupplierInfo[]; notes: string; review_notes: string; status: string };
+type EditableRequest = { id: string; requested_by: string; part_description: string; part_manufacturer: string; manufacturer_part_number: string; machine_manufacturer: string; machine_name: string; machine_model: string; machine_revision: string; machine_revision_ids: string[]; supply_type: string; compatibility_tags: string[]; commonly_ordered_part_ids: string[]; supplier_information: SupplierInfo[]; notes: string; review_notes: string; status: string };
 type Named = { id: string; name: string };
-type MachineOption = { id: string; model: string; name: string | null; manufacturer?: Named | null };
+type MachineOption = { id: string; model: string | null; name: string; manufacturer?: Named | null };
 type PartOption = { id: string; description: string; internal_part_number: string | null };
 type MachineDraft = { manufacturer_id: string; machine_id: string; revision_id: string };
 type RequestImage = { id: string; storage_path: string; kind: string; sort_order: number; signedUrl?: string };
@@ -35,7 +35,7 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
       supabase.from("part_requests").select("*").eq("id", requestId).single(),
       supabase.from("manufacturers").select("id,name").eq("is_active", true).order("name"),
       supabase.from("suppliers").select("id,name").eq("is_active", true).order("name"),
-      supabase.from("machines").select("id,model,name,manufacturer:manufacturers(id,name)").eq("is_active", true).order("model"),
+      supabase.from("machines").select("id,model,name,manufacturer:manufacturers(id,name)").eq("is_active", true).order("name"),
       supabase.from("machine_revisions").select("id,machine_id,revision").eq("is_active", true).order("revision"),
       supabase.from("parts").select("id,description,internal_part_number").eq("status", "active").order("description"),
       supabase.from("request_images").select("id,storage_path,kind,sort_order").eq("request_id", requestId).order("sort_order"),
@@ -45,7 +45,7 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
         setRequest(loadedRequest);
         const loadedManufacturerId = (manufacturerResult.data ?? []).find((manufacturer) => manufacturer.name === loadedRequest.machine_manufacturer)?.id ?? "";
         setMachineManufacturerId(loadedManufacturerId);
-        setMachineId(((machineResult.data ?? []) as unknown as MachineOption[]).find((machine) => machine.manufacturer?.id === loadedManufacturerId && machine.model === loadedRequest.machine_model)?.id ?? "");
+        setMachineId(((machineResult.data ?? []) as unknown as MachineOption[]).find((machine) => machine.manufacturer?.id === loadedManufacturerId && machine.name === (loadedRequest.machine_name || loadedRequest.machine_model))?.id ?? "");
         setAdditionalMachines((loadedRequest.machine_revision_ids ?? []).map((compatibilityId) => { const legacyRevision = (revisionResult.data ?? []).find((revision) => revision.id === compatibilityId); const machine_id = legacyRevision?.machine_id ?? (((machineResult.data ?? []) as unknown as MachineOption[]).some((machine) => machine.id === compatibilityId) ? compatibilityId : ""); const machine = ((machineResult.data ?? []) as unknown as MachineOption[]).find((item) => item.id === machine_id); return { manufacturer_id: machine?.manufacturer?.id ?? "", machine_id, revision_id: compatibilityId }; }));
       }
       setManufacturers((manufacturerResult.data ?? []) as Named[]); setSuppliers((supplierResult.data ?? []) as Named[]);
@@ -54,8 +54,8 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
     });
   }, [requestId]);
   function field(name: keyof EditableRequest, value: string) { setRequest((current) => current ? { ...current, [name]: value } : current); }
-  function selectMachine(id: string) { setMachineId(id); const machine = machines.find((item) => item.id === id); if (machine) setRequest((current) => current ? { ...current, machine_manufacturer: machine.manufacturer?.name ?? "", machine_model: machine.model, machine_revision: "" } : current); }
-  function selectMachineManufacturer(id: string) { setMachineManufacturerId(id); setMachineId(""); setRequest((current) => current ? { ...current, machine_manufacturer: manufacturers.find((item) => item.id === id)?.name ?? "", machine_model: "", machine_revision: "" } : current); }
+  function selectMachine(id: string) { setMachineId(id); const machine = machines.find((item) => item.id === id); if (machine) setRequest((current) => current ? { ...current, machine_manufacturer: machine.manufacturer?.name ?? "", machine_name: machine.name, machine_model: machine.model ?? "", machine_revision: "" } : current); }
+  function selectMachineManufacturer(id: string) { setMachineManufacturerId(id); setMachineId(""); setRequest((current) => current ? { ...current, machine_manufacturer: manufacturers.find((item) => item.id === id)?.name ?? "", machine_name: "", machine_model: "", machine_revision: "" } : current); }
   function updateSupplier(index: number, name: keyof SupplierInfo, value: string) { setRequest((current) => current ? { ...current, supplier_information: Array.from({ length: 3 }, (_, rowIndex) => ({ ...(current.supplier_information?.[rowIndex] ?? { preference_rank: rowIndex + 1 }), ...(rowIndex === index ? { [name]: value, ...(name === "supplier_id" ? { supplier_name: suppliers.find((supplier) => supplier.id === value)?.name ?? "" } : {}) } : {}) })) } : current); }
   function setMachineRows(rows: MachineDraft[]) { setAdditionalMachines(rows); setRequest((current) => current ? { ...current, machine_revision_ids: rows.map((row) => row.revision_id).filter(Boolean) } : current); }
   function updateAdditionalMachine(index: number, name: keyof MachineDraft, value: string) { setMachineRows(additionalMachines.map((row, rowIndex) => rowIndex === index ? { ...row, [name]: value, ...(name === "manufacturer_id" ? { machine_id: "", revision_id: "" } : {}), ...(name === "machine_id" ? { revision_id: value } : {}) } : row)); }
@@ -63,7 +63,7 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
   async function save(event?: FormEvent) {
     event?.preventDefault(); if (!request) return false; setSaving(true); setMessage("");
     const supabase = getSupabaseBrowserClient(); if (!supabase) return false;
-    const { error } = await supabase.from("part_requests").update({ part_description: request.part_description, part_manufacturer: request.part_manufacturer || null, manufacturer_part_number: request.manufacturer_part_number || null, machine_manufacturer: request.machine_manufacturer || null, machine_model: request.machine_model || null, machine_revision: null, machine_revision_ids: request.machine_revision_ids ?? [], supply_type: request.supply_type, compatibility_tags: [], commonly_ordered_part_ids: request.commonly_ordered_part_ids ?? [], supplier_information: (request.supplier_information ?? []).filter((supplier) => supplier.supplier_id || supplier.supplier_name), notes: request.notes || null, review_notes: request.review_notes || null }).eq("id", request.id);
+    const { error } = await supabase.from("part_requests").update({ part_description: request.part_description, part_manufacturer: request.part_manufacturer || null, manufacturer_part_number: request.manufacturer_part_number || null, machine_manufacturer: request.machine_manufacturer || null, machine_name: request.machine_name || null, machine_model: request.machine_model || null, machine_revision: null, machine_revision_ids: request.machine_revision_ids ?? [], supply_type: request.supply_type, compatibility_tags: [], commonly_ordered_part_ids: request.commonly_ordered_part_ids ?? [], supplier_information: (request.supplier_information ?? []).filter((supplier) => supplier.supplier_id || supplier.supplier_name), notes: request.notes || null, review_notes: request.review_notes || null }).eq("id", request.id);
     setSaving(false); if (error) { setMessage(error.message); return false; } setMessage("Request changes saved."); return true;
   }
 
@@ -119,14 +119,14 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
       if (revisionId) await supabase.from("part_machine_revisions").upsert({ part_id: createdPart.data.id, machine_revision_id: revisionId }, { onConflict: "part_id,machine_revision_id" });
     }
 
-    if (request.machine_manufacturer && request.machine_model) {
+    if (request.machine_manufacturer && request.machine_name) {
       let machineManufacturerId: string | null = null;
       const existingMfr = await supabase.from("manufacturers").select("id").ilike("name", request.machine_manufacturer).limit(1).maybeSingle();
       if (existingMfr.data) machineManufacturerId = existingMfr.data.id; else { const created = await supabase.from("manufacturers").insert({ name: request.machine_manufacturer }).select("id").single(); machineManufacturerId = created.data?.id ?? null; }
       if (machineManufacturerId) {
         let machineId: string | null = null;
-        const existingMachine = await supabase.from("machines").select("id").eq("manufacturer_id", machineManufacturerId).ilike("model", request.machine_model).limit(1).maybeSingle();
-        if (existingMachine.data) machineId = existingMachine.data.id; else { const created = await supabase.from("machines").insert({ manufacturer_id: machineManufacturerId, model: request.machine_model }).select("id").single(); machineId = created.data?.id ?? null; }
+        const existingMachine = await supabase.from("machines").select("id").eq("manufacturer_id", machineManufacturerId).ilike("name", request.machine_name).limit(1).maybeSingle();
+        if (existingMachine.data) machineId = existingMachine.data.id; else { const created = await supabase.from("machines").insert({ manufacturer_id: machineManufacturerId, name: request.machine_name, model: request.machine_model || null }).select("id").single(); machineId = created.data?.id ?? null; }
         if (machineId) {
           let revisionId: string | null = null; const existingRevision = await supabase.from("machine_revisions").select("id").eq("machine_id", machineId).eq("is_active", true).limit(1).maybeSingle();
           if (existingRevision.data) revisionId = existingRevision.data.id; else { const created = await supabase.from("machine_revisions").insert({ machine_id: machineId, revision: "Default" }).select("id").single(); revisionId = created.data?.id ?? null; }
