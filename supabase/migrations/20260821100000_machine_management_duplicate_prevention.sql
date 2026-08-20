@@ -91,7 +91,7 @@ language sql stable security invoker set search_path = '' as $$
             or candidate_number ilike '%' || btrim(p.manufacturer_part_number) || '%') then 'Partial part number'
         else null
       end as number_match,
-      similarity(coalesce(p.description, ''), coalesce(candidate_description, ''))::real as description_score,
+      extensions.similarity(coalesce(p.description, ''), coalesce(candidate_description, ''))::real as description_score,
       exists (
         select 1 from public.part_machines pm
         where pm.part_id = p.id and pm.machine_id = any(coalesce(candidate_machine_ids, '{}'))
