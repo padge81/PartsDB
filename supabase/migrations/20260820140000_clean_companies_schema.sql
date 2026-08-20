@@ -138,7 +138,7 @@ begin
   return jsonb_build_object('parts_replaced', part_count, 'requests_replaced', request_count, 'companies_replaced', company_count);
 end; $$;
 
-insert into public.system_settings(key, value, updated_at)
+insert into public.system_metadata(key, value, updated_at)
 values ('database_revision', '0.5.0', now())
 on conflict (key) do update set value = excluded.value, updated_at = excluded.updated_at;
 
