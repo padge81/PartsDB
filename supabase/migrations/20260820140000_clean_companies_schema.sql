@@ -23,19 +23,19 @@ drop trigger if exists audit_suppliers on public.suppliers;
 drop trigger if exists manufacturers_set_updated_at on public.manufacturers;
 drop trigger if exists suppliers_set_updated_at on public.suppliers;
 
-drop table public.part_machine_revisions;
-drop table public.machine_revisions;
-drop table public.part_tags;
-drop table public.machine_tags;
-drop table public.tags;
+drop table if exists public.part_machine_revisions;
+drop table if exists public.machine_revisions;
+drop table if exists public.part_tags;
+drop table if exists public.machine_tags;
+drop table if exists public.tags;
 
 alter table public.machines drop constraint if exists machines_manufacturer_id_fkey;
 alter table public.parts drop constraint if exists parts_manufacturer_id_fkey;
 alter table public.part_suppliers drop constraint if exists part_suppliers_supplier_id_fkey;
 alter table public.manufacturers drop constraint if exists manufacturers_default_supplier_id_fkey;
 
-drop table public.suppliers;
-drop table public.manufacturers;
+drop table if exists public.suppliers;
+drop table if exists public.manufacturers;
 
 create table public.companies (
   id uuid primary key default gen_random_uuid(),
