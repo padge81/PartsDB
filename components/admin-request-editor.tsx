@@ -15,6 +15,7 @@ type MachineOption = { id: string; model: string | null; name: string; manufactu
 type PartOption = { id: string; description: string; manufacturer_part_number: string | null };
 type MachineDraft = { manufacturer_id: string; machine_id: string };
 type RequestImage = { id: string; storage_path: string; kind: string; sort_order: number; signedUrl?: string };
+type SimilarPart = { id: string; description: string; manufacturer_part_number: string | null; number_match: string | null; description_score: number; same_machine: boolean; score: number };
 
 export function AdminRequestEditor({ requestId }: { requestId: string }) {
   const supplyTypes = useSupplyTypes();
@@ -30,6 +31,8 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
   const [machineManufacturerId, setMachineManufacturerId] = useState("");
   const [additionalMachines, setAdditionalMachines] = useState<MachineDraft[]>([]);
   const [requestImages, setRequestImages] = useState<RequestImage[]>([]);
+  const [similarParts, setSimilarParts] = useState<SimilarPart[]>([]);
+  const [duplicateOverride, setDuplicateOverride] = useState(false);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient(); if (!supabase) return;
@@ -54,6 +57,18 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
       if (imageResult.data?.length) { const rows = imageResult.data as RequestImage[]; const { data: signed } = await supabase.storage.from("request-images").createSignedUrls(rows.map((image) => image.storage_path), 3600); setRequestImages(rows.map((image, index) => ({ ...image, signedUrl: signed?.[index]?.signedUrl }))); }
     });
   }, [requestId]);
+  useEffect(() => {
+    if (!request) return;
+    const timer = window.setTimeout(async () => {
+      const supabase = getSupabaseBrowserClient(); if (!supabase) return;
+      const machineIds = [machineId, ...(request.machine_ids ?? [])].filter(Boolean);
+      const { data } = await supabase.rpc("find_similar_parts", { candidate_number: request.manufacturer_part_number || "", candidate_description: request.part_description || "", candidate_machine_ids: machineIds, result_limit: 8 });
+      setSimilarParts((data ?? []) as SimilarPart[]); setDuplicateOverride(false);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  // Only rerun when the fields used by the similarity query change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request?.manufacturer_part_number, request?.part_description, request?.machine_ids, machineId]);
   function field(name: keyof EditableRequest, value: string) { setRequest((current) => current ? { ...current, [name]: value } : current); }
   function selectMachine(id: string) { setMachineId(id); const machine = machines.find((item) => item.id === id); if (machine) setRequest((current) => current ? { ...current, machine_manufacturer: machine.manufacturer?.name ?? "", machine_name: machine.name, machine_model: machine.model ?? "" } : current); }
   function selectMachineManufacturer(id: string) { setMachineManufacturerId(id); setMachineId(""); setRequest((current) => current ? { ...current, machine_manufacturer: manufacturers.find((item) => item.id === id)?.name ?? "", machine_name: "", machine_model: "" } : current); }
@@ -76,6 +91,7 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
 
   async function approve(profile: Profile) {
     if (!request) return; setSaving(true); setMessage(""); const supabase = getSupabaseBrowserClient(); if (!supabase) return;
+    if (similarParts.some((part) => part.score >= .78) && !duplicateOverride) { setMessage("A high-confidence possible duplicate must be reviewed. Tick the override box if this is a genuinely new part."); setSaving(false); return; }
     await save();
     let manufacturerId: string | null = null;
     if (request.part_manufacturer) {
@@ -131,6 +147,7 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
     <section className="form-card"><div className="detail-card-heading"><h2>Part information</h2><span>Database linked</span></div><div className="form-grid"><label className="span-2">Part Description *<input required value={request.part_description} onChange={(e) => field("part_description", e.target.value)}/></label><label>Part manufacturer<select value={request.part_manufacturer ?? ""} onChange={(e) => field("part_manufacturer", e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label><label>Part Number Manufacturer<input value={request.manufacturer_part_number ?? ""} onChange={(e) => field("manufacturer_part_number", e.target.value)}/></label><label>Supply type<select value={request.supply_type} onChange={(e) => field("supply_type", e.target.value)}>{supplyTypes.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label></div></section>
     <section className="form-card"><div className="detail-card-heading"><h2>Part supplier information</h2><span>Database linked · up to three</span></div><div className="supplier-form-list">{Array.from({ length: 3 }, (_, index) => request.supplier_information?.[index] ?? { preference_rank: index + 1 }).map((supplier, index) => <div className="supplier-form-row" key={index}><span>{index + 1}</span><label>{index === 0 ? "Part Supplier" : "Additional Supplier"}<select value={supplier.supplier_id ?? ""} onChange={(e) => updateSupplier(index, "supplier_id", e.target.value)}><option value="">Not selected</option>{suppliers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>{index === 0 ? "Part Number local supplier" : "Supplier part number"}<input value={supplier.supplier_part_number ?? ""} onChange={(e) => updateSupplier(index, "supplier_part_number", e.target.value)}/></label><label>Ordering information<input value={supplier.ordering_information ?? ""} onChange={(e) => updateSupplier(index, "ordering_information", e.target.value)}/></label></div>)}</div></section>
     <section className="form-card"><div className="detail-card-heading"><h2>Submitted images</h2><span>{requestImages.length}</span></div>{requestImages.length ? <div className="review-image-grid">{requestImages.map((image, index) => image.signedUrl ? <a href={image.signedUrl} target="_blank" rel="noreferrer" key={image.id}><Image unoptimized width={360} height={270} src={image.signedUrl} alt={`Submitted part image ${index + 1}`}/><span>Image {index + 1} · open full size</span></a> : null)}</div> : <p className="empty-detail">No images were submitted.</p>}</section>
+    <section className="form-card duplicate-card"><div className="detail-card-heading"><h2>Possible duplicates</h2><span>{similarParts.length} matches</span></div>{similarParts.length ? <div className="duplicate-list">{similarParts.map((part) => <a href={`/parts/${part.id}`} target="_blank" rel="noreferrer" key={part.id} className={part.score >= .78 ? "high-confidence" : ""}><span><strong>{part.description}</strong><small>{part.manufacturer_part_number ?? "No part number"}</small></span><span>{[part.number_match, part.same_machine ? "Same machine" : null, `${Math.round(part.description_score * 100)}% description`].filter(Boolean).join(" · ")}</span><em>{Math.round(part.score * 100)}%</em></a>)}</div> : <p className="empty-detail">No likely matches found.</p>}{similarParts.some((part) => part.score >= .78) && <label className="duplicate-override"><input type="checkbox" checked={duplicateOverride} onChange={(e) => setDuplicateOverride(e.target.checked)}/><span><strong>Approve as a new part anyway</strong><small>I reviewed the high-confidence matches and confirm this is not a duplicate.</small></span></label>}</section>
     <section className="form-card"><div className="detail-card-heading"><h2>Related information</h2><span>Database linked</span></div><div className="form-grid"><label className="span-2">Consider ordering with<select multiple value={request.commonly_ordered_part_ids ?? []} onChange={(e) => setRequest({ ...request, commonly_ordered_part_ids: Array.from(e.target.selectedOptions, (option) => option.value) })}>{parts.map((part) => <option key={part.id} value={part.id}>{part.manufacturer_part_number ?? "No part number"} · {part.description}</option>)}</select></label><label className="span-2">Part notes<textarea rows={5} value={request.notes ?? ""} onChange={(e) => field("notes", e.target.value)}/></label><label className="span-2">Administrator review notes<textarea rows={4} value={request.review_notes ?? ""} onChange={(e) => field("review_notes", e.target.value)}/></label></div></section>
     {message && <p className="form-message success-message">{message}</p>}<div className="form-actions admin-actions"><button type="button" className="button danger" disabled={saving} onClick={() => reject(profile)}>Reject request</button><button className="button secondary" disabled={saving}>Save changes</button><button type="button" className="button primary" disabled={saving} onClick={() => approve(profile)}>{saving ? "Processing…" : "Approve & add to database"}</button></div></form></>}</main>}</AppShell>;
 }
