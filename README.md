@@ -6,8 +6,8 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.3.0` |
-| Database | `0.3.0` |
+| Application | `0.4.0` |
+| Database | `0.4.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
 
@@ -22,19 +22,9 @@ The application footer displays both revisions so a frontend/database mismatch i
 
 ## Action plan
 
-### Phase 1 — Current defects
-
-#### 1. Fix custom supply types
-
-- Replace hard-coded supply-type options with one shared database loader.
-- Use the shared list in Add Part, admin review, part editing, supplier editing, search and bulk import.
-- Store the supply-type code while displaying its editable name.
-- Prevent deactivation of a supply type that is in use unless a replacement is selected.
-- Test a newly created supply type through request submission and approval.
-
 ### Phase 2 — Consolidate companies
 
-#### 2. Replace separate manufacturers and suppliers with companies
+#### 1. Replace separate manufacturers and suppliers with companies
 
 - Add a common company record containing name, website, notes, supply type and active status.
 - Allow each company to have Manufacturer, Supplier and/or Distributor roles.
@@ -47,14 +37,14 @@ The application footer displays both revisions so a frontend/database mismatch i
 
 ### Phase 3 — Machine management
 
-#### 3. Full machine editing and images
+#### 2. Full machine editing and images
 
 - Add an administrator machine editor for name, optional model, company, notes and status.
 - Support one machine image with the same WebP compression used for part images.
 - Add image preview, replacement and removal.
 - Store machine images in a separate Supabase Storage bucket with appropriate policies.
 
-#### 4. Machine categories and search
+#### 3. Machine categories and search
 
 - Add administrator-managed machine categories.
 - Allow one optional category per machine.
@@ -64,7 +54,7 @@ The application footer displays both revisions so a frontend/database mismatch i
 
 ### Phase 4 — Duplicate prevention
 
-#### 5. Similar-part warnings during approval
+#### 4. Similar-part warnings during approval
 
 - Search active parts using exact and partial manufacturer part numbers.
 - Rank similar descriptions using PostgreSQL trigram search.
@@ -80,6 +70,15 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.4.0` — 20 August 2026
+
+- Replaced hard-coded supply-type choices with one shared database-managed list.
+- Updated Add Part, admin approval, part editing, supplier editing, search and bulk import to use supply-type codes while displaying editable names.
+- Added supply-type usage counts and active/inactive status to Reference Data.
+- Added safe deactivation: unused types can be disabled directly, while types in use require an active replacement.
+- Added an administrator-only database operation that replaces all part, request and supplier references before deactivation.
+- Added reactivation support and ensured new forms always select an active supply type.
 
 ### `0.3.0` — 20 August 2026
 

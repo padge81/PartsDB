@@ -7,6 +7,7 @@ import { AppShell, type Profile } from "./app-shell";
 import { PlusIcon } from "./icons";
 import { getSupabaseBrowserClient } from "../lib/supabase";
 import { formatBytes, prepareImage, type PreparedImage } from "../lib/image-compression";
+import { useSupplyTypes } from "../lib/use-supply-types";
 
 type Named = { id: string; name: string };
 type Machine = { id: string; model: string | null; name: string; manufacturer?: Named | null };
@@ -17,6 +18,7 @@ type MachineDraft = { manufacturer_id: string; machine_id: string; revision_id: 
 const emptySupplier = (): SupplierDraft => ({ supplier_id: "", supplier_part_number: "", ordering_information: "", notes: "" });
 
 export function PartRequestForm() {
+  const supplyTypes = useSupplyTypes();
   const router = useRouter();
   const [manufacturers, setManufacturers] = useState<Named[]>([]);
   const [suppliers, setSuppliers] = useState<Named[]>([]);
@@ -89,8 +91,9 @@ export function PartRequestForm() {
     event.preventDefault(); setSaving(true); setMessage("");
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
+    const selectedSupplyType = supplyTypes.some((item) => item.code === supplyType) ? supplyType : supplyTypes[0]?.code ?? supplyType;
     const supplierInformation = supplierRows.filter((row) => row.supplier_id).map((row, index) => ({ ...row, preference_rank: index + 1, supplier_name: suppliers.find((supplier) => supplier.id === row.supplier_id)?.name ?? "" }));
-    const { data: request, error } = await supabase.from("part_requests").insert({ requested_by: profile.id, status: "draft", machine_manufacturer: machineManufacturer || null, machine_name: machineName || null, machine_model: machineModel || null, machine_revision: null, machine_revision_ids: additionalMachines.map((row) => row.machine_id).filter(Boolean), part_description: partDescription, part_manufacturer: partManufacturer || null, manufacturer_part_number: manufacturerPartNumber || null, supplier_information: supplierInformation, supply_type: supplyType, compatibility_tags: [], commonly_ordered_part_ids: relatedIds, notes: notes || null }).select("id").single();
+    const { data: request, error } = await supabase.from("part_requests").insert({ requested_by: profile.id, status: "draft", machine_manufacturer: machineManufacturer || null, machine_name: machineName || null, machine_model: machineModel || null, machine_revision: null, machine_revision_ids: additionalMachines.map((row) => row.machine_id).filter(Boolean), part_description: partDescription, part_manufacturer: partManufacturer || null, manufacturer_part_number: manufacturerPartNumber || null, supplier_information: supplierInformation, supply_type: selectedSupplyType, compatibility_tags: [], commonly_ordered_part_ids: relatedIds, notes: notes || null }).select("id").single();
     if (error || !request) { setMessage(error?.message ?? "The request could not be created."); setSaving(false); return; }
 
     for (const [index, prepared] of files.entries()) {
@@ -117,7 +120,7 @@ export function PartRequestForm() {
         <label className="span-2">Part Description *<input required value={partDescription} onChange={(e) => setPartDescription(e.target.value)} /></label>
         <label>Part manufacturer<select value={partManufacturer} onChange={(e) => setPartManufacturer(e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label>
         <label>Part Number Manufacturer<input value={manufacturerPartNumber} onChange={(e) => setManufacturerPartNumber(e.target.value)} /></label>
-        <label>Supply type<select value={supplyType} onChange={(e) => setSupplyType(e.target.value)}><option value="unknown">Unknown</option><option value="local">Local supply</option><option value="dfl">DFL</option></select></label>
+        <label>Supply type<select value={selectedSupplyType} onChange={(e) => setSupplyType(e.target.value)}>{supplyTypes.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
       </div></section>
       <section className="form-card"><div className="detail-card-heading"><h2>Part supplier information</h2><span>Up to three</span></div><div className="supplier-form-list">{supplierRows.map((row, index) => <div className="supplier-form-row" key={index}><span>{index + 1}</span><label>{index === 0 ? "Part Supplier" : "Additional Supplier"}<select value={row.supplier_id} onChange={(e) => updateSupplier(index, "supplier_id", e.target.value)}><option value="">Not selected</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label><label>{index === 0 ? "Part Number local supplier" : "Supplier part number"}<input value={row.supplier_part_number} onChange={(e) => updateSupplier(index, "supplier_part_number", e.target.value)} /></label><label>Ordering information<input value={row.ordering_information} onChange={(e) => updateSupplier(index, "ordering_information", e.target.value)} /></label></div>)}</div></section>
       <section className="form-card"><div className="detail-card-heading"><h2>Additional information</h2></div><div className="form-grid">

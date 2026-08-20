@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AppShell } from "./app-shell";
 import { ArrowIcon, BoxIcon, PlusIcon, SearchIcon } from "./icons";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "../lib/supabase";
+import { useSupplyTypes } from "../lib/use-supply-types";
 
 type Part = { id: string; description: string; manufacturer_part_number: string | null; internal_part_number: string | null; supply_type: string; manufacturer?: { name: string } | null };
 type Manufacturer = { id: string; name: string };
@@ -19,6 +20,7 @@ const previewParts: Part[] = [
 ];
 
 export function PartsDashboard() {
+  const supplyTypes = useSupplyTypes();
   const [query, setQuery] = useState("");
   const [parts, setParts] = useState<Part[]>(previewParts);
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
@@ -84,7 +86,7 @@ export function PartsDashboard() {
         <div className="filter-row">
           <label>Manufacturer<select value={manufacturerId} onChange={(event) => selectManufacturer(event.target.value)}><option value="">All manufacturers</option>{manufacturers.map((manufacturer) => <option key={manufacturer.id} value={manufacturer.id}>{manufacturer.name}</option>)}</select></label>
           <label>Machine<select value={machineId} onChange={(event) => setMachineId(event.target.value)}><option value="">All machines</option>{filteredMachines.map((machine) => <option key={machine.id} value={machine.id}>{machine.name ?? machine.model}{machine.name ? ` · ${machine.model}` : ""}</option>)}</select></label>
-          <label>Supply type<select value={supplyType} onChange={(event) => setSupplyType(event.target.value)}><option value="">All supply types</option><option value="local">Local</option><option value="dfl">DFL</option><option value="unknown">Unknown</option></select></label>
+          <label>Supply type<select value={supplyType} onChange={(event) => setSupplyType(event.target.value)}><option value="">All supply types</option>{supplyTypes.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
           <button className="clear-button" onClick={clearFilters}>Clear filters</button>
         </div>
       </section>
@@ -95,7 +97,7 @@ export function PartsDashboard() {
           <div className="table-head"><span>Part</span><span>Manufacturer</span><span>Part number</span><span>Supply</span><span></span></div>
           {loading ? <div className="empty-row">Loading approved parts…</div> : error ? <div className="empty-row">Parts could not be loaded: {error}</div> : visible.map((part) => <a className="part-row" key={part.id} href={`/parts/${part.id}`}>
             <span className="part-title"><i><BoxIcon/></i><span><strong>{part.description}</strong><small>{part.internal_part_number ?? "No internal number"}</small></span></span>
-            <span>{part.manufacturer?.name ?? "—"}</span><span className="mono">{part.manufacturer_part_number ?? "—"}</span><span><em className={`supply ${part.supply_type}`}>{part.supply_type.toUpperCase()}</em></span><span className="row-arrow"><ArrowIcon/></span>
+            <span>{part.manufacturer?.name ?? "—"}</span><span className="mono">{part.manufacturer_part_number ?? "—"}</span><span><em className={`supply ${part.supply_type}`}>{supplyTypes.find((item) => item.code === part.supply_type)?.name ?? part.supply_type}</em></span><span className="row-arrow"><ArrowIcon/></span>
           </a>)}
           {!loading && !error && visible.length === 0 && <div className="empty-row">No approved parts match the selected search and filters.</div>}
         </div>
