@@ -5,6 +5,7 @@ import Image from "next/image";
 import { AppShell } from "./app-shell";
 import { ArrowIcon, BoxIcon } from "./icons";
 import { getSupabaseBrowserClient } from "../lib/supabase";
+import { useSupplyTypes } from "../lib/use-supply-types";
 
 type PartRecord = {
   id: string;
@@ -41,6 +42,7 @@ const demoParts: Record<string, PartRecord> = {
 };
 
 export function PartDetails({ partId }: { partId: string }) {
+  const supplyTypes = useSupplyTypes();
   const [part, setPart] = useState<PartRecord | null>(demoParts[partId] ?? null);
   const [suppliers, setSuppliers] = useState<SupplierRow[]>([]);
   const [compatibility, setCompatibility] = useState<CompatibilityRow[]>([]);
@@ -96,12 +98,12 @@ export function PartDetails({ partId }: { partId: string }) {
       <section className="detail-hero">
         <div className="detail-icon"><BoxIcon/></div>
         <div><p className="eyebrow accent">Approved part</p><h1>{part.description}</h1><div className="detail-identifiers"><span>Internal <strong>{part.internal_part_number ?? "Not assigned"}</strong></span><span>Manufacturer part <strong className="mono">{part.manufacturer_part_number ?? "Not supplied"}</strong></span></div></div>
-        <div className="detail-status"><em className={`supply ${part.supply_type}`}>{part.supply_type.toUpperCase()}</em><span>{part.status}</span></div>
+        <div className="detail-status"><em className={`supply ${part.supply_type}`}>{supplyTypes.find((item) => item.code === part.supply_type)?.name ?? part.supply_type}</em><span>{part.status}</span></div>
       </section>
 
       <div className="detail-grid">
         <div className="detail-main">
-          <section className="detail-card"><div className="detail-card-heading"><h2>Part information</h2></div><dl className="facts-grid"><div><dt>Manufacturer</dt><dd>{part.manufacturer?.name ?? "Not specified"}</dd></div><div><dt>Part Number Manufacturer</dt><dd className="mono">{part.manufacturer_part_number ?? "—"}</dd></div><div><dt>Company part number</dt><dd className="mono">{part.internal_part_number ?? "—"}</dd></div><div><dt>Supply type</dt><dd>{part.supply_type.toUpperCase()}</dd></div></dl>{part.notes && <div className="notes-block"><h3>Notes</h3><p>{part.notes}</p></div>}</section>
+          <section className="detail-card"><div className="detail-card-heading"><h2>Part information</h2></div><dl className="facts-grid"><div><dt>Manufacturer</dt><dd>{part.manufacturer?.name ?? "Not specified"}</dd></div><div><dt>Part Number Manufacturer</dt><dd className="mono">{part.manufacturer_part_number ?? "—"}</dd></div><div><dt>Company part number</dt><dd className="mono">{part.internal_part_number ?? "—"}</dd></div><div><dt>Supply type</dt><dd>{supplyTypes.find((item) => item.code === part.supply_type)?.name ?? part.supply_type}</dd></div></dl>{part.notes && <div className="notes-block"><h3>Notes</h3><p>{part.notes}</p></div>}</section>
 
           <section className="detail-card"><div className="detail-card-heading"><h2>Preferred suppliers</h2><span>{suppliers.length} listed</span></div>{suppliers.length ? <div className="supplier-list">{suppliers.map((row) => <article key={`${row.preference_rank}-${row.supplier?.name}`}><span className="supplier-rank">{row.preference_rank}</span><div><strong>{row.supplier?.name ?? "Supplier"}</strong><small>{row.supplier_part_number ? `Supplier part: ${row.supplier_part_number}` : "No supplier part number"}</small>{(row.ordering_information || row.supplier?.ordering_information) && <p>{row.ordering_information || row.supplier?.ordering_information}</p>}{row.notes && <p>{row.notes}</p>}</div>{row.supplier?.website_url && <a href={row.supplier.website_url} target="_blank" rel="noreferrer">Supplier site ↗</a>}</article>)}</div> : <p className="empty-detail">No preferred suppliers have been added.</p>}</section>
 
