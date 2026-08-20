@@ -5,14 +5,14 @@ import { AppShell } from "./app-shell";
 import { getSupabaseBrowserClient } from "../lib/supabase";
 
 type BackupTable = { name: string; deleteColumn: string };
-type BackupFile = { format: "PartsDB backup"; version: 1; exported_at: string; tables: Record<string, Record<string, unknown>[]> };
+type BackupFile = { format: "PartsDB backup"; version: 2; exported_at: string; tables: Record<string, Record<string, unknown>[]> };
 
 const importOrder: BackupTable[] = [
-  { name: "supply_types", deleteColumn: "id" }, { name: "manufacturers", deleteColumn: "id" }, { name: "suppliers", deleteColumn: "id" },
-  { name: "machines", deleteColumn: "id" }, { name: "machine_revisions", deleteColumn: "id" },
+  { name: "supply_types", deleteColumn: "id" }, { name: "companies", deleteColumn: "id" }, { name: "company_roles", deleteColumn: "company_id" },
+  { name: "machines", deleteColumn: "id" },
   { name: "categories", deleteColumn: "id" },
   { name: "parts", deleteColumn: "id" }, { name: "part_requests", deleteColumn: "id" },
-  { name: "part_suppliers", deleteColumn: "part_id" }, { name: "part_machine_revisions", deleteColumn: "part_id" },
+  { name: "part_suppliers", deleteColumn: "part_id" }, { name: "part_machines", deleteColumn: "part_id" },
   { name: "part_categories", deleteColumn: "part_id" },
   { name: "part_images", deleteColumn: "id" }, { name: "request_images", deleteColumn: "id" },
   { name: "commonly_ordered_parts", deleteColumn: "part_id" },
@@ -38,7 +38,7 @@ export function BackupManager() {
       if (error) { setMessage(`Export stopped at ${table.name}: ${error.message}`); setIsError(true); setWorking(false); return; }
       tables[table.name] = (data ?? []) as Record<string, unknown>[];
     }
-    const payload: BackupFile = { format: "PartsDB backup", version: 1, exported_at: new Date().toISOString(), tables };
+    const payload: BackupFile = { format: "PartsDB backup", version: 2, exported_at: new Date().toISOString(), tables };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const anchor = document.createElement("a");
     anchor.href = url; anchor.download = `partsdb-backup-${new Date().toISOString().slice(0, 10)}.json`; anchor.click(); URL.revokeObjectURL(url);
     setMessage(`Backup exported with ${Object.values(tables).reduce((total, rows) => total + rows.length, 0)} records.`); setWorking(false);
@@ -48,7 +48,7 @@ export function BackupManager() {
     const file = event.target.files?.[0]; setBackup(null); setMessage(""); setIsError(false); setFileName(file?.name ?? ""); if (!file) return;
     try {
       const parsed = JSON.parse(await file.text()) as BackupFile;
-      if (parsed.format !== "PartsDB backup" || parsed.version !== 1 || !parsed.tables || typeof parsed.tables !== "object") throw new Error("This is not a supported PartsDB backup file.");
+      if (parsed.format !== "PartsDB backup" || parsed.version !== 2 || !parsed.tables || typeof parsed.tables !== "object") throw new Error("This backup is not compatible with the company-based database (version 2 required).");
       for (const table of importOrder) if (parsed.tables[table.name] && !Array.isArray(parsed.tables[table.name])) throw new Error(`Invalid ${table.name} data.`);
       setBackup(parsed); setMessage(`Ready: ${Object.values(parsed.tables).reduce((total, rows) => total + rows.length, 0)} records from ${new Date(parsed.exported_at).toLocaleString()}.`);
     } catch (error) { setMessage(error instanceof Error ? error.message : "The backup file could not be read."); setIsError(true); }
@@ -60,36 +60,36 @@ export function BackupManager() {
     const supabase = getSupabaseBrowserClient(); if (!supabase) return;
     setWorking(true); setMessage(""); setIsError(false);
     if (mode === "restore") {
-      const { error: unlinkError } = await supabase.from("manufacturers").update({ default_supplier_id: null }).not("default_supplier_id", "is", null);
-      if (unlinkError) { setMessage(`Restore stopped while clearing manufacturer supplier links: ${unlinkError.message}`); setIsError(true); setWorking(false); return; }
+      const { error: unlinkError } = await supabase.from("companies").update({ default_supplier_id: null }).not("default_supplier_id", "is", null);
+      if (unlinkError) { setMessage(`Restore stopped while clearing company supplier links: ${unlinkError.message}`); setIsError(true); setWorking(false); return; }
     }
     if (mode === "restore") for (const table of deleteOrder) {
       const { error } = await supabase.from(table.name).delete().not(table.deleteColumn, "is", null);
       if (error) { setMessage(`Restore stopped while clearing ${table.name}: ${error.message}`); setIsError(true); setWorking(false); return; }
     }
     let imported = 0;
-    const manufacturerSupplierLinks = (backup.tables.manufacturers ?? []).flatMap((row) =>
-      typeof row.id === "string" && typeof row.default_supplier_id === "string" ? [{ manufacturerId: row.id, supplierId: row.default_supplier_id }] : []
+    const companySupplierLinks = (backup.tables.companies ?? []).flatMap((row) =>
+      typeof row.id === "string" && typeof row.default_supplier_id === "string" ? [{ companyId: row.id, supplierId: row.default_supplier_id }] : []
     );
     for (const table of restorableOrder) {
       const rows = backup.tables[table.name] ?? [];
       for (let index = 0; index < rows.length; index += 200) {
-        const chunk = rows.slice(index, index + 200).map((row) => table.name === "manufacturers" ? { ...row, default_supplier_id: null } : row);
+        const chunk = rows.slice(index, index + 200).map((row) => table.name === "companies" ? { ...row, default_supplier_id: null } : row);
         const { error } = await supabase.from(table.name).upsert(chunk);
         if (error) { setMessage(`Import stopped at ${table.name}: ${error.message}`); setIsError(true); setWorking(false); return; }
         imported += chunk.length;
       }
     }
-    for (const link of manufacturerSupplierLinks) {
-      const { error } = await supabase.from("manufacturers").update({ default_supplier_id: link.supplierId }).eq("id", link.manufacturerId);
-      if (error) { setMessage(`Import stopped while restoring manufacturer supplier links: ${error.message}`); setIsError(true); setWorking(false); return; }
+    for (const link of companySupplierLinks) {
+      const { error } = await supabase.from("companies").update({ default_supplier_id: link.supplierId }).eq("id", link.companyId);
+      if (error) { setMessage(`Import stopped while restoring company supplier links: ${error.message}`); setIsError(true); setWorking(false); return; }
     }
     setMessage(`${mode === "restore" ? "Full restore" : "Merge import"} completed: ${imported} records processed. Image records were left unchanged.`); setConfirmation(""); setWorking(false);
   }
 
   return <AppShell requireAdmin>{() => <main className="workspace backup-workspace"><a className="back-link" href="/admin">← Back to admin</a>
     <section className="workspace-heading"><div><p className="eyebrow accent">Administrator tools</p><h1>Backup, export & import</h1><p>Download a portable copy of PartsDB data or restore a previous export.</p></div></section>
-    <div className="backup-grid"><section className="form-card backup-card"><div className="detail-card-heading"><h2>Export backup</h2><span>Versioned JSON</span></div><div className="backup-card-body"><p>Exports parts, requests, suppliers, manufacturers, machines and their relationships. Image database records are included; stored image files remain in Supabase Storage.</p><button className="button primary" type="button" disabled={working} onClick={exportBackup}>{working ? "Working…" : "Download backup"}</button></div></section>
+    <div className="backup-grid"><section className="form-card backup-card"><div className="detail-card-heading"><h2>Export backup</h2><span>Versioned JSON</span></div><div className="backup-card-body"><p>Exports parts, requests, companies, company roles, machines and their relationships. Image database records are included; stored image files remain in Supabase Storage.</p><button className="button primary" type="button" disabled={working} onClick={exportBackup}>{working ? "Working…" : "Download backup"}</button></div></section>
       <section className="form-card backup-card"><div className="detail-card-heading"><h2>Import backup</h2><span>Administrator only</span></div><div className="backup-card-body"><label className="file-picker">Backup JSON file<input type="file" accept="application/json,.json" onChange={selectFile}/><small>{fileName || "No file selected"}</small></label><fieldset><legend>Import mode</legend><label><input type="radio" name="mode" checked={mode === "merge"} onChange={() => { setMode("merge"); setConfirmation(""); }}/><span><strong>Merge safely</strong><small>Add new records and update matching IDs. Existing unmatched records remain.</small></span></label><label><input type="radio" name="mode" checked={mode === "restore"} onChange={() => setMode("restore")}/><span><strong>Full restore</strong><small>Delete current business data, then restore the selected backup.</small></span></label></fieldset>{mode === "restore" && <label className="restore-confirm">Type RESTORE to confirm<input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off"/></label>}<button className={`button ${mode === "restore" ? "danger" : "primary"}`} type="button" disabled={working || !backup || (mode === "restore" && confirmation !== "RESTORE")} onClick={runImport}>{working ? "Working…" : mode === "restore" ? "Run full restore" : "Import and merge"}</button></div></section></div>
     {message && <p className={`backup-message ${isError ? "error" : "success"}`} role="status">{message}</p>}<section className="backup-note"><strong>Not included</strong><p>User authentication accounts, passwords and binary image files in Supabase Storage are not changed by import. Image metadata is retained in exports for reference, but image database records are left unchanged during merge and full restore.</p></section>
   </main>}</AppShell>;

@@ -8,10 +8,18 @@ values
   ('dfl', 'DFL')
 on conflict do nothing;
 
-insert into public.manufacturers (id, name)
+insert into public.companies (id, name, website_url)
 values
-  ('00000000-0000-0000-0000-000000000101', 'Example Machine Co'),
-  ('00000000-0000-0000-0000-000000000102', 'Example Components Ltd')
+  ('00000000-0000-0000-0000-000000000101', 'Example Machine Co', null),
+  ('00000000-0000-0000-0000-000000000102', 'Example Components Ltd', null),
+  ('00000000-0000-0000-0000-000000000401', 'Example Industrial Supply', 'https://example.invalid')
+on conflict do nothing;
+
+insert into public.company_roles (company_id, role)
+values
+  ('00000000-0000-0000-0000-000000000101', 'manufacturer'),
+  ('00000000-0000-0000-0000-000000000102', 'manufacturer'),
+  ('00000000-0000-0000-0000-000000000401', 'supplier')
 on conflict do nothing;
 
 insert into public.machines (id, manufacturer_id, model, name)
@@ -22,22 +30,6 @@ values
     'MX-100',
     'Example Packaging Machine'
   )
-on conflict do nothing;
-
-insert into public.machine_revisions (id, machine_id, revision)
-values (
-  '00000000-0000-0000-0000-000000000301',
-  '00000000-0000-0000-0000-000000000201',
-  'A'
-)
-on conflict do nothing;
-
-insert into public.suppliers (id, name, website_url)
-values (
-  '00000000-0000-0000-0000-000000000401',
-  'Example Industrial Supply',
-  'https://example.invalid'
-)
 on conflict do nothing;
 
 insert into public.parts (
@@ -53,10 +45,10 @@ values (
 )
 on conflict do nothing;
 
-insert into public.part_machine_revisions (part_id, machine_revision_id)
+insert into public.part_machines (part_id, machine_id)
 values (
   '00000000-0000-0000-0000-000000000501',
-  '00000000-0000-0000-0000-000000000301'
+  '00000000-0000-0000-0000-000000000201'
 )
 on conflict do nothing;
 

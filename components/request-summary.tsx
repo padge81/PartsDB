@@ -8,7 +8,7 @@ import { ClipboardIcon } from "./icons";
 import { getSupabaseBrowserClient } from "../lib/supabase";
 import { useSupplyTypes } from "../lib/use-supply-types";
 
-type RequestRecord = { id: string; part_description: string; part_manufacturer: string | null; manufacturer_part_number: string | null; machine_manufacturer: string | null; machine_model: string | null; machine_revision: string | null; supply_type: string; compatibility_tags: string[]; notes: string | null; status: string; submitted_at: string | null; review_notes: string | null; approved_part_id: string | null };
+type RequestRecord = { id: string; part_description: string; part_manufacturer: string | null; manufacturer_part_number: string | null; machine_manufacturer: string | null; machine_model: string | null; supply_type: string; notes: string | null; status: string; submitted_at: string | null; review_notes: string | null; approved_part_id: string | null };
 type RequestImage = { id: string; storage_path: string; signedUrl?: string };
 
 export function RequestSummary({ requestId }: { requestId: string }) {
