@@ -6,8 +6,8 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.4.0` |
-| Database | `0.4.0` |
+| Application | `0.5.0` |
+| Database | `0.5.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
 
@@ -21,19 +21,6 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Backup/export/import compatibility must be checked whenever tables or relationships change.
 
 ## Action plan
-
-### Phase 2 — Consolidate companies
-
-#### 1. Replace separate manufacturers and suppliers with companies
-
-- Add a common company record containing name, website, notes, supply type and active status.
-- Allow each company to have Manufacturer, Supplier and/or Distributor roles.
-- Preserve the default-supplier relationship.
-- Default a manufacturer to itself when it also has a supplier role, while allowing an administrator override.
-- Migrate existing manufacturers and suppliers without losing machine, part or request links.
-- Produce a migration report for duplicate or ambiguous company names.
-- Replace separate reference screens with one editable Companies section.
-- Update bulk import, backup export and restore before retiring the old tables.
 
 ### Phase 3 — Machine management
 
@@ -70,6 +57,17 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.5.0` — 20 August 2026
+
+- Replaced separate manufacturer and supplier tables with one `companies` table and explicit Manufacturer, Supplier and Distributor roles.
+- Added one unified Companies section to administrator Reference Data.
+- Preserved manufacturer default-supplier selection while allowing one company to perform multiple roles.
+- Updated machine, part and preferred-supplier relationships to reference companies.
+- Replaced the bulk-import workbook with Companies and Machines sheets.
+- Updated JSON backup and restore to format version 2 with companies and company roles.
+- Intentionally resets catalogue and reference data while retaining authentication users and profiles.
+- Removed the old manufacturer and supplier tables and updated all application queries to use companies directly.
 
 ### `0.4.0` — 20 August 2026
 

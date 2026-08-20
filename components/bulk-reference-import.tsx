@@ -7,11 +7,11 @@ import { getSupabaseBrowserClient } from "../lib/supabase";
 import { createXlsx, readXlsx, type WorkbookRows } from "../lib/simple-xlsx";
 
 type Row = Record<string, string>;
-type ImportData = { manufacturers: Row[]; suppliers: Row[]; machines: Row[] };
+type ImportData = { companies: Row[]; machines: Row[] };
 type ValidationIssue = { sheet: string; row: number; message: string };
 type ImportSummary = { added: number; updated: number; skipped: number; failed: number };
 
-const emptyData: ImportData = { manufacturers: [], suppliers: [], machines: [] };
+const emptyData: ImportData = { companies: [], machines: [] };
 const clean = (value: unknown) => String(value ?? "").trim();
 const key = (value: string) => value.trim().toLocaleLowerCase();
 
@@ -37,8 +37,12 @@ function validate(data: ImportData): ValidationIssue[] {
       else seen.add(key(value));
     });
   };
-  duplicateCheck("manufacturers", "Manufacturer Name", "Manufacturer Name");
-  duplicateCheck("suppliers", "Supplier Name", "Supplier Name");
+  duplicateCheck("companies", "Company Name", "Company Name");
+  data.companies.forEach((row, index) => {
+    if (!["yes", "no"].includes(key(row[key("Manufacturer")]))) issues.push({ sheet: "companies", row: index + 2, message: "Manufacturer must be Yes or No." });
+    if (!["yes", "no"].includes(key(row[key("Supplier")]))) issues.push({ sheet: "companies", row: index + 2, message: "Supplier must be Yes or No." });
+    if (!["yes", "no"].includes(key(row[key("Distributor")]))) issues.push({ sheet: "companies", row: index + 2, message: "Distributor must be Yes or No." });
+  });
   const seenMachines = new Set<string>();
   data.machines.forEach((row, index) => {
     const name = row[key("Machine Name")]; const manufacturer = row[key("Manufacturer")];
@@ -55,8 +59,7 @@ function validate(data: ImportData): ValidationIssue[] {
 
 async function makeTemplate() {
   const buffer = createXlsx({
-    Manufacturers: [["Manufacturer Name", "Default Supplier", "Notes"], ["Example Manufacturer", "Example Supplier", ""]],
-    Suppliers: [["Supplier Name", "Supply Type", "Website URL", "Ordering Information", "Notes"], ["Example Supplier", "Unknown", "", "", ""]],
+    Companies: [["Company Name", "Manufacturer", "Supplier", "Distributor", "Default Supplier", "Supply Type", "Website URL", "Ordering Information", "Notes"], ["Example Company", "Yes", "Yes", "No", "Example Company", "Unknown", "", "", ""]],
     Machines: [["Machine Name", "Machine Model", "Manufacturer"], ["Example Machine", "Optional model", "Example Manufacturer"]],
   });
   const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
@@ -73,7 +76,7 @@ export function BulkReferenceImport() {
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const issues = useMemo(() => validate(data), [data]);
-  const totalRows = data.manufacturers.length + data.suppliers.length + data.machines.length;
+  const totalRows = data.companies.length + data.machines.length;
 
   async function selectFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -82,8 +85,7 @@ export function BulkReferenceImport() {
     try {
       const workbook = readXlsx(new Uint8Array(await file.arrayBuffer()));
       setData({
-        manufacturers: rowsFromSheet(workbook, "Manufacturers"),
-        suppliers: rowsFromSheet(workbook, "Suppliers"),
+        companies: rowsFromSheet(workbook, "Companies"),
         machines: rowsFromSheet(workbook, "Machines"),
       });
       setFileName(file.name);
@@ -99,59 +101,47 @@ export function BulkReferenceImport() {
     const result: ImportSummary = { added: 0, updated: 0, skipped: 0, failed: 0 };
     const rowErrors: string[] = [];
     try {
-      const [manufacturerResult, supplierResult, machineResult, supplyTypeResult] = await Promise.all([
-        supabase.from("manufacturers").select("id,name"),
-        supabase.from("suppliers").select("id,name"),
+      const [companyResult, machineResult, supplyTypeResult] = await Promise.all([
+        supabase.from("companies").select("id,name"),
         supabase.from("machines").select("id,name,model,manufacturer_id"),
         supabase.from("supply_types").select("code,name").eq("is_active", true),
       ]);
-      const firstError = manufacturerResult.error || supplierResult.error || machineResult.error || supplyTypeResult.error;
+      const firstError = companyResult.error || machineResult.error || supplyTypeResult.error;
       if (firstError) throw firstError;
-      const manufacturers = new Map((manufacturerResult.data ?? []).map((item) => [key(item.name), item]));
-      const suppliers = new Map((supplierResult.data ?? []).map((item) => [key(item.name), item]));
+      const companies = new Map((companyResult.data ?? []).map((item) => [key(item.name), item]));
       const supplyTypes = new Map<string, string>();
-      const manufacturersEligibleForDefault = new Set<string>();
       (supplyTypeResult.data ?? []).forEach((item) => { supplyTypes.set(key(item.name), item.code); supplyTypes.set(key(item.code), item.code); });
 
-      // Create manufacturers first without the optional supplier link.
-      for (const [index, row] of data.manufacturers.entries()) {
-        const name = row[key("Manufacturer Name")]; const existing = manufacturers.get(key(name));
-        const values = { name, notes: row[key("Notes")] || null, is_active: true };
-        if (existing && mode === "skip") { result.skipped++; continue; }
-        const query = existing ? supabase.from("manufacturers").update(values).eq("id", existing.id).select("id,name").single() : supabase.from("manufacturers").insert(values).select("id,name").single();
-        const { data: saved, error } = await query;
-        if (error || !saved) { result.failed++; rowErrors.push(`Manufacturers, row ${index + 2}: ${error?.message ?? "Could not save row."}`); }
-        else { manufacturers.set(key(name), saved); manufacturersEligibleForDefault.add(key(name)); if (existing) result.updated++; else result.added++; }
-      }
-
-      for (const [index, row] of data.suppliers.entries()) {
-        const name = row[key("Supplier Name")]; const existing = suppliers.get(key(name));
+      for (const [index, row] of data.companies.entries()) {
+        const name = row[key("Company Name")]; const existing = companies.get(key(name));
         const requestedType = row[key("Supply Type")] || "unknown";
         const supplyType = supplyTypes.get(key(requestedType));
-        if (!supplyType) { result.failed++; rowErrors.push(`Suppliers, row ${index + 2}: Supply Type “${requestedType}” does not exist.`); continue; }
+        if (!supplyType) { result.failed++; rowErrors.push(`Companies, row ${index + 2}: Supply Type “${requestedType}” does not exist.`); continue; }
         const values = { name, supply_type: supplyType, website_url: row[key("Website URL")] || null, ordering_information: row[key("Ordering Information")] || null, notes: row[key("Notes")] || null, is_active: true };
         if (existing && mode === "skip") { result.skipped++; continue; }
-        const query = existing ? supabase.from("suppliers").update(values).eq("id", existing.id).select("id,name").single() : supabase.from("suppliers").insert(values).select("id,name").single();
+        const query = existing ? supabase.from("companies").update(values).eq("id", existing.id).select("id,name").single() : supabase.from("companies").insert(values).select("id,name").single();
         const { data: saved, error } = await query;
-        if (error || !saved) { result.failed++; rowErrors.push(`Suppliers, row ${index + 2}: ${error?.message ?? "Could not save row."}`); }
-        else { suppliers.set(key(name), saved); if (existing) result.updated++; else result.added++; }
+        if (error || !saved) { result.failed++; rowErrors.push(`Companies, row ${index + 2}: ${error?.message ?? "Could not save row."}`); continue; }
+        companies.set(key(name), saved);
+        const roles = (["manufacturer", "supplier", "distributor"] as const).filter((role) => key(row[key(role)]) === "yes");
+        if (existing) await supabase.from("company_roles").delete().eq("company_id", saved.id);
+        const roleResult = await supabase.from("company_roles").insert(roles.map((role) => ({ company_id: saved.id, role })));
+        if (roleResult.error) { result.failed++; rowErrors.push(`Companies, row ${index + 2}: ${roleResult.error.message}`); }
+        else { if (roles.includes("manufacturer") && roles.includes("supplier") && !row[key("Default Supplier")]) await supabase.from("companies").update({ default_supplier_id: saved.id }).eq("id", saved.id); if (existing) result.updated++; else result.added++; }
       }
 
-      // Apply default suppliers after both reference sets exist.
-      for (const [index, row] of data.manufacturers.entries()) {
+      for (const [index, row] of data.companies.entries()) {
         const defaultName = row[key("Default Supplier")];
         if (!defaultName) continue;
-        if (!manufacturersEligibleForDefault.has(key(row[key("Manufacturer Name")]))) continue;
-        const manufacturer = manufacturers.get(key(row[key("Manufacturer Name")]));
-        const supplier = suppliers.get(key(defaultName));
-        if (!manufacturer || !supplier) { result.failed++; rowErrors.push(`Manufacturers, row ${index + 2}: Default Supplier “${defaultName}” does not exist.`); continue; }
-        const { error } = await supabase.from("manufacturers").update({ default_supplier_id: supplier.id }).eq("id", manufacturer.id);
-        if (error) { result.failed++; rowErrors.push(`Manufacturers, row ${index + 2}: ${error.message}`); }
+        const company = companies.get(key(row[key("Company Name")])); const supplier = companies.get(key(defaultName));
+        if (!company || !supplier) { result.failed++; rowErrors.push(`Companies, row ${index + 2}: Default Supplier “${defaultName}” does not exist.`); continue; }
+        const { error } = await supabase.from("companies").update({ default_supplier_id: supplier.id }).eq("id", company.id);
+        if (error) { result.failed++; rowErrors.push(`Companies, row ${index + 2}: ${error.message}`); }
       }
 
       const machines = new Map((machineResult.data ?? []).map((item) => [`${item.manufacturer_id}:${key(item.name)}`, item]));
       for (const [index, row] of data.machines.entries()) {
-        const name = row[key("Machine Name")]; const model = row[key("Machine Model")]; const manufacturer = manufacturers.get(key(row[key("Manufacturer")]));
+        const name = row[key("Machine Name")]; const model = row[key("Machine Model")]; const manufacturer = companies.get(key(row[key("Manufacturer")]));
         if (!manufacturer) { result.failed++; rowErrors.push(`Machines, row ${index + 2}: Manufacturer “${row[key("Manufacturer")]}” does not exist.`); continue; }
         const machineKey = `${manufacturer.id}:${key(name)}`; const existing = machines.get(machineKey);
         const values = { manufacturer_id: manufacturer.id, name, model: model || null, is_active: true };
@@ -171,14 +161,14 @@ export function BulkReferenceImport() {
 
   return <AppShell requireAdmin>{() => <main className="workspace bulk-import-workspace">
     <a className="back-link" href="/admin">← Back to administrator portal</a>
-    <section className="workspace-heading"><div><p className="eyebrow accent">Database administration</p><h1>Bulk import reference data</h1><p>Import manufacturers, suppliers and machines from one Excel workbook.</p></div><span className="admin-badge"><ShieldIcon/>Administrator</span></section>
+    <section className="workspace-heading"><div><p className="eyebrow accent">Database administration</p><h1>Bulk import reference data</h1><p>Import companies, company roles and machines from one Excel workbook.</p></div><span className="admin-badge"><ShieldIcon/>Administrator</span></section>
     <section className="admin-panel import-panel">
       <div className="import-actions"><button type="button" className="button secondary" onClick={makeTemplate}>Download Excel template</button><label className="button primary file-button">Choose completed workbook<input type="file" accept=".xlsx,.xls" onChange={selectFile}/></label></div>
-      <p className="import-help">Keep the three sheet names unchanged. Names are matched without regard to capital letters.</p>
+      <p className="import-help">Keep the Companies and Machines sheet names unchanged. Names are matched without regard to capital letters.</p>
       {fileName && <p><strong>Selected:</strong> {fileName}</p>}
       {message && <p className={`form-message ${summary?.failed ? "" : "success-message"}`}>{message}</p>}
       {totalRows > 0 && <>
-        <div className="import-counts"><article><strong>{data.manufacturers.length}</strong><span>Manufacturers</span></article><article><strong>{data.suppliers.length}</strong><span>Suppliers</span></article><article><strong>{data.machines.length}</strong><span>Machines</span></article></div>
+        <div className="import-counts"><article><strong>{data.companies.length}</strong><span>Companies</span></article><article><strong>{data.machines.length}</strong><span>Machines</span></article></div>
         {issues.length > 0 ? <div className="import-errors"><h2>Fix before importing</h2>{issues.slice(0, 30).map((issue, index) => <p key={`${issue.sheet}-${issue.row}-${index}`}><strong>{issue.sheet}, row {issue.row}:</strong> {issue.message}</p>)}</div> : <p className="form-message success-message">Workbook structure is valid and ready to import.</p>}
         <div className="import-mode"><label><input type="radio" checked={mode === "skip"} onChange={() => setMode("skip")}/> Skip records that already exist</label><label><input type="radio" checked={mode === "update"} onChange={() => setMode("update")}/> Update records that already exist</label></div>
         <button type="button" className="button primary" disabled={importing || issues.length > 0} onClick={runImport}>{importing ? "Importing…" : `Import ${totalRows} rows`}</button>
