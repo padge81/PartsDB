@@ -11,6 +11,8 @@ type Part = { id: string; description: string; manufacturer_part_number: string 
 type Manufacturer = { id: string; name: string };
 type Machine = { id: string; model: string | null; name: string; notes: string | null; manufacturer_id: string; category_id: string | null; manufacturer?: Manufacturer | null; category?: { name: string } | null };
 type Compatibility = { part_id: string; machine_id: string };
+type Category = { id: string; name: string };
+type PartCategory = { part_id: string; category_id: string };
 
 const previewParts: Part[] = [
   { id: "1", description: "Sealed deep groove ball bearing", manufacturer_part_number: "6204-2RSH", supply_type: "local", manufacturer: { name: "SKF" } },
@@ -29,6 +31,9 @@ export function PartsDashboard() {
   const [manufacturerId, setManufacturerId] = useState("");
   const [machineId, setMachineId] = useState("");
   const [supplyType, setSupplyType] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [partCategories, setPartCategories] = useState<PartCategory[]>([]);
   const [machineQuery, setMachineQuery] = useState("");
   const [machineCompanyId, setMachineCompanyId] = useState("");
   const [machineCategoryId, setMachineCategoryId] = useState("");
@@ -45,12 +50,16 @@ export function PartsDashboard() {
       supabase.from("machines").select("id,model,name,notes,manufacturer_id,category_id,manufacturer:companies(id,name),category:machine_categories(name)").eq("is_active", true).order("name"),
       supabase.from("part_machines").select("part_id,machine_id"),
       supabase.from("machine_categories").select("id,name").eq("is_active", true).order("name"),
-    ]).then(([partResult, manufacturerResult, machineResult, compatibilityResult, machineCategoryResult]) => {
+      supabase.from("categories").select("id,name").eq("is_active", true).order("name"),
+      supabase.from("part_categories").select("part_id,category_id"),
+    ]).then(([partResult, manufacturerResult, machineResult, compatibilityResult, machineCategoryResult, categoryResult, partCategoryResult]) => {
       if (partResult.error) setError(partResult.error.message); else setParts((partResult.data ?? []) as unknown as Part[]);
       setManufacturers((manufacturerResult.data ?? []) as Manufacturer[]);
       setMachines((machineResult.data ?? []) as unknown as Machine[]);
       setCompatibility((compatibilityResult.data ?? []).map((row) => ({ part_id: row.part_id, machine_id: row.machine_id })));
       setMachineCategories((machineCategoryResult.data ?? []) as Array<{ id: string; name: string }>);
+      setCategories((categoryResult.data ?? []) as Category[]);
+      setPartCategories((partCategoryResult.data ?? []) as PartCategory[]);
       setLoading(false);
     });
   }, []);
@@ -64,9 +73,10 @@ export function PartsDashboard() {
       const matchesManufacturer = !manufacturerId || linkedMachines.some((machine) => machine.manufacturer_id === manufacturerId);
       const matchesMachine = !machineId || linkedMachineIds.includes(machineId);
       const matchesSupply = !supplyType || part.supply_type === supplyType;
-      return matchesText && matchesManufacturer && matchesMachine && matchesSupply;
+      const matchesCategory = !categoryId || partCategories.some((link) => link.part_id === part.id && link.category_id === categoryId);
+      return matchesText && matchesManufacturer && matchesMachine && matchesSupply && matchesCategory;
     });
-  }, [parts, query, compatibility, machines, manufacturerId, machineId, supplyType]);
+  }, [parts, query, compatibility, machines, manufacturerId, machineId, supplyType, categoryId, partCategories]);
 
   const filteredMachines = useMemo(() => machines.filter((machine) => !manufacturerId || machine.manufacturer_id === manufacturerId), [machines, manufacturerId]);
   const visibleMachines = useMemo(() => { const term = machineQuery.trim().toLowerCase(); return machines.filter((machine) => (!term || [machine.name, machine.model, machine.manufacturer?.name, machine.category?.name].some((value) => value?.toLowerCase().includes(term))) && (!machineCompanyId || machine.manufacturer_id === machineCompanyId) && (!machineCategoryId || machine.category_id === machineCategoryId)); }, [machines, machineQuery, machineCompanyId, machineCategoryId]);
@@ -76,7 +86,7 @@ export function PartsDashboard() {
     if (machineId && !machines.some((machine) => machine.id === machineId && (!value || machine.manufacturer_id === value))) setMachineId("");
   }
 
-  function clearFilters() { setQuery(""); setManufacturerId(""); setMachineId(""); setSupplyType(""); }
+  function clearFilters() { setQuery(""); setManufacturerId(""); setMachineId(""); setSupplyType(""); setCategoryId(""); }
 
   return (
     <AppShell>{() => <main className="workspace">
@@ -91,6 +101,7 @@ export function PartsDashboard() {
           <label>Manufacturer<select value={manufacturerId} onChange={(event) => selectManufacturer(event.target.value)}><option value="">All manufacturers</option>{manufacturers.map((manufacturer) => <option key={manufacturer.id} value={manufacturer.id}>{manufacturer.name}</option>)}</select></label>
           <label>Machine<select value={machineId} onChange={(event) => setMachineId(event.target.value)}><option value="">All machines</option>{filteredMachines.map((machine) => <option key={machine.id} value={machine.id}>{machine.name ?? machine.model}{machine.name ? ` · ${machine.model}` : ""}</option>)}</select></label>
           <label>Supply type<select value={supplyType} onChange={(event) => setSupplyType(event.target.value)}><option value="">All supply types</option>{supplyTypes.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
+          <label>Category<select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}><option value="">All categories</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
           <button className="clear-button" onClick={clearFilters}>Clear filters</button>
         </div>
       </section>

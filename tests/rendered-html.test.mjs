@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const developmentPreviewMeta =
@@ -30,4 +31,13 @@ test("renders development preview metadata", async () => {
     /^text\/html\b/i,
   );
   assert.match(await response.text(), developmentPreviewMeta);
+});
+
+test("parts search retains the part-category filter relationships", async () => {
+  const source = await readFile(new URL("../components/parts-dashboard.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /from\("categories"\)/);
+  assert.match(source, /from\("part_categories"\)/);
+  assert.match(source, /matchesCategory/);
+  assert.match(source, /<label>Category<select value=\{categoryId\}/);
 });
