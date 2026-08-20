@@ -9,7 +9,7 @@ import { useSupplyTypes } from "../lib/use-supply-types";
 
 type Part = { id: string; description: string; manufacturer_part_number: string | null; supply_type: string; manufacturer?: { name: string } | null };
 type Manufacturer = { id: string; name: string };
-type Machine = { id: string; model: string; name: string | null; manufacturer_id: string; manufacturer?: Manufacturer | null };
+type Machine = { id: string; model: string | null; name: string; notes: string | null; manufacturer_id: string; category_id: string | null; manufacturer?: Manufacturer | null; category?: { name: string } | null };
 type Compatibility = { part_id: string; machine_id: string };
 
 const previewParts: Part[] = [
@@ -29,6 +29,10 @@ export function PartsDashboard() {
   const [manufacturerId, setManufacturerId] = useState("");
   const [machineId, setMachineId] = useState("");
   const [supplyType, setSupplyType] = useState("");
+  const [machineQuery, setMachineQuery] = useState("");
+  const [machineCompanyId, setMachineCompanyId] = useState("");
+  const [machineCategoryId, setMachineCategoryId] = useState("");
+  const [machineCategories, setMachineCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(isSupabaseConfigured);
 
@@ -38,13 +42,15 @@ export function PartsDashboard() {
     Promise.all([
       supabase.from("parts").select("id,description,manufacturer_part_number,supply_type,manufacturer:companies(name)").eq("status", "active").order("description"),
       supabase.from("companies").select("id,name,company_roles!inner(role)").eq("is_active", true).eq("company_roles.role", "manufacturer").order("name"),
-      supabase.from("machines").select("id,model,name,manufacturer_id,manufacturer:companies(id,name)").eq("is_active", true).order("model"),
+      supabase.from("machines").select("id,model,name,notes,manufacturer_id,category_id,manufacturer:companies(id,name),category:machine_categories(name)").eq("is_active", true).order("name"),
       supabase.from("part_machines").select("part_id,machine_id"),
-    ]).then(([partResult, manufacturerResult, machineResult, compatibilityResult]) => {
+      supabase.from("machine_categories").select("id,name").eq("is_active", true).order("name"),
+    ]).then(([partResult, manufacturerResult, machineResult, compatibilityResult, machineCategoryResult]) => {
       if (partResult.error) setError(partResult.error.message); else setParts((partResult.data ?? []) as unknown as Part[]);
       setManufacturers((manufacturerResult.data ?? []) as Manufacturer[]);
       setMachines((machineResult.data ?? []) as unknown as Machine[]);
       setCompatibility((compatibilityResult.data ?? []).map((row) => ({ part_id: row.part_id, machine_id: row.machine_id })));
+      setMachineCategories((machineCategoryResult.data ?? []) as Array<{ id: string; name: string }>);
       setLoading(false);
     });
   }, []);
@@ -63,6 +69,7 @@ export function PartsDashboard() {
   }, [parts, query, compatibility, machines, manufacturerId, machineId, supplyType]);
 
   const filteredMachines = useMemo(() => machines.filter((machine) => !manufacturerId || machine.manufacturer_id === manufacturerId), [machines, manufacturerId]);
+  const visibleMachines = useMemo(() => { const term = machineQuery.trim().toLowerCase(); return machines.filter((machine) => (!term || [machine.name, machine.model, machine.manufacturer?.name, machine.category?.name].some((value) => value?.toLowerCase().includes(term))) && (!machineCompanyId || machine.manufacturer_id === machineCompanyId) && (!machineCategoryId || machine.category_id === machineCategoryId)); }, [machines, machineQuery, machineCompanyId, machineCategoryId]);
 
   function selectManufacturer(value: string) {
     setManufacturerId(value);
@@ -98,6 +105,11 @@ export function PartsDashboard() {
           </a>)}
           {!loading && !error && visible.length === 0 && <div className="empty-row">No approved parts match the selected search and filters.</div>}
         </div>
+      </section>
+      <section className="results-section machine-search-section">
+        <div className="results-meta"><div><h2>Search machines</h2><span>{visibleMachines.length} results</span></div></div>
+        <div className="search-surface"><div className="search-box"><SearchIcon/><input value={machineQuery} onChange={(e) => setMachineQuery(e.target.value)} placeholder="Search machine name or model…" aria-label="Search machines"/></div><div className="filter-row"><label>Company<select value={machineCompanyId} onChange={(e) => setMachineCompanyId(e.target.value)}><option value="">All companies</option>{manufacturers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Category<select value={machineCategoryId} onChange={(e) => setMachineCategoryId(e.target.value)}><option value="">All categories</option>{machineCategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><button className="clear-button" onClick={() => { setMachineQuery(""); setMachineCompanyId(""); setMachineCategoryId(""); }}>Clear filters</button></div></div>
+        <div className="machine-results">{visibleMachines.map((machine) => <a href={`/machines/${machine.id}`} key={machine.id}><strong>{machine.name}</strong><span>{machine.manufacturer?.name ?? "—"}{machine.model ? ` · ${machine.model}` : ""}</span><small>{machine.category?.name ?? "Uncategorised"}</small><ArrowIcon/></a>)}{!loading && !visibleMachines.length && <div className="empty-row">No machines match the selected search and filters.</div>}</div>
       </section>
     </main>}</AppShell>
   );

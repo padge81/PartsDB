@@ -9,15 +9,16 @@ type BackupFile = { format: "PartsDB backup"; version: 2; exported_at: string; t
 
 const importOrder: BackupTable[] = [
   { name: "supply_types", deleteColumn: "id" }, { name: "companies", deleteColumn: "id" }, { name: "company_roles", deleteColumn: "company_id" },
-  { name: "machines", deleteColumn: "id" },
+  { name: "machine_categories", deleteColumn: "id" }, { name: "machines", deleteColumn: "id" },
   { name: "categories", deleteColumn: "id" },
   { name: "parts", deleteColumn: "id" }, { name: "part_requests", deleteColumn: "id" },
   { name: "part_suppliers", deleteColumn: "part_id" }, { name: "part_machines", deleteColumn: "part_id" },
+  { name: "machine_images", deleteColumn: "machine_id" },
   { name: "part_categories", deleteColumn: "part_id" },
   { name: "part_images", deleteColumn: "id" }, { name: "request_images", deleteColumn: "id" },
   { name: "commonly_ordered_parts", deleteColumn: "part_id" },
 ];
-const imageTables = new Set(["part_images", "request_images"]);
+const imageTables = new Set(["part_images", "request_images", "machine_images"]);
 const restorableOrder = importOrder.filter((table) => !imageTables.has(table.name));
 const deleteOrder = [...restorableOrder].reverse();
 
