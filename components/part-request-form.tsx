@@ -8,6 +8,7 @@ import { PlusIcon } from "./icons";
 import { getSupabaseBrowserClient } from "../lib/supabase";
 import { formatBytes, prepareImage, type PreparedImage } from "../lib/image-compression";
 import { useSupplyTypes } from "../lib/use-supply-types";
+import { CategoryCheckboxes } from "./category-checkboxes";
 
 type Named = { id: string; name: string };
 type Machine = { id: string; model: string | null; name: string; manufacturer?: Named | null };
@@ -125,7 +126,7 @@ export function PartRequestForm() {
         <label>Part manufacturer<select value={partManufacturer} onChange={(e) => setPartManufacturer(e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label>
         <label>Part Number Manufacturer<input value={manufacturerPartNumber} onChange={(e) => setManufacturerPartNumber(e.target.value)} /></label>
         <label>Supply type<select value={supplyType} onChange={(e) => setSupplyType(e.target.value)}>{supplyTypes.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
-        <label className="span-2">Part categories<select multiple value={categoryIds} onChange={(e) => setCategoryIds(Array.from(e.target.selectedOptions, (option) => option.value))}>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><small>Select one or more categories.</small></label>
+        <CategoryCheckboxes categories={categories} selectedIds={categoryIds} onChange={setCategoryIds}/>
       </div></section>
       <section className="form-card"><div className="detail-card-heading"><h2>Part supplier information</h2><span>Up to three</span></div><div className="supplier-form-list">{supplierRows.map((row, index) => <div className="supplier-form-row" key={index}><span>{index + 1}</span><label>{index === 0 ? "Part Supplier" : "Additional Supplier"}<select value={row.supplier_id} onChange={(e) => updateSupplier(index, "supplier_id", e.target.value)}><option value="">Not selected</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label><label>{index === 0 ? "Part Number local supplier" : "Supplier part number"}<input value={row.supplier_part_number} onChange={(e) => updateSupplier(index, "supplier_part_number", e.target.value)} /></label><label>Ordering information<input value={row.ordering_information} onChange={(e) => updateSupplier(index, "ordering_information", e.target.value)} /></label></div>)}</div></section>
       <section className="form-card"><div className="detail-card-heading"><h2>Additional information</h2></div><div className="form-grid">
