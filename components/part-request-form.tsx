@@ -24,6 +24,8 @@ export function PartRequestForm() {
   const [suppliers, setSuppliers] = useState<Named[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
   const [parts, setParts] = useState<ExistingPart[]>([]);
+  const [categories, setCategories] = useState<Named[]>([]);
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [machineId, setMachineId] = useState("");
   const [machineManufacturerId, setMachineManufacturerId] = useState("");
   const [machineManufacturer, setMachineManufacturer] = useState("");
@@ -51,9 +53,11 @@ export function PartRequestForm() {
       supabase.from("companies").select("id,name,company_roles!inner(role)").eq("is_active", true).in("company_roles.role", ["supplier", "distributor"]).order("name"),
       supabase.from("machines").select("id,model,name,manufacturer:companies(id,name)").eq("is_active", true).order("name"),
       supabase.from("parts").select("id,description,manufacturer_part_number").eq("status", "active").order("description"),
-    ]).then(([mfr, supp, machine, existing]) => {
+      supabase.from("categories").select("id,name").eq("is_active", true).order("name"),
+    ]).then(([mfr, supp, machine, existing, categoryResult]) => {
       setManufacturers((mfr.data ?? []) as Named[]); setSuppliers((supp.data ?? []) as Named[]);
       setMachines((machine.data ?? []) as unknown as Machine[]); setParts((existing.data ?? []) as ExistingPart[]);
+      setCategories((categoryResult.data ?? []) as Named[]);
     });
   }, []);
   useEffect(() => () => previewUrls.current.forEach(URL.revokeObjectURL), []);
@@ -93,7 +97,7 @@ export function PartRequestForm() {
     if (!supabase) return;
     const selectedSupplyType = supplyTypes.some((item) => item.code === supplyType) ? supplyType : supplyTypes[0]?.code ?? supplyType;
     const supplierInformation = supplierRows.filter((row) => row.supplier_id).map((row, index) => ({ ...row, preference_rank: index + 1, supplier_name: suppliers.find((supplier) => supplier.id === row.supplier_id)?.name ?? "" }));
-    const { data: request, error } = await supabase.from("part_requests").insert({ requested_by: profile.id, status: "draft", machine_manufacturer: machineManufacturer || null, machine_name: machineName || null, machine_model: machineModel || null, machine_ids: additionalMachines.map((row) => row.machine_id).filter(Boolean), part_description: partDescription, part_manufacturer: partManufacturer || null, manufacturer_part_number: manufacturerPartNumber || null, supplier_information: supplierInformation, supply_type: selectedSupplyType, commonly_ordered_part_ids: relatedIds, notes: notes || null }).select("id").single();
+    const { data: request, error } = await supabase.from("part_requests").insert({ requested_by: profile.id, status: "draft", machine_manufacturer: machineManufacturer || null, machine_name: machineName || null, machine_model: machineModel || null, machine_ids: additionalMachines.map((row) => row.machine_id).filter(Boolean), part_description: partDescription, part_manufacturer: partManufacturer || null, manufacturer_part_number: manufacturerPartNumber || null, supplier_information: supplierInformation, supply_type: selectedSupplyType, category_ids: categoryIds, commonly_ordered_part_ids: relatedIds, notes: notes || null }).select("id").single();
     if (error || !request) { setMessage(error?.message ?? "The request could not be created."); setSaving(false); return; }
 
     for (const [index, prepared] of files.entries()) {
@@ -121,6 +125,7 @@ export function PartRequestForm() {
         <label>Part manufacturer<select value={partManufacturer} onChange={(e) => setPartManufacturer(e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label>
         <label>Part Number Manufacturer<input value={manufacturerPartNumber} onChange={(e) => setManufacturerPartNumber(e.target.value)} /></label>
         <label>Supply type<select value={supplyType} onChange={(e) => setSupplyType(e.target.value)}>{supplyTypes.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
+        <label className="span-2">Part categories<select multiple value={categoryIds} onChange={(e) => setCategoryIds(Array.from(e.target.selectedOptions, (option) => option.value))}>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><small>Select one or more categories.</small></label>
       </div></section>
       <section className="form-card"><div className="detail-card-heading"><h2>Part supplier information</h2><span>Up to three</span></div><div className="supplier-form-list">{supplierRows.map((row, index) => <div className="supplier-form-row" key={index}><span>{index + 1}</span><label>{index === 0 ? "Part Supplier" : "Additional Supplier"}<select value={row.supplier_id} onChange={(e) => updateSupplier(index, "supplier_id", e.target.value)}><option value="">Not selected</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label><label>{index === 0 ? "Part Number local supplier" : "Supplier part number"}<input value={row.supplier_part_number} onChange={(e) => updateSupplier(index, "supplier_part_number", e.target.value)} /></label><label>Ordering information<input value={row.ordering_information} onChange={(e) => updateSupplier(index, "ordering_information", e.target.value)} /></label></div>)}</div></section>
       <section className="form-card"><div className="detail-card-heading"><h2>Additional information</h2></div><div className="form-grid">
