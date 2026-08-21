@@ -41,3 +41,16 @@ test("parts search retains the part-category filter relationships", async () => 
   assert.match(source, /matchesCategory/);
   assert.match(source, /<label>Category<select value=\{categoryId\}/);
 });
+
+test("part create, approval and edit retain category assignment", async () => {
+  const sources = await Promise.all([
+    "part-request-form.tsx",
+    "admin-request-editor.tsx",
+    "admin-part-editor.tsx",
+  ].map((file) => readFile(new URL(`../components/${file}`, import.meta.url), "utf8")));
+
+  for (const source of sources) assert.match(source, /Part categories/);
+  assert.match(sources[0], /category_ids: categoryIds/);
+  assert.match(sources[1], /from\("part_categories"\)\.insert/);
+  assert.match(sources[2], /from\("part_categories"\)\.delete/);
+});
