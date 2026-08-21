@@ -49,8 +49,16 @@ test("part create, approval and edit retain category assignment", async () => {
     "admin-part-editor.tsx",
   ].map((file) => readFile(new URL(`../components/${file}`, import.meta.url), "utf8")));
 
-  for (const source of sources) assert.match(source, /Part categories/);
+  for (const source of sources) assert.match(source, /<CategoryCheckboxes/);
   assert.match(sources[0], /category_ids: categoryIds/);
   assert.match(sources[1], /from\("part_categories"\)\.insert/);
   assert.match(sources[2], /from\("part_categories"\)\.delete/);
+});
+
+test("part category assignment uses checkbox controls", async () => {
+  const source = await readFile(new URL("../components/category-checkboxes.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /type="checkbox"/);
+  assert.match(source, /checked=\{selectedIds\.includes\(category\.id\)\}/);
+  assert.doesNotMatch(source, /<select multiple/);
 });
