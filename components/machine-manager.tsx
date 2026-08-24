@@ -29,7 +29,11 @@ export function MachineManager() {
       supabase.from("machine_categories").select("id,name").eq("is_active", true).order("name"),
       supabase.from("machine_images").select("id,machine_id,storage_path"),
     ]);
-    setMachines((machineResult.data ?? []) as unknown as Machine[]);
+    const loadedMachines = (machineResult.data ?? []) as unknown as Machine[];
+    setMachines(loadedMachines);
+    const requestedEditId = new URLSearchParams(window.location.search).get("edit");
+    const requestedMachine = loadedMachines.find((machine) => machine.id === requestedEditId);
+    if (requestedMachine) { setEditing(requestedMachine); setNewImage(null); setRemoveImage(false); window.history.replaceState({}, "", window.location.pathname); }
     setCompanies((companyResult.data ?? []) as Named[]); setCategories((categoryResult.data ?? []) as Named[]);
     const rows = (imageResult.data ?? []) as MachineImage[];
     const signed = rows.length ? await supabase.storage.from("machine-images").createSignedUrls(rows.map((row) => row.storage_path), 3600) : { data: [] };

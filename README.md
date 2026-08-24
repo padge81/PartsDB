@@ -6,7 +6,7 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.9.2` |
+| Application | `0.9.4` |
 | Database | `0.7.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -29,6 +29,18 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.9.4` — 25 August 2026
+
+- Auto-fills the first preferred supplier from Part Manufacturer on Add Part.
+- Keeps the first supplier part number synchronised with Manufacturer Part Number while typing.
+- Stops synchronising each supplier field after the user manually edits it, preserving exceptions.
+- Allows a manufacturer company to be selected as the first supplier even when it did not previously have a Supplier role.
+
+### `0.9.3` — 25 August 2026
+
+- Added an administrator-only Edit machine button to machine profile pages.
+- Opens the selected machine directly in the existing administrator machine editor.
 
 ### `0.9.2` — 24 August 2026
 
