@@ -44,6 +44,7 @@ export function PartRequestForm() {
   const [supplierRows, setSupplierRows] = useState<SupplierDraft[]>([emptySupplier(), emptySupplier(), emptySupplier()]);
   const [files, setFiles] = useState<PreparedImage[]>([]);
   const previewUrls = useRef<string[]>([]);
+  const supplierAutoFill = useRef({ company: true, partNumber: true });
   const [processingImages, setProcessingImages] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -86,7 +87,22 @@ export function PartRequestForm() {
   }
 
   function updateSupplier(index: number, field: keyof SupplierDraft, value: string) {
+    if (index === 0 && field === "supplier_id") supplierAutoFill.current.company = false;
+    if (index === 0 && field === "supplier_part_number") supplierAutoFill.current.partNumber = false;
     setSupplierRows((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, [field]: value } : row));
+  }
+
+  function updatePartManufacturer(value: string) {
+    setPartManufacturer(value);
+    if (!supplierAutoFill.current.company) return;
+    const company = manufacturers.find((manufacturer) => manufacturer.name === value);
+    if (company) setSuppliers((current) => current.some((supplier) => supplier.id === company.id) ? current : [...current, company].sort((a, b) => a.name.localeCompare(b.name)));
+    setSupplierRows((current) => current.map((row, index) => index === 0 ? { ...row, supplier_id: company?.id ?? "" } : row));
+  }
+
+  function updateManufacturerPartNumber(value: string) {
+    setManufacturerPartNumber(value);
+    if (supplierAutoFill.current.partNumber) setSupplierRows((current) => current.map((row, index) => index === 0 ? { ...row, supplier_part_number: value } : row));
   }
 
   function updateAdditionalMachine(index: number, field: keyof MachineDraft, value: string) {
@@ -124,8 +140,8 @@ export function PartRequestForm() {
       </div><div className="additional-machines"><div className="detail-card-heading"><h3>Additional compatible machines</h3><button type="button" className="button secondary compact" onClick={() => setAdditionalMachines((current) => [...current, { manufacturer_id: "", machine_id: "" }])}>+ Add machine</button></div>{additionalMachines.length ? <div className="machine-link-list">{additionalMachines.map((row, index) => <div className="machine-link-row" key={index}><label>Machine Manufacturer<select value={row.manufacturer_id} onChange={(e) => updateAdditionalMachine(index, "manufacturer_id", e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((manufacturer) => <option key={manufacturer.id} value={manufacturer.id}>{manufacturer.name}</option>)}</select></label><label>Machine Name<select value={row.machine_id} onChange={(e) => updateAdditionalMachine(index, "machine_id", e.target.value)} disabled={!row.manufacturer_id}><option value="">Select machine</option>{machines.filter((machine) => machine.id !== machineId && machine.manufacturer?.id === row.manufacturer_id).map((machine) => <option key={machine.id} value={machine.id}>{machine.name ?? machine.model}</option>)}</select></label><button type="button" className="icon-remove" aria-label="Remove compatible machine" onClick={() => setAdditionalMachines((current) => current.filter((_, rowIndex) => rowIndex !== index))}>×</button></div>)}</div> : <p className="empty-detail">No additional machines added.</p>}</div></section>
       <section className="form-card"><div className="detail-card-heading"><h2>Part information</h2><span>Required fields marked *</span></div><div className="form-grid">
         <label className="span-2">Part Description *<input required value={partDescription} onChange={(e) => setPartDescription(e.target.value)} /></label>
-        <label>Part manufacturer<select value={partManufacturer} onChange={(e) => setPartManufacturer(e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label>
-        <label>Part Number Manufacturer<input value={manufacturerPartNumber} onChange={(e) => setManufacturerPartNumber(e.target.value)} /></label>
+        <label>Part manufacturer<select value={partManufacturer} onChange={(e) => updatePartManufacturer(e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label>
+        <label>Part Number Manufacturer<input value={manufacturerPartNumber} onChange={(e) => updateManufacturerPartNumber(e.target.value)} /></label>
         <label>Supply type<select value={supplyType} onChange={(e) => setSupplyType(e.target.value)}>{supplyTypes.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
         <CategoryCheckboxes categories={categories} selectedIds={categoryIds} onChange={setCategoryIds}/>
       </div></section>

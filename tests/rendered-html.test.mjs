@@ -134,3 +134,25 @@ test("main machine selection supports search before manufacturer selection", asy
   assert.match(adminEditor, /<MachineSearchSelect/);
   assert.match(adminEditor, /setMachineManufacturerId\(machine\.manufacturer\?\.id/);
 });
+
+test("machine profiles expose direct editing to administrators", async () => {
+  const [details, manager] = await Promise.all([
+    readFile(new URL("../components/machine-details.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/machine-manager.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(details, /profile\.role === "admin"/);
+  assert.match(details, /admin\/machines\?edit=/);
+  assert.match(manager, /URLSearchParams\(window\.location\.search\)/);
+  assert.match(manager, /setEditing\(requestedMachine\)/);
+});
+
+test("Add Part auto-fills the first supplier without overriding manual edits", async () => {
+  const source = await readFile(new URL("../components/part-request-form.tsx", import.meta.url), "utf8");
+  assert.match(source, /supplierAutoFill/);
+  assert.match(source, /updatePartManufacturer/);
+  assert.match(source, /supplier_id: company\?\.id/);
+  assert.match(source, /updateManufacturerPartNumber/);
+  assert.match(source, /supplier_part_number: value/);
+  assert.match(source, /supplierAutoFill\.current\.company = false/);
+  assert.match(source, /supplierAutoFill\.current\.partNumber = false/);
+});
