@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { AppShell } from "./app-shell";
-import { ArrowIcon, BoxIcon } from "./icons";
+import { ArrowIcon, BoxIcon, CopyIcon } from "./icons";
 import { getSupabaseBrowserClient } from "../lib/supabase";
 import { useSupplyTypes } from "../lib/use-supply-types";
 import { AddToBomButton } from "./add-to-bom-button";
@@ -51,6 +51,11 @@ export function PartDetails({ partId }: { partId: string }) {
   const [loading, setLoading] = useState(!demoParts[partId]);
   const [error, setError] = useState("");
   const [selectedImage, setSelectedImage] = useState<ImageRow | null>(null);
+  const [copiedField, setCopiedField] = useState("");
+
+  async function copyValue(field: string, value: string) {
+    await navigator.clipboard.writeText(value); setCopiedField(field); window.setTimeout(() => setCopiedField(""), 1200);
+  }
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -104,7 +109,7 @@ export function PartDetails({ partId }: { partId: string }) {
 
       <div className="detail-grid">
         <div className="detail-main">
-          <section className="detail-card"><div className="detail-card-heading"><h2>Part information</h2></div><dl className="facts-grid"><div><dt>Manufacturer</dt><dd>{part.manufacturer?.name ?? "Not specified"}</dd></div><div><dt>Part Number Manufacturer</dt><dd className="mono">{part.manufacturer_part_number ?? "—"}</dd></div><div><dt>Supply type</dt><dd>{supplyTypes.find((item) => item.code === part.supply_type)?.name ?? part.supply_type}</dd></div></dl>{part.notes && <div className="notes-block"><h3>Notes</h3><p>{part.notes}</p></div>}</section>
+          <section className="detail-card"><div className="detail-card-heading"><h2>Part information</h2></div><dl className="facts-grid"><div><dt>Part Description</dt><dd className="value-with-copy"><span>{part.description}</span><button type="button" title="Copy part description" aria-label="Copy part description" onClick={() => copyValue("description", part.description)}><CopyIcon/>{copiedField === "description" && <em>Copied</em>}</button></dd></div><div><dt>Manufacturer</dt><dd>{part.manufacturer?.name ?? "Not specified"}</dd></div><div><dt>Part Number Manufacturer</dt><dd className="value-with-copy mono"><span>{part.manufacturer_part_number ?? "—"}</span>{part.manufacturer_part_number && <button type="button" title="Copy manufacturer part number" aria-label="Copy manufacturer part number" onClick={() => copyValue("part-number", part.manufacturer_part_number!)}><CopyIcon/>{copiedField === "part-number" && <em>Copied</em>}</button>}</dd></div><div><dt>Supply type</dt><dd>{supplyTypes.find((item) => item.code === part.supply_type)?.name ?? part.supply_type}</dd></div></dl>{part.notes && <div className="notes-block"><h3>Notes</h3><p>{part.notes}</p></div>}</section>
 
           <section className="detail-card"><div className="detail-card-heading"><h2>Preferred suppliers</h2><span>{suppliers.length} listed</span></div>{suppliers.length ? <div className="supplier-list">{suppliers.map((row) => <article key={`${row.preference_rank}-${row.supplier?.name}`}><span className="supplier-rank">{row.preference_rank}</span><div><strong>{row.supplier?.name ?? "Supplier"}</strong><small>{row.supplier_part_number ? `Supplier part: ${row.supplier_part_number}` : "No supplier part number"}</small>{(row.ordering_information || row.supplier?.ordering_information) && <p>{row.ordering_information || row.supplier?.ordering_information}</p>}{row.notes && <p>{row.notes}</p>}</div>{row.supplier?.website_url && <a href={row.supplier.website_url} target="_blank" rel="noreferrer">Supplier site ↗</a>}</article>)}</div> : <p className="empty-detail">No preferred suppliers have been added.</p>}</section>
 

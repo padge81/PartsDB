@@ -156,3 +156,15 @@ test("Add Part auto-fills the first supplier without overriding manual edits", a
   assert.match(source, /supplierAutoFill\.current\.company = false/);
   assert.match(source, /supplierAutoFill\.current\.partNumber = false/);
 });
+
+test("part information exposes copy controls for description and part number", async () => {
+  const [details, icons] = await Promise.all([
+    readFile(new URL("../components/part-details.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/icons.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(details, /<dt>Part Description<\/dt>/);
+  assert.match(details, /Copy part description/);
+  assert.match(details, /Copy manufacturer part number/);
+  assert.match(details, /navigator\.clipboard\.writeText/);
+  assert.match(icons, /export const CopyIcon/);
+});
