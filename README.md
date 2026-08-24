@@ -6,8 +6,8 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.6.3` |
-| Database | `0.6.0` |
+| Application | `0.7.0` |
+| Database | `0.7.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
 
@@ -29,6 +29,15 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.7.0` — 24 August 2026
+
+- Replaced one-way “Consider ordering with” links with shared ordering groups.
+- Made group relationships symmetric and transitive: linking to any member joins the complete group.
+- Migrated existing commonly ordered links into connected groups and removed the obsolete relationship table.
+- Added searchable checkbox selection limited to parts compatible with the selected machines.
+- Applied group selection to Add Part, administrator request review and Edit Part.
+- Updated part details and backup format version 3 for ordering groups.
 
 ### `0.6.3` — 21 August 2026
 

@@ -5,7 +5,7 @@ import { AppShell } from "./app-shell";
 import { getSupabaseBrowserClient } from "../lib/supabase";
 
 type BackupTable = { name: string; deleteColumn: string };
-type BackupFile = { format: "PartsDB backup"; version: 2; exported_at: string; tables: Record<string, Record<string, unknown>[]> };
+type BackupFile = { format: "PartsDB backup"; version: 3; exported_at: string; tables: Record<string, Record<string, unknown>[]> };
 
 const importOrder: BackupTable[] = [
   { name: "supply_types", deleteColumn: "id" }, { name: "companies", deleteColumn: "id" }, { name: "company_roles", deleteColumn: "company_id" },
@@ -15,8 +15,8 @@ const importOrder: BackupTable[] = [
   { name: "part_suppliers", deleteColumn: "part_id" }, { name: "part_machines", deleteColumn: "part_id" },
   { name: "machine_images", deleteColumn: "machine_id" },
   { name: "part_categories", deleteColumn: "part_id" },
+  { name: "part_order_groups", deleteColumn: "id" }, { name: "part_order_group_members", deleteColumn: "part_id" },
   { name: "part_images", deleteColumn: "id" }, { name: "request_images", deleteColumn: "id" },
-  { name: "commonly_ordered_parts", deleteColumn: "part_id" },
 ];
 const imageTables = new Set(["part_images", "request_images", "machine_images"]);
 const restorableOrder = importOrder.filter((table) => !imageTables.has(table.name));
@@ -39,7 +39,7 @@ export function BackupManager() {
       if (error) { setMessage(`Export stopped at ${table.name}: ${error.message}`); setIsError(true); setWorking(false); return; }
       tables[table.name] = (data ?? []) as Record<string, unknown>[];
     }
-    const payload: BackupFile = { format: "PartsDB backup", version: 2, exported_at: new Date().toISOString(), tables };
+    const payload: BackupFile = { format: "PartsDB backup", version: 3, exported_at: new Date().toISOString(), tables };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const anchor = document.createElement("a");
     anchor.href = url; anchor.download = `partsdb-backup-${new Date().toISOString().slice(0, 10)}.json`; anchor.click(); URL.revokeObjectURL(url);
     setMessage(`Backup exported with ${Object.values(tables).reduce((total, rows) => total + rows.length, 0)} records.`); setWorking(false);
@@ -49,7 +49,7 @@ export function BackupManager() {
     const file = event.target.files?.[0]; setBackup(null); setMessage(""); setIsError(false); setFileName(file?.name ?? ""); if (!file) return;
     try {
       const parsed = JSON.parse(await file.text()) as BackupFile;
-      if (parsed.format !== "PartsDB backup" || parsed.version !== 2 || !parsed.tables || typeof parsed.tables !== "object") throw new Error("This backup is not compatible with the company-based database (version 2 required).");
+      if (parsed.format !== "PartsDB backup" || parsed.version !== 3 || !parsed.tables || typeof parsed.tables !== "object") throw new Error("This backup is not compatible with ordering groups (version 3 required).");
       for (const table of importOrder) if (parsed.tables[table.name] && !Array.isArray(parsed.tables[table.name])) throw new Error(`Invalid ${table.name} data.`);
       setBackup(parsed); setMessage(`Ready: ${Object.values(parsed.tables).reduce((total, rows) => total + rows.length, 0)} records from ${new Date(parsed.exported_at).toLocaleString()}.`);
     } catch (error) { setMessage(error instanceof Error ? error.message : "The backup file could not be read."); setIsError(true); }

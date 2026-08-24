@@ -61,7 +61,7 @@ export function PartDetails({ partId }: { partId: string }) {
         supabase!.from("part_suppliers").select("preference_rank, supplier_part_number, ordering_information, notes, supplier:companies(name, website_url, ordering_information)").eq("part_id", partId).eq("is_active", true).order("preference_rank"),
         supabase!.from("part_machines").select("notes, machine:machines(model, name, manufacturer:companies(name))").eq("part_id", partId),
         supabase!.from("part_images").select("id, storage_path, caption, kind").eq("part_id", partId).order("sort_order"),
-        supabase!.from("commonly_ordered_parts").select("related_part_id").eq("part_id", partId),
+        supabase!.from("part_order_group_members").select("group_id").eq("part_id", partId).maybeSingle(),
       ]);
 
       if (partResult.error || !partResult.data) {
@@ -80,9 +80,10 @@ export function PartDetails({ partId }: { partId: string }) {
         setImages(rows.map((image, index) => ({ ...image, signedUrl: signed?.[index]?.signedUrl })));
       }
 
-      const relatedIds = relationshipResult.data?.map((item) => item.related_part_id) ?? [];
-      if (relatedIds.length) {
-        const { data } = await supabase!.from("parts").select("id, description, manufacturer_part_number").in("id", relatedIds);
+      if (relationshipResult.data?.group_id) {
+        const memberResult = await supabase!.from("part_order_group_members").select("part_id").eq("group_id", relationshipResult.data.group_id).neq("part_id", partId);
+        const relatedIds = (memberResult.data ?? []).map((item) => item.part_id);
+        const { data } = relatedIds.length ? await supabase!.from("parts").select("id, description, manufacturer_part_number").in("id", relatedIds) : { data: [] };
         if (data) setRelated(data as RelatedPart[]);
       }
       setLoading(false);
