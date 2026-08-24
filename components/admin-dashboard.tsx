@@ -1,29 +1,44 @@
 "use client";
-
-import { useEffect, useState } from "react";
-import { AppShell } from "./app-shell";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AppShell, type Profile } from "./app-shell";
 import { ArrowIcon, ClipboardIcon, ShieldIcon } from "./icons";
 import { getSupabaseBrowserClient } from "../lib/supabase";
+import { ApprovalSkipError, approvePartRequest, type ApprovalRequest } from "../lib/approve-part-request";
 
-type AdminRequest = { id: string; part_description: string; machine_model: string | null; status: string; submitted_at: string | null; requester?: { display_name: string | null } | null };
+type AdminRequest = ApprovalRequest & { submitted_at: string | null; requester?: { display_name: string | null } | null };
+type BulkResult = { approved: number; skipped: string[]; failed: string[] };
 
 export function AdminDashboard() {
-  const [requests, setRequests] = useState<AdminRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => { getSupabaseBrowserClient()?.from("part_requests").select("id,part_description,machine_model,status,submitted_at,requester:profiles!part_requests_requested_by_fkey(display_name)").in("status", ["pending", "draft"]).order("submitted_at", { ascending: true }).then(({ data }) => { setRequests((data ?? []) as unknown as AdminRequest[]); setLoading(false); }); }, []);
-  return <AppShell requireAdmin>{() => <main className="workspace">
+  const [requests, setRequests] = useState<AdminRequest[]>([]), [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]), [confirming, setConfirming] = useState(false), [processing, setProcessing] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0 }), [result, setResult] = useState<BulkResult | null>(null);
+  const loadRequests = useCallback(async () => { const supabase = getSupabaseBrowserClient(); if (!supabase) return; const { data } = await supabase.from("part_requests").select("*,requester:profiles!part_requests_requested_by_fkey(display_name)").in("status", ["pending", "draft"]).order("submitted_at", { ascending: true }); setRequests((data ?? []) as unknown as AdminRequest[]); setLoading(false); }, []);
+  useEffect(() => { const supabase = getSupabaseBrowserClient(); if (!supabase) return; supabase.from("part_requests").select("*,requester:profiles!part_requests_requested_by_fkey(display_name)").in("status", ["pending", "draft"]).order("submitted_at", { ascending: true }).then(({ data }) => { setRequests((data ?? []) as unknown as AdminRequest[]); setLoading(false); }); }, []);
+  const pendingIds = useMemo(() => requests.filter((request) => request.status === "pending").map((request) => request.id), [requests]);
+  const allPendingSelected = pendingIds.length > 0 && pendingIds.every((id) => selectedIds.includes(id));
+  function toggle(id: string) { setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]); setConfirming(false); setResult(null); }
+  function toggleAll() { setSelectedIds(allPendingSelected ? [] : pendingIds); setConfirming(false); setResult(null); }
+  async function bulkApprove(profile: Profile) {
+    const supabase = getSupabaseBrowserClient(); if (!supabase || !selectedIds.length) return;
+    setConfirming(false); setProcessing(true); setResult(null); setProgress({ current: 0, total: selectedIds.length });
+    const summary: BulkResult = { approved: 0, skipped: [], failed: [] };
+    for (const [index, id] of selectedIds.entries()) {
+      const request = requests.find((item) => item.id === id);
+      if (!request) summary.skipped.push(`${id.slice(0, 8)}: request was not found.`);
+      else try { await approvePartRequest(supabase, request, profile.id); summary.approved += 1; } catch (error) { const detail = `${request.part_description}: ${error instanceof Error ? error.message : "Unknown error"}`; if (error instanceof ApprovalSkipError) summary.skipped.push(detail); else summary.failed.push(detail); }
+      setProgress({ current: index + 1, total: selectedIds.length });
+    }
+    setSelectedIds([]); setResult(summary); setProcessing(false); await loadRequests();
+  }
+  return <AppShell requireAdmin>{(profile) => <main className="workspace">
     <section className="workspace-heading"><div><p className="eyebrow accent">Administrator portal</p><h1>Review and maintain</h1><p>Protect data quality while keeping technicians moving.</p></div><div className="heading-actions"><a className="button secondary" href="/dashboard">Browse / edit parts</a><a className="button secondary" href="/admin/machines">Manage machines</a><a className="button secondary" href="/admin/backup">Backup / Import</a><a className="button secondary" href="/admin/bulk-import">Bulk reference import</a><a className="button secondary" href="/admin/reference-data">Manage reference data</a><span className="admin-badge"><ShieldIcon/>Administrator</span></div></section>
-    <section className="stat-grid">
-      <article><span className="stat-icon amber"><ClipboardIcon/></span><div><strong>{requests.length}</strong><p>Pending requests</p></div><small>Awaiting review</small></article>
-      <article><span className="stat-icon green">✓</span><div><strong>Live</strong><p>Approval workflow</p></div><small>Creates active parts</small></article>
-      <article><span className="stat-icon blue">↺</span><div><strong>Audit</strong><p>Changes recorded</p></div><small>Administrator actions</small></article>
-    </section>
-    <section className="admin-panel">
-      <div className="panel-heading"><div><h2>Pending add-part requests</h2><p>Review submitted information before it enters the repository.</p></div><button className="button secondary">View history</button></div>
-      <div className="request-list">
-        {loading ? <div className="empty-row">Loading requests…</div> : requests.map((request) => <a href={`/admin/requests/${request.id}`} className="request-row" key={request.id}><span className="request-id">{request.id.slice(0,8)}</span><span><strong>{request.part_description}</strong><small>{request.requester?.display_name ?? "PartsDB user"} · {request.machine_model ?? "No machine"}</small></span><span className="request-age">{request.submitted_at ? new Date(request.submitted_at).toLocaleDateString() : "Draft"}</span><em className={request.status}>{request.status}</em><ArrowIcon/></a>)}
-        {!loading && !requests.length && <div className="empty-row">No requests are waiting for review.</div>}
-      </div>
+    <section className="stat-grid"><article><span className="stat-icon amber"><ClipboardIcon/></span><div><strong>{pendingIds.length}</strong><p>Pending requests</p></div><small>Awaiting review</small></article><article><span className="stat-icon green">✓</span><div><strong>Live</strong><p>Approval workflow</p></div><small>Creates active parts</small></article><article><span className="stat-icon blue">↺</span><div><strong>Audit</strong><p>Changes recorded</p></div><small>Administrator actions</small></article></section>
+    <section className="admin-panel"><div className="panel-heading"><div><h2>Pending add-part requests</h2><p>Review requests individually or select complete submissions for bulk approval.</p></div></div>
+      {!loading && pendingIds.length > 0 && <div className="bulk-approval-toolbar"><label><input type="checkbox" checked={allPendingSelected} onChange={toggleAll} disabled={processing}/> Select all pending</label><span>{selectedIds.length} selected</span><button type="button" className="button primary" disabled={!selectedIds.length || processing} onClick={() => setConfirming(true)}>Bulk approve</button></div>}
+      {confirming && <div className="bulk-confirmation" role="alert"><div><strong>Approve {selectedIds.length} selected request{selectedIds.length === 1 ? "" : "s"}?</strong><p>Possible duplicates will be skipped for individual review. Existing individual approval remains available.</p></div><button type="button" className="button secondary" onClick={() => setConfirming(false)}>Cancel</button><button type="button" className="button primary" onClick={() => void bulkApprove(profile)}>Confirm approval</button></div>}
+      {processing && <div className="bulk-progress" aria-live="polite"><strong>Approving request {Math.min(progress.current + 1, progress.total)} of {progress.total}…</strong><progress value={progress.current} max={progress.total}/></div>}
+      {result && <div className="bulk-summary" aria-live="polite"><strong>Bulk approval complete: {result.approved} approved, {result.skipped.length} skipped, {result.failed.length} failed.</strong>{result.skipped.map((item) => <p key={`skip-${item}`}>Skipped — {item}</p>)}{result.failed.map((item) => <p className="error-text" key={`fail-${item}`}>Failed — {item}</p>)}</div>}
+      <div className="request-list">{loading ? <div className="empty-row">Loading requests…</div> : requests.map((request) => <div className="bulk-request-item" key={request.id}><label className="request-checkbox">{request.status === "pending" ? <input type="checkbox" checked={selectedIds.includes(request.id)} disabled={processing} onChange={() => toggle(request.id)} aria-label={`Select ${request.part_description}`}/> : <span title="Drafts must be submitted before approval">—</span>}</label><a href={`/admin/requests/${request.id}`} className="request-row"><span className="request-id">{request.id.slice(0,8)}</span><span><strong>{request.part_description}</strong><small>{request.requester?.display_name ?? "PartsDB user"} · {request.machine_model ?? "No machine"}</small></span><span className="request-age">{request.submitted_at ? new Date(request.submitted_at).toLocaleDateString() : "Draft"}</span><em className={request.status}>{request.status}</em><ArrowIcon/></a></div>)}{!loading && !requests.length && <div className="empty-row">No requests are waiting for review.</div>}</div>
     </section>
   </main>}</AppShell>;
 }

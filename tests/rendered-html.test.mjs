@@ -55,6 +55,19 @@ test("part create, approval and edit retain category assignment", async () => {
   assert.match(sources[2], /from\("part_categories"\)\.delete/);
 });
 
+test("admin requests support safe bulk approval alongside individual review", async () => {
+  const [dashboard, approval] = await Promise.all([
+    readFile(new URL("../components/admin-dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/approve-part-request.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(dashboard, /Select all pending/);
+  assert.match(dashboard, /Bulk approve/);
+  assert.match(dashboard, /admin\/requests/);
+  assert.match(approval, /find_similar_parts/);
+  assert.match(approval, /Possible duplicate requires individual review/);
+  assert.match(approval, /from\("request_images"\)/);
+});
+
 test("part category assignment uses checkbox controls", async () => {
   const source = await readFile(new URL("../components/category-checkboxes.tsx", import.meta.url), "utf8");
 

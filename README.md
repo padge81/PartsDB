@@ -6,7 +6,7 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.7.0` |
+| Application | `0.8.1` |
 | Database | `0.7.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -29,6 +29,18 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.8.1` — 24 August 2026
+
+- Removed the inactive View History button from the pending requests panel.
+
+### `0.8.0` — 24 August 2026
+
+- Added pending-request checkboxes and a select-all-pending control to the administrator dashboard.
+- Added confirmed bulk approval with progress and approved, skipped and failed results.
+- Preserved the existing individual edit, approve and reject workflow.
+- Kept duplicate protection active: high-confidence matches are skipped for individual administrator review.
+- Bulk approval carries across categories, suppliers, machines, ordering groups and request images.
 
 ### `0.7.0` — 24 August 2026
 
