@@ -108,3 +108,29 @@ test("BOM cart persists locally and exports ordering information", async () => {
   assert.match(dashboard, /<AddToBomButton/);
   assert.match(details, /<AddToBomButton/);
 });
+
+test("parts search restores session filters and scroll position", async () => {
+  const source = await readFile(new URL("../components/parts-dashboard.tsx", import.meta.url), "utf8");
+  assert.match(source, /sessionStorage/);
+  assert.match(source, /manufacturerId/);
+  assert.match(source, /machineId/);
+  assert.match(source, /supplyType/);
+  assert.match(source, /categoryId/);
+  assert.match(source, /scrollY/);
+  assert.match(source, /onClick=\{rememberScroll\}/);
+  assert.match(source, /removeItem\(SEARCH_SESSION_KEY\)/);
+});
+
+test("main machine selection supports search before manufacturer selection", async () => {
+  const [selector, requestForm, adminEditor] = await Promise.all([
+    readFile(new URL("../components/machine-search-select.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/part-request-form.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/admin-request-editor.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(selector, /Type to search machine name/);
+  assert.match(selector, /machine\.manufacturer\?\.name/);
+  assert.match(requestForm, /<MachineSearchSelect/);
+  assert.match(requestForm, /setMachineManufacturerId\(machine\.manufacturer\?\.id/);
+  assert.match(adminEditor, /<MachineSearchSelect/);
+  assert.match(adminEditor, /setMachineManufacturerId\(machine\.manufacturer\?\.id/);
+});

@@ -6,7 +6,7 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.9.0` |
+| Application | `0.9.2` |
 | Database | `0.7.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -29,6 +29,18 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.9.2` — 24 August 2026
+
+- Added type-to-search machine selection to Add Part and administrator request review.
+- Removed the requirement to select a machine manufacturer before searching for a machine.
+- Automatically selects the linked manufacturer when a machine is chosen from search results.
+
+### `0.9.1` — 24 August 2026
+
+- Retained part search text and Manufacturer, Machine, Supply type and Category filters while viewing a part.
+- Restored the previous parts-search scroll position when returning to the dashboard.
+- Kept Clear filters as an explicit reset of the retained part-search state.
 
 ### `0.9.0` — 24 August 2026
 
