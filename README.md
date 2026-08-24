@@ -6,7 +6,7 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.7.0` |
+| Application | `0.9.0` |
 | Database | `0.7.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -29,6 +29,26 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.9.0` — 24 August 2026
+
+- Added a browser-persistent BOM Cart available throughout a signed-in session.
+- Added Add to BOM controls to part search results and part detail pages.
+- Added live BOM quantity in the main navigation.
+- Added editable quantities and line notes, individual removal and clear-cart confirmation.
+- Added CSV export with part, preferred supplier, supply type and compatible-machine information.
+
+### `0.8.1` — 24 August 2026
+
+- Removed the inactive View History button from the pending requests panel.
+
+### `0.8.0` — 24 August 2026
+
+- Added pending-request checkboxes and a select-all-pending control to the administrator dashboard.
+- Added confirmed bulk approval with progress and approved, skipped and failed results.
+- Preserved the existing individual edit, approve and reject workflow.
+- Kept duplicate protection active: high-confidence matches are skipped for individual administrator review.
+- Bulk approval carries across categories, suppliers, machines, ordering groups and request images.
 
 ### `0.7.0` — 24 August 2026
 

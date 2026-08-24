@@ -6,6 +6,7 @@ import { AppShell } from "./app-shell";
 import { ArrowIcon, BoxIcon, PlusIcon, SearchIcon } from "./icons";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "../lib/supabase";
 import { useSupplyTypes } from "../lib/use-supply-types";
+import { AddToBomButton } from "./add-to-bom-button";
 
 type Part = { id: string; description: string; manufacturer_part_number: string | null; supply_type: string; manufacturer?: { name: string } | null };
 type Manufacturer = { id: string; name: string };
@@ -110,10 +111,10 @@ export function PartsDashboard() {
         <div className="results-meta"><div><h2>Approved parts</h2><span>{visible.length} results</span></div><label>Sort<select><option>Most relevant</option><option>Description A–Z</option></select></label></div>
         <div className="parts-table" aria-live="polite">
           <div className="table-head"><span>Part</span><span>Manufacturer</span><span>Part number</span><span>Supply</span><span></span></div>
-          {loading ? <div className="empty-row">Loading approved parts…</div> : error ? <div className="empty-row">Parts could not be loaded: {error}</div> : visible.map((part) => <a className="part-row" key={part.id} href={`/parts/${part.id}`}>
+          {loading ? <div className="empty-row">Loading approved parts…</div> : error ? <div className="empty-row">Parts could not be loaded: {error}</div> : visible.map((part) => <div className="bom-part-result" key={part.id}><a className="part-row" href={`/parts/${part.id}`}>
             <span className="part-title"><i><BoxIcon/></i><span><strong>{part.description}</strong><small>{part.manufacturer_part_number ?? "No part number"}</small></span></span>
             <span>{part.manufacturer?.name ?? "—"}</span><span className="mono">{part.manufacturer_part_number ?? "—"}</span><span><em className={`supply ${part.supply_type}`}>{supplyTypes.find((item) => item.code === part.supply_type)?.name ?? part.supply_type}</em></span><span className="row-arrow"><ArrowIcon/></span>
-          </a>)}
+          </a><AddToBomButton partId={part.id} compact/></div>)}
           {!loading && !error && visible.length === 0 && <div className="empty-row">No approved parts match the selected search and filters.</div>}
         </div>
       </section>

@@ -55,6 +55,19 @@ test("part create, approval and edit retain category assignment", async () => {
   assert.match(sources[2], /from\("part_categories"\)\.delete/);
 });
 
+test("admin requests support safe bulk approval alongside individual review", async () => {
+  const [dashboard, approval] = await Promise.all([
+    readFile(new URL("../components/admin-dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/approve-part-request.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(dashboard, /Select all pending/);
+  assert.match(dashboard, /Bulk approve/);
+  assert.match(dashboard, /admin\/requests/);
+  assert.match(approval, /find_similar_parts/);
+  assert.match(approval, /Possible duplicate requires individual review/);
+  assert.match(approval, /from\("request_images"\)/);
+});
+
 test("part category assignment uses checkbox controls", async () => {
   const source = await readFile(new URL("../components/category-checkboxes.tsx", import.meta.url), "utf8");
 
@@ -76,4 +89,22 @@ test("consider ordering relationships use searchable grouped checkboxes", async 
   assert.match(partEditor, /set_part_order_group/);
   assert.match(migration, /create table public\.part_order_groups/);
   assert.match(migration, /drop table public\.commonly_ordered_parts/);
+});
+
+test("BOM cart persists locally and exports ordering information", async () => {
+  const [store, cart, shell, dashboard, details] = await Promise.all([
+    readFile(new URL("../lib/bom-cart.ts", import.meta.url), "utf8"),
+    readFile(new URL("../components/bom-cart-page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/app-shell.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/parts-dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/part-details.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(store, /localStorage/);
+  assert.match(store, /quantity/);
+  assert.match(cart, /Export CSV/);
+  assert.match(cart, /Preferred supplier/);
+  assert.match(cart, /Compatible machines/);
+  assert.match(shell, /href="\/bom"/);
+  assert.match(dashboard, /<AddToBomButton/);
+  assert.match(details, /<AddToBomButton/);
 });
