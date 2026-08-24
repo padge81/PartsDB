@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "./app-shell";
 import { ArrowIcon, BoxIcon, PlusIcon, SearchIcon } from "./icons";
@@ -14,6 +14,8 @@ type Machine = { id: string; model: string | null; name: string; notes: string |
 type Compatibility = { part_id: string; machine_id: string };
 type Category = { id: string; name: string };
 type PartCategory = { part_id: string; category_id: string };
+type SavedSearch = { query: string; manufacturerId: string; machineId: string; supplyType: string; categoryId: string; machineQuery: string; machineCompanyId: string; machineCategoryId: string; scrollY: number };
+const SEARCH_SESSION_KEY = "partsdb-search-state-v1";
 
 const previewParts: Part[] = [
   { id: "1", description: "Sealed deep groove ball bearing", manufacturer_part_number: "6204-2RSH", supply_type: "local", manufacturer: { name: "SKF" } },
@@ -41,6 +43,33 @@ export function PartsDashboard() {
   const [machineCategories, setMachineCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [searchRestored, setSearchRestored] = useState(false);
+  const scrollRestored = useRef(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const saved = JSON.parse(window.sessionStorage.getItem(SEARCH_SESSION_KEY) ?? "null") as SavedSearch | null;
+        if (saved) { setQuery(saved.query ?? ""); setManufacturerId(saved.manufacturerId ?? ""); setMachineId(saved.machineId ?? ""); setSupplyType(saved.supplyType ?? ""); setCategoryId(saved.categoryId ?? ""); setMachineQuery(saved.machineQuery ?? ""); setMachineCompanyId(saved.machineCompanyId ?? ""); setMachineCategoryId(saved.machineCategoryId ?? ""); }
+      } catch { window.sessionStorage.removeItem(SEARCH_SESSION_KEY); }
+      setSearchRestored(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!searchRestored) return;
+    let previousScroll = 0;
+    try { previousScroll = (JSON.parse(window.sessionStorage.getItem(SEARCH_SESSION_KEY) ?? "null") as SavedSearch | null)?.scrollY ?? 0; } catch { /* Invalid state is replaced below. */ }
+    window.sessionStorage.setItem(SEARCH_SESSION_KEY, JSON.stringify({ query, manufacturerId, machineId, supplyType, categoryId, machineQuery, machineCompanyId, machineCategoryId, scrollY: previousScroll } satisfies SavedSearch));
+  }, [searchRestored, query, manufacturerId, machineId, supplyType, categoryId, machineQuery, machineCompanyId, machineCategoryId]);
+
+  useEffect(() => {
+    if (!searchRestored || loading || scrollRestored.current) return;
+    scrollRestored.current = true;
+    const timer = window.setTimeout(() => { try { const saved = JSON.parse(window.sessionStorage.getItem(SEARCH_SESSION_KEY) ?? "null") as SavedSearch | null; window.scrollTo({ top: saved?.scrollY ?? 0 }); } catch { /* Stay at the top. */ } }, 50);
+    return () => window.clearTimeout(timer);
+  }, [searchRestored, loading]);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -87,7 +116,8 @@ export function PartsDashboard() {
     if (machineId && !machines.some((machine) => machine.id === machineId && (!value || machine.manufacturer_id === value))) setMachineId("");
   }
 
-  function clearFilters() { setQuery(""); setManufacturerId(""); setMachineId(""); setSupplyType(""); setCategoryId(""); }
+  function rememberScroll() { try { const saved = JSON.parse(window.sessionStorage.getItem(SEARCH_SESSION_KEY) ?? "{}") as Partial<SavedSearch>; window.sessionStorage.setItem(SEARCH_SESSION_KEY, JSON.stringify({ ...saved, scrollY: window.scrollY })); } catch { /* Navigation should still continue. */ } }
+  function clearFilters() { setQuery(""); setManufacturerId(""); setMachineId(""); setSupplyType(""); setCategoryId(""); window.sessionStorage.removeItem(SEARCH_SESSION_KEY); window.scrollTo({ top: 0, behavior: "smooth" }); }
 
   return (
     <AppShell>{() => <main className="workspace">
@@ -111,7 +141,7 @@ export function PartsDashboard() {
         <div className="results-meta"><div><h2>Approved parts</h2><span>{visible.length} results</span></div><label>Sort<select><option>Most relevant</option><option>Description A–Z</option></select></label></div>
         <div className="parts-table" aria-live="polite">
           <div className="table-head"><span>Part</span><span>Manufacturer</span><span>Part number</span><span>Supply</span><span></span></div>
-          {loading ? <div className="empty-row">Loading approved parts…</div> : error ? <div className="empty-row">Parts could not be loaded: {error}</div> : visible.map((part) => <div className="bom-part-result" key={part.id}><a className="part-row" href={`/parts/${part.id}`}>
+          {loading ? <div className="empty-row">Loading approved parts…</div> : error ? <div className="empty-row">Parts could not be loaded: {error}</div> : visible.map((part) => <div className="bom-part-result" key={part.id}><a className="part-row" href={`/parts/${part.id}`} onClick={rememberScroll}>
             <span className="part-title"><i><BoxIcon/></i><span><strong>{part.description}</strong><small>{part.manufacturer_part_number ?? "No part number"}</small></span></span>
             <span>{part.manufacturer?.name ?? "—"}</span><span className="mono">{part.manufacturer_part_number ?? "—"}</span><span><em className={`supply ${part.supply_type}`}>{supplyTypes.find((item) => item.code === part.supply_type)?.name ?? part.supply_type}</em></span><span className="row-arrow"><ArrowIcon/></span>
           </a><AddToBomButton partId={part.id} compact/></div>)}

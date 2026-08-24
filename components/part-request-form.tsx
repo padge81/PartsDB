@@ -11,6 +11,7 @@ import { useSupplyTypes } from "../lib/use-supply-types";
 import { CategoryCheckboxes } from "./category-checkboxes";
 import { OrderingGroupSelector } from "./ordering-group-selector";
 import { useOrderingParts } from "../lib/use-ordering-parts";
+import { MachineSearchSelect } from "./machine-search-select";
 
 type Named = { id: string; name: string };
 type Machine = { id: string; model: string | null; name: string; manufacturer?: Named | null };
@@ -77,7 +78,7 @@ export function PartRequestForm() {
   function selectMachine(id: string) {
     setMachineId(id);
     const machine = machines.find((item) => item.id === id);
-    if (machine) { setMachineManufacturer(machine.manufacturer?.name ?? ""); setMachineName(machine.name); setMachineModel(machine.model ?? ""); }
+    if (machine) { setMachineManufacturerId(machine.manufacturer?.id ?? ""); setMachineManufacturer(machine.manufacturer?.name ?? ""); setMachineName(machine.name); setMachineModel(machine.model ?? ""); }
   }
 
   function selectMachineManufacturer(id: string) {
@@ -119,7 +120,7 @@ export function PartRequestForm() {
     <form className="record-form" onSubmit={(event) => submit(event, profile)}>
       <section className="form-card"><div className="detail-card-heading"><h2>Machine compatibility</h2></div><div className="form-grid">
         <label>Machine Manufacturer<select value={machineManufacturerId} onChange={(e) => selectMachineManufacturer(e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-        <label>Machine Name<select value={machineId} onChange={(e) => selectMachine(e.target.value)} disabled={!machineManufacturerId}><option value="">Select machine</option>{machines.filter((machine) => machine.manufacturer?.id === machineManufacturerId).map((machine) => <option key={machine.id} value={machine.id}>{machine.name ?? machine.model} · {machine.model}</option>)}</select></label>
+        <label>Machine Name<MachineSearchSelect machines={machines} selectedId={machineId} manufacturerId={machineManufacturerId} onSelect={selectMachine}/><small>Start typing a machine name; its manufacturer will be selected automatically.</small></label>
       </div><div className="additional-machines"><div className="detail-card-heading"><h3>Additional compatible machines</h3><button type="button" className="button secondary compact" onClick={() => setAdditionalMachines((current) => [...current, { manufacturer_id: "", machine_id: "" }])}>+ Add machine</button></div>{additionalMachines.length ? <div className="machine-link-list">{additionalMachines.map((row, index) => <div className="machine-link-row" key={index}><label>Machine Manufacturer<select value={row.manufacturer_id} onChange={(e) => updateAdditionalMachine(index, "manufacturer_id", e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((manufacturer) => <option key={manufacturer.id} value={manufacturer.id}>{manufacturer.name}</option>)}</select></label><label>Machine Name<select value={row.machine_id} onChange={(e) => updateAdditionalMachine(index, "machine_id", e.target.value)} disabled={!row.manufacturer_id}><option value="">Select machine</option>{machines.filter((machine) => machine.id !== machineId && machine.manufacturer?.id === row.manufacturer_id).map((machine) => <option key={machine.id} value={machine.id}>{machine.name ?? machine.model}</option>)}</select></label><button type="button" className="icon-remove" aria-label="Remove compatible machine" onClick={() => setAdditionalMachines((current) => current.filter((_, rowIndex) => rowIndex !== index))}>×</button></div>)}</div> : <p className="empty-detail">No additional machines added.</p>}</div></section>
       <section className="form-card"><div className="detail-card-heading"><h2>Part information</h2><span>Required fields marked *</span></div><div className="form-grid">
         <label className="span-2">Part Description *<input required value={partDescription} onChange={(e) => setPartDescription(e.target.value)} /></label>
