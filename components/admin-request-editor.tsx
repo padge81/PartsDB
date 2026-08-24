@@ -8,18 +8,20 @@ import { ShieldIcon } from "./icons";
 import { getSupabaseBrowserClient } from "../lib/supabase";
 import { useSupplyTypes } from "../lib/use-supply-types";
 import { CategoryCheckboxes } from "./category-checkboxes";
+import { OrderingGroupSelector } from "./ordering-group-selector";
+import { useOrderingParts } from "../lib/use-ordering-parts";
 
 type SupplierInfo = { supplier_id?: string; supplier_name?: string; supplier_part_number?: string; ordering_information?: string; notes?: string; preference_rank?: number };
 type EditableRequest = { id: string; requested_by: string; part_description: string; part_manufacturer: string; manufacturer_part_number: string; machine_manufacturer: string; machine_name: string; machine_model: string; machine_ids: string[]; supply_type: string; category_ids: string[]; commonly_ordered_part_ids: string[]; supplier_information: SupplierInfo[]; notes: string; review_notes: string; status: string };
 type Named = { id: string; name: string };
 type MachineOption = { id: string; model: string | null; name: string; manufacturer?: Named | null };
-type PartOption = { id: string; description: string; manufacturer_part_number: string | null };
 type MachineDraft = { manufacturer_id: string; machine_id: string };
 type RequestImage = { id: string; storage_path: string; kind: string; sort_order: number; signedUrl?: string };
 type SimilarPart = { id: string; description: string; manufacturer_part_number: string | null; number_match: string | null; description_score: number; same_machine: boolean; score: number };
 
 export function AdminRequestEditor({ requestId }: { requestId: string }) {
   const supplyTypes = useSupplyTypes();
+  const orderingParts = useOrderingParts();
   const router = useRouter();
   const [request, setRequest] = useState<EditableRequest | null>(null);
   const [saving, setSaving] = useState(false);
@@ -27,7 +29,6 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
   const [manufacturers, setManufacturers] = useState<Named[]>([]);
   const [suppliers, setSuppliers] = useState<Named[]>([]);
   const [machines, setMachines] = useState<MachineOption[]>([]);
-  const [parts, setParts] = useState<PartOption[]>([]);
   const [categories, setCategories] = useState<Named[]>([]);
   const [machineId, setMachineId] = useState("");
   const [machineManufacturerId, setMachineManufacturerId] = useState("");
@@ -43,10 +44,9 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
       supabase.from("companies").select("id,name,company_roles!inner(role)").eq("is_active", true).eq("company_roles.role", "manufacturer").order("name"),
       supabase.from("companies").select("id,name,company_roles!inner(role)").eq("is_active", true).in("company_roles.role", ["supplier", "distributor"]).order("name"),
       supabase.from("machines").select("id,model,name,manufacturer:companies(id,name)").eq("is_active", true).order("name"),
-      supabase.from("parts").select("id,description,manufacturer_part_number").eq("status", "active").order("description"),
       supabase.from("request_images").select("id,storage_path,kind,sort_order").eq("request_id", requestId).order("sort_order"),
       supabase.from("categories").select("id,name").eq("is_active", true).order("name"),
-    ]).then(async ([requestResult, manufacturerResult, supplierResult, machineResult, partResult, imageResult, categoryResult]) => {
+    ]).then(async ([requestResult, manufacturerResult, supplierResult, machineResult, imageResult, categoryResult]) => {
       if (requestResult.error) setMessage(requestResult.error.message); else {
         const loadedRequest = requestResult.data as EditableRequest;
         setRequest(loadedRequest);
@@ -56,7 +56,7 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
         setAdditionalMachines((loadedRequest.machine_ids ?? []).map((machine_id) => { const machine = ((machineResult.data ?? []) as unknown as MachineOption[]).find((item) => item.id === machine_id); return { manufacturer_id: machine?.manufacturer?.id ?? "", machine_id }; }));
       }
       setManufacturers((manufacturerResult.data ?? []) as Named[]); setSuppliers((supplierResult.data ?? []) as Named[]);
-      setMachines((machineResult.data ?? []) as unknown as MachineOption[]); setParts((partResult.data ?? []) as PartOption[]);
+      setMachines((machineResult.data ?? []) as unknown as MachineOption[]);
       setCategories((categoryResult.data ?? []) as Named[]);
       if (imageResult.data?.length) { const rows = imageResult.data as RequestImage[]; const { data: signed } = await supabase.storage.from("request-images").createSignedUrls(rows.map((image) => image.storage_path), 3600); setRequestImages(rows.map((image, index) => ({ ...image, signedUrl: signed?.[index]?.signedUrl }))); }
     });
@@ -121,7 +121,8 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
       if (supplierId) { await supabase.from("company_roles").upsert({ company_id: supplierId, role: "supplier" }, { onConflict: "company_id,role" }); await supabase.from("part_suppliers").insert({ part_id: createdPart.data.id, supplier_id: supplierId, preference_rank: supplier.preference_rank ?? 1, supplier_part_number: supplier.supplier_part_number || null, ordering_information: supplier.ordering_information || null, notes: supplier.notes || null }); }
     }
 
-    if (request.commonly_ordered_part_ids?.length) await supabase.from("commonly_ordered_parts").insert(request.commonly_ordered_part_ids.map((related_part_id) => ({ part_id: createdPart.data.id, related_part_id, created_by: profile.id })));
+    const orderingGroupResult = await supabase.rpc("set_part_order_group", { p_part_id: createdPart.data.id, p_related_part_ids: request.commonly_ordered_part_ids ?? [], p_expand_existing_groups: true });
+    if (orderingGroupResult.error) { setMessage(`Part created, but its ordering group could not be linked: ${orderingGroupResult.error.message}`); setSaving(false); return; }
     for (const [index, image] of requestImages.entries()) {
       const downloaded = await supabase.storage.from("request-images").download(image.storage_path);
       if (downloaded.error || !downloaded.data) { setMessage(`Part created, but image ${index + 1} could not be copied: ${downloaded.error?.message ?? "download failed"}`); setSaving(false); return; }
@@ -156,6 +157,6 @@ export function AdminRequestEditor({ requestId }: { requestId: string }) {
     <section className="form-card"><div className="detail-card-heading"><h2>Part supplier information</h2><span>Database linked · up to three</span></div><div className="supplier-form-list">{Array.from({ length: 3 }, (_, index) => request.supplier_information?.[index] ?? { preference_rank: index + 1 }).map((supplier, index) => <div className="supplier-form-row" key={index}><span>{index + 1}</span><label>{index === 0 ? "Part Supplier" : "Additional Supplier"}<select value={supplier.supplier_id ?? ""} onChange={(e) => updateSupplier(index, "supplier_id", e.target.value)}><option value="">Not selected</option>{suppliers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>{index === 0 ? "Part Number local supplier" : "Supplier part number"}<input value={supplier.supplier_part_number ?? ""} onChange={(e) => updateSupplier(index, "supplier_part_number", e.target.value)}/></label><label>Ordering information<input value={supplier.ordering_information ?? ""} onChange={(e) => updateSupplier(index, "ordering_information", e.target.value)}/></label></div>)}</div></section>
     <section className="form-card"><div className="detail-card-heading"><h2>Submitted images</h2><span>{requestImages.length}</span></div>{requestImages.length ? <div className="review-image-grid">{requestImages.map((image, index) => image.signedUrl ? <a href={image.signedUrl} target="_blank" rel="noreferrer" key={image.id}><Image unoptimized width={360} height={270} src={image.signedUrl} alt={`Submitted part image ${index + 1}`}/><span>Image {index + 1} · open full size</span></a> : null)}</div> : <p className="empty-detail">No images were submitted.</p>}</section>
     <section className="form-card duplicate-card"><div className="detail-card-heading"><h2>Possible duplicates</h2><span>{similarParts.length} matches</span></div>{similarParts.length ? <div className="duplicate-list">{similarParts.map((part) => <a href={`/parts/${part.id}`} target="_blank" rel="noreferrer" key={part.id} className={part.score >= .78 ? "high-confidence" : ""}><span><strong>{part.description}</strong><small>{part.manufacturer_part_number ?? "No part number"}</small></span><span>{[part.number_match, part.same_machine ? "Same machine" : null, `${Math.round(part.description_score * 100)}% description`].filter(Boolean).join(" · ")}</span><em>{Math.round(part.score * 100)}%</em></a>)}</div> : <p className="empty-detail">No likely matches found.</p>}{similarParts.some((part) => part.score >= .78) && <label className="duplicate-override"><input type="checkbox" checked={duplicateOverride} onChange={(e) => setDuplicateOverride(e.target.checked)}/><span><strong>Approve as a new part anyway</strong><small>I reviewed the high-confidence matches and confirm this is not a duplicate.</small></span></label>}</section>
-    <section className="form-card"><div className="detail-card-heading"><h2>Related information</h2><span>Database linked</span></div><div className="form-grid"><label className="span-2">Consider ordering with<select multiple value={request.commonly_ordered_part_ids ?? []} onChange={(e) => setRequest({ ...request, commonly_ordered_part_ids: Array.from(e.target.selectedOptions, (option) => option.value) })}>{parts.map((part) => <option key={part.id} value={part.id}>{part.manufacturer_part_number ?? "No part number"} · {part.description}</option>)}</select></label><label className="span-2">Part notes<textarea rows={5} value={request.notes ?? ""} onChange={(e) => field("notes", e.target.value)}/></label><label className="span-2">Administrator review notes<textarea rows={4} value={request.review_notes ?? ""} onChange={(e) => field("review_notes", e.target.value)}/></label></div></section>
+    <section className="form-card"><div className="detail-card-heading"><h2>Related information</h2><span>Database linked</span></div><div className="form-grid"><div className="span-2"><h3>Consider ordering with</h3><OrderingGroupSelector parts={orderingParts} selectedIds={request.commonly_ordered_part_ids ?? []} machineIds={[machineId, ...(request.machine_ids ?? [])]} onChange={(commonly_ordered_part_ids) => setRequest({ ...request, commonly_ordered_part_ids })}/></div><label className="span-2">Part notes<textarea rows={5} value={request.notes ?? ""} onChange={(e) => field("notes", e.target.value)}/></label><label className="span-2">Administrator review notes<textarea rows={4} value={request.review_notes ?? ""} onChange={(e) => field("review_notes", e.target.value)}/></label></div></section>
     {message && <p className="form-message success-message">{message}</p>}<div className="form-actions admin-actions"><button type="button" className="button danger" disabled={saving} onClick={() => reject(profile)}>Reject request</button><button className="button secondary" disabled={saving}>Save changes</button><button type="button" className="button primary" disabled={saving} onClick={() => approve(profile)}>{saving ? "Processing…" : "Approve & add to database"}</button></div></form></>}</main>}</AppShell>;
 }

@@ -9,10 +9,11 @@ import { getSupabaseBrowserClient } from "../lib/supabase";
 import { formatBytes, prepareImage, type PreparedImage } from "../lib/image-compression";
 import { useSupplyTypes } from "../lib/use-supply-types";
 import { CategoryCheckboxes } from "./category-checkboxes";
+import { OrderingGroupSelector } from "./ordering-group-selector";
+import { useOrderingParts } from "../lib/use-ordering-parts";
 
 type Named = { id: string; name: string };
 type Machine = { id: string; model: string | null; name: string; manufacturer?: Named | null };
-type ExistingPart = { id: string; description: string; manufacturer_part_number: string | null };
 type SupplierDraft = { supplier_id: string; supplier_part_number: string; ordering_information: string; notes: string };
 type MachineDraft = { manufacturer_id: string; machine_id: string };
 
@@ -20,11 +21,11 @@ const emptySupplier = (): SupplierDraft => ({ supplier_id: "", supplier_part_num
 
 export function PartRequestForm() {
   const supplyTypes = useSupplyTypes();
+  const orderingParts = useOrderingParts();
   const router = useRouter();
   const [manufacturers, setManufacturers] = useState<Named[]>([]);
   const [suppliers, setSuppliers] = useState<Named[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
-  const [parts, setParts] = useState<ExistingPart[]>([]);
   const [categories, setCategories] = useState<Named[]>([]);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [machineId, setMachineId] = useState("");
@@ -53,11 +54,10 @@ export function PartRequestForm() {
       supabase.from("companies").select("id,name,company_roles!inner(role)").eq("is_active", true).eq("company_roles.role", "manufacturer").order("name"),
       supabase.from("companies").select("id,name,company_roles!inner(role)").eq("is_active", true).in("company_roles.role", ["supplier", "distributor"]).order("name"),
       supabase.from("machines").select("id,model,name,manufacturer:companies(id,name)").eq("is_active", true).order("name"),
-      supabase.from("parts").select("id,description,manufacturer_part_number").eq("status", "active").order("description"),
       supabase.from("categories").select("id,name").eq("is_active", true).order("name"),
-    ]).then(([mfr, supp, machine, existing, categoryResult]) => {
+    ]).then(([mfr, supp, machine, categoryResult]) => {
       setManufacturers((mfr.data ?? []) as Named[]); setSuppliers((supp.data ?? []) as Named[]);
-      setMachines((machine.data ?? []) as unknown as Machine[]); setParts((existing.data ?? []) as ExistingPart[]);
+      setMachines((machine.data ?? []) as unknown as Machine[]);
       setCategories((categoryResult.data ?? []) as Named[]);
     });
   }, []);
@@ -130,7 +130,7 @@ export function PartRequestForm() {
       </div></section>
       <section className="form-card"><div className="detail-card-heading"><h2>Part supplier information</h2><span>Up to three</span></div><div className="supplier-form-list">{supplierRows.map((row, index) => <div className="supplier-form-row" key={index}><span>{index + 1}</span><label>{index === 0 ? "Part Supplier" : "Additional Supplier"}<select value={row.supplier_id} onChange={(e) => updateSupplier(index, "supplier_id", e.target.value)}><option value="">Not selected</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label><label>{index === 0 ? "Part Number local supplier" : "Supplier part number"}<input value={row.supplier_part_number} onChange={(e) => updateSupplier(index, "supplier_part_number", e.target.value)} /></label><label>Ordering information<input value={row.ordering_information} onChange={(e) => updateSupplier(index, "ordering_information", e.target.value)} /></label></div>)}</div></section>
       <section className="form-card"><div className="detail-card-heading"><h2>Additional information</h2></div><div className="form-grid">
-        <label className="span-2">Consider ordering with<select multiple value={relatedIds} onChange={(e) => setRelatedIds(Array.from(e.target.selectedOptions, (option) => option.value))}>{parts.map((part) => <option key={part.id} value={part.id}>{part.manufacturer_part_number ?? "No part number"} · {part.description}</option>)}</select></label>
+        <div className="span-2"><h3>Consider ordering with</h3><OrderingGroupSelector parts={orderingParts} selectedIds={relatedIds} machineIds={[machineId, ...additionalMachines.map((row) => row.machine_id)]} onChange={setRelatedIds}/></div>
         <label className="span-2">Notes<textarea rows={5} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
         <label className="span-2 image-picker">Part images<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={selectImages} disabled={processingImages}/><small>{processingImages ? "Compressing images…" : "Images are resized to 1600 px and compressed to WebP before upload. Maximum 8."}</small></label>
         {files.length > 0 && <div className="upload-preview-grid span-2">{files.map((image, index) => <article key={image.previewUrl}><Image unoptimized width={360} height={270} src={image.previewUrl} alt={`Selected part image ${index + 1}`}/><div><strong>{image.file.name}</strong><small>{formatBytes(image.originalBytes)} → {formatBytes(image.compressedBytes)}</small></div><button type="button" onClick={() => removeImage(index)} aria-label={`Remove ${image.file.name}`}>×</button></article>)}</div>}

@@ -62,3 +62,18 @@ test("part category assignment uses checkbox controls", async () => {
   assert.match(source, /checked=\{selectedIds\.includes\(category\.id\)\}/);
   assert.doesNotMatch(source, /<select multiple/);
 });
+
+test("consider ordering relationships use searchable grouped checkboxes", async () => {
+  const selector = await readFile(new URL("../components/ordering-group-selector.tsx", import.meta.url), "utf8");
+  const requestEditor = await readFile(new URL("../components/admin-request-editor.tsx", import.meta.url), "utf8");
+  const partEditor = await readFile(new URL("../components/admin-part-editor.tsx", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../supabase/migrations/20260824100000_ordering_groups_v070.sql", import.meta.url), "utf8");
+
+  assert.match(selector, /type="checkbox"/);
+  assert.match(selector, /Search compatible parts/);
+  assert.match(selector, /groupMemberIds/);
+  assert.match(requestEditor, /set_part_order_group/);
+  assert.match(partEditor, /set_part_order_group/);
+  assert.match(migration, /create table public\.part_order_groups/);
+  assert.match(migration, /drop table public\.commonly_ordered_parts/);
+});
