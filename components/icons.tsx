@@ -10,3 +10,4 @@ export const ShieldIcon = (p: IconProps) => <svg {...base} {...p}><path d="M12 3
 export const PlusIcon = (p: IconProps) => <svg {...base} {...p}><path d="M12 5v14M5 12h14"/></svg>;
 export const ArrowIcon = (p: IconProps) => <svg {...base} {...p}><path d="M5 12h14m-5-5 5 5-5 5"/></svg>;
 export const LogOutIcon = (p: IconProps) => <svg {...base} {...p}><path d="M10 4H5v16h5M14 8l4 4-4 4M8 12h10"/></svg>;
+export const CopyIcon = (p: IconProps) => <svg {...base} {...p}><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>;
