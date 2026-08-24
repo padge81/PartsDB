@@ -6,6 +6,7 @@ import Link from "next/link";
 import { BoxIcon, ClipboardIcon, LogOutIcon, SearchIcon, ShieldIcon } from "./icons";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "../lib/supabase";
 import { APP_REVISION } from "../lib/version";
+import { useBomCart } from "../lib/bom-cart";
 
 export type Profile = { id: string; display_name: string | null; role: "user" | "admin"; is_active: boolean };
 
@@ -16,6 +17,7 @@ export function AppShell({ children, requireAdmin = false }: { children: (profil
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [error, setError] = useState("");
   const [databaseRevision, setDatabaseRevision] = useState(isSupabaseConfigured ? "checking" : "not connected");
+  const bomCart = useBomCart();
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -56,6 +58,7 @@ export function AppShell({ children, requireAdmin = false }: { children: (profil
         <nav aria-label="Main navigation">
           <a className={pathname === "/dashboard" ? "active" : ""} href="/dashboard"><SearchIcon/>Parts</a>
           <Link className={pathname === "/requests" ? "active" : ""} href="/requests"><ClipboardIcon/>My requests</Link>
+          <Link className={pathname === "/bom" ? "active" : ""} href="/bom"><BoxIcon/>BOM <span className="nav-count">{bomCart.reduce((total, item) => total + item.quantity, 0)}</span></Link>
           {profile.role === "admin" && <a className={pathname === "/admin" ? "active" : ""} href="/admin"><ShieldIcon/>Admin</a>}
         </nav>
         <div className="account"><span className="avatar">{initials}</span><span className="account-copy"><strong>{profile.display_name ?? "Parts user"}</strong><small>{profile.role === "admin" ? "Administrator" : "Standard user"}</small></span><button title="Sign out" onClick={signOut}><LogOutIcon/></button></div>
