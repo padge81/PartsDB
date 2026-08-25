@@ -98,8 +98,8 @@ export function PartDetails({ partId }: { partId: string }) {
     loadPart();
   }, [partId]);
 
-  return <AppShell>{(profile) => <main className="workspace detail-workspace">
-    <div className="part-toolbar"><a className="back-link" href="/dashboard">← Back to parts search</a><div className="heading-actions">{part && <AddToBomButton partId={part.id} compact/>}{profile.role === "admin" && <a className="button secondary compact" href={`/admin/parts/${partId}/edit`}>Edit part</a>}</div></div>
+  return <AppShell>{(profile, siteMode) => <main className="workspace detail-workspace">
+    <div className="part-toolbar"><a className="back-link" href="/dashboard">← Back to parts search</a><div className="heading-actions">{part && <AddToBomButton partId={part.id} compact/>}{profile.role === "admin" && (siteMode === "standby" ? <span className="button secondary compact disabled">Edit part</span> : <a className="button secondary compact" href={`/admin/parts/${partId}/edit`}>Edit part</a>)}</div></div>
     {loading ? <section className="detail-state"><div className="spinner"/><p>Loading part information…</p></section> : error || !part ? <section className="detail-state"><BoxIcon/><h1>Part unavailable</h1><p>{error}</p><a className="button primary" href="/dashboard">Return to search</a></section> : <>
       <section className="detail-hero">
         <div className="detail-icon"><BoxIcon/></div>
