@@ -168,3 +168,19 @@ test("part information exposes copy controls for description and part number", a
   assert.match(details, /navigator\.clipboard\.writeText/);
   assert.match(icons, /export const CopyIcon/);
 });
+
+
+test("portable backups include images, revisions and checksum preflight", async () => {
+  const source = await readFile(new URL("../components/backup-manager.tsx", import.meta.url), "utf8");
+  assert.match(source, /Portable ZIP v4/);
+  assert.match(source, /format_version: 4/);
+  assert.match(source, /machine-images/);
+  assert.match(source, /part-images/);
+  assert.match(source, /request-images/);
+  assert.match(source, /checksums\\.sha256/);
+  assert.match(source, /SHA-256/);
+  assert.match(source, /Checksum failed/);
+  assert.match(source, /Stored image is missing/);
+  assert.match(source, /Missing user references are assigned/);
+  assert.match(source, /Authentication accounts, passwords and server secrets are deliberately excluded/);
+});

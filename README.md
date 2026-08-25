@@ -6,7 +6,7 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.9.5` |
+| Application | `0.10.0` |
 | Database | `0.7.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -29,6 +29,16 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.10.0` — 25 August 2026
+
+- Replaced JSON-only backup format version 3 with portable ZIP backup format version 4.
+- Added database JSON, part images, request images and machine images to one downloadable archive.
+- Added an application/database revision manifest, record and image counts, export report and SHA-256 checksums.
+- Added complete archive and checksum validation before merge or full restore can begin.
+- Restores Storage objects and image metadata, and downloads a completion report after import.
+- Remaps missing cloud user references to the administrator performing a portable restore while continuing to exclude authentication accounts, passwords and server secrets.
+- Added browser archive-size and safe-path protections for portable backup import.
 
 ### `0.9.5` — 25 August 2026
 
