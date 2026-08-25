@@ -184,3 +184,26 @@ test("portable backups include images, revisions and checksum preflight", async 
   assert.match(source, /Missing user references are assigned/);
   assert.match(source, /Authentication accounts, passwords and server secrets are deliberately excluded/);
 });
+
+
+test("standby mode is visible and blocks editing in the frontend and database", async () => {
+  const [shell, dashboard, backup, migration] = await Promise.all([
+    readFile(new URL("../components/app-shell.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/admin-dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/backup-manager.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260825160000_standby_read_only_mode.sql", import.meta.url), "utf8"),
+  ]);
+  assert.match(shell, /Standby — read only/);
+  assert.match(shell, /ENABLE EDITING/);
+  assert.match(shell, /standbyBlockedPaths/);
+  assert.match(dashboard, /Server mode:/);
+  assert.match(dashboard, /SET STANDBY/);
+  assert.match(dashboard, /SET LIVE/);
+  assert.match(backup, /siteMode === "standby"/);
+  assert.match(backup, /changeSiteMode\("standby"\)/);
+  assert.match(migration, /create or replace function public\.is_write_enabled/);
+  assert.match(migration, /create or replace function public\.set_site_mode/);
+  assert.match(migration, /as restrictive for insert/);
+  assert.match(migration, /standby_storage_update/);
+  assert.match(migration, /database_revision', '0\.8\.0'/);
+});
