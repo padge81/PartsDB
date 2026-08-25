@@ -123,7 +123,7 @@ export function PartsDashboard() {
     <AppShell>{(_, siteMode) => <main className="workspace">
       <section className="workspace-heading">
         <div><p className="eyebrow accent">Parts repository</p><h1>Find the part you need</h1><p>Search approved ordering information across machines, suppliers and manufacturers.</p></div>
-        siteMode === "standby" ? <span className="button primary disabled" title="Editing is disabled in standby mode"><PlusIcon/>Add part</span> : <Link className="button primary" href="/parts/new"><PlusIcon/>Add part</Link>
+        {siteMode === "standby" ? <span className="button primary disabled" title="Editing is disabled in standby mode"><PlusIcon/>Add part</span> : <Link className="button primary" href="/parts/new"><PlusIcon/>Add part</Link>}
       </section>
 
       <section className="search-surface">
