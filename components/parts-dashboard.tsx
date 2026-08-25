@@ -120,10 +120,10 @@ export function PartsDashboard() {
   function clearFilters() { setQuery(""); setManufacturerId(""); setMachineId(""); setSupplyType(""); setCategoryId(""); window.sessionStorage.removeItem(SEARCH_SESSION_KEY); window.scrollTo({ top: 0, behavior: "smooth" }); }
 
   return (
-    <AppShell>{() => <main className="workspace">
+    <AppShell>{(_, siteMode) => <main className="workspace">
       <section className="workspace-heading">
         <div><p className="eyebrow accent">Parts repository</p><h1>Find the part you need</h1><p>Search approved ordering information across machines, suppliers and manufacturers.</p></div>
-        <Link className="button primary" href="/parts/new"><PlusIcon/>Add part</Link>
+        siteMode === "standby" ? <span className="button primary disabled" title="Editing is disabled in standby mode"><PlusIcon/>Add part</span> : <Link className="button primary" href="/parts/new"><PlusIcon/>Add part</Link>
       </section>
 
       <section className="search-surface">
