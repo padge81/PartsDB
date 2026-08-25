@@ -6,8 +6,8 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.10.0` |
-| Database | `0.7.0` |
+| Application | `0.11.0` |
+| Database | `0.8.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
 
@@ -29,6 +29,16 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.11.0` / database `0.8.0` — 25 August 2026
+
+- Added installation-specific Live, Standby and Maintenance server modes stored in `system_metadata`.
+- Added database-enforced restrictive write policies for PartsDB business tables and all three image buckets.
+- Added a persistent Standby read-only banner and disabled Add Part, editing, approval, bulk import and reference-data controls while locked.
+- Added confirmed administrator controls for entering Maintenance mode, returning to Standby and explicitly setting a server Live.
+- Kept searching, viewing, BOM use, backup export and portable ZIP validation available in Standby mode.
+- Automatically returns a Maintenance-mode server to Standby after a portable backup import attempt.
+- Keeps `site_mode` outside portable backup format version 4 so cloud restores cannot unlock a standby server.
 
 ### `0.10.0` — 25 August 2026
 
