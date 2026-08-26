@@ -121,6 +121,18 @@ test("parts search restores session filters and scroll position", async () => {
   assert.match(source, /removeItem\(SEARCH_SESSION_KEY\)/);
 });
 
+test("dashboard hides unfiltered lists and summarises compatible machines", async () => {
+  const source = await readFile(new URL("../components/parts-dashboard.tsx", import.meta.url), "utf8");
+  assert.match(source, /disabled=\{!manufacturerIdsWithParts\.has\(manufacturer\.id\)\}/);
+  assert.match(source, /disabled=\{!machineIdsWithParts\.has\(machine\.id\)\}/);
+  assert.match(source, /<span>Compatible machines<\/span>/);
+  assert.match(source, /linkedMachines\.slice\(0, 2\)/);
+  assert.match(source, /approved parts available to look up/);
+  assert.match(source, /machines available to look up/);
+  assert.match(source, /hasPartLookup/);
+  assert.match(source, /hasMachineLookup/);
+});
+
 test("main machine selection supports search before manufacturer selection", async () => {
   const [selector, requestForm, adminEditor] = await Promise.all([
     readFile(new URL("../components/machine-search-select.tsx", import.meta.url), "utf8"),
@@ -177,7 +189,7 @@ test("portable backups include images, revisions and checksum preflight", async 
   assert.match(source, /machine-images/);
   assert.match(source, /part-images/);
   assert.match(source, /request-images/);
-  assert.match(source, /checksums\\.sha256/);
+  assert.match(source, /checksums\.sha256/);
   assert.match(source, /SHA-256/);
   assert.match(source, /Checksum failed/);
   assert.match(source, /Stored image is missing/);
