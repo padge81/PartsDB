@@ -6,7 +6,7 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.11.0` |
+| Application | `0.11.1` |
 | Database | `0.8.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -29,6 +29,13 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.11.1` / database `0.8.0` — 26 August 2026
+
+- Kept manufacturers and machines without linked approved parts visible but disabled in the dashboard filters.
+- Replaced the Approved Parts manufacturer column with a compatible-machine count and up to two machine names.
+- Collapsed unfiltered part and machine result lists into clear availability prompts to reduce dashboard clutter.
+- Automatically clears retained manufacturer or machine filters when they no longer have approved parts.
 
 ### `0.11.0` / database `0.8.0` — 25 August 2026
 

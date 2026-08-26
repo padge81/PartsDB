@@ -108,8 +108,32 @@ export function PartsDashboard() {
     });
   }, [parts, query, compatibility, machines, manufacturerId, machineId, supplyType, categoryId, partCategories]);
 
+  const activePartIds = useMemo(() => new Set(parts.map((part) => part.id)), [parts]);
+  const machineIdsWithParts = useMemo(() => new Set(compatibility.filter((link) => activePartIds.has(link.part_id)).map((link) => link.machine_id)), [compatibility, activePartIds]);
+  const manufacturerIdsWithParts = useMemo(() => new Set(machines.filter((machine) => machineIdsWithParts.has(machine.id)).map((machine) => machine.manufacturer_id)), [machines, machineIdsWithParts]);
+  const compatibleMachinesByPart = useMemo(() => {
+    const machineById = new Map(machines.map((machine) => [machine.id, machine]));
+    const grouped = new Map<string, Machine[]>();
+    compatibility.forEach((link) => {
+      const machine = machineById.get(link.machine_id);
+      if (machine) grouped.set(link.part_id, [...(grouped.get(link.part_id) ?? []), machine]);
+    });
+    grouped.forEach((items) => items.sort((a, b) => a.name.localeCompare(b.name)));
+    return grouped;
+  }, [compatibility, machines]);
   const filteredMachines = useMemo(() => machines.filter((machine) => !manufacturerId || machine.manufacturer_id === manufacturerId), [machines, manufacturerId]);
   const visibleMachines = useMemo(() => { const term = machineQuery.trim().toLowerCase(); return machines.filter((machine) => (!term || [machine.name, machine.model, machine.manufacturer?.name, machine.category?.name].some((value) => value?.toLowerCase().includes(term))) && (!machineCompanyId || machine.manufacturer_id === machineCompanyId) && (!machineCategoryId || machine.category_id === machineCategoryId)); }, [machines, machineQuery, machineCompanyId, machineCategoryId]);
+  const hasPartLookup = Boolean(query.trim() || manufacturerId || machineId || supplyType || categoryId);
+  const hasMachineLookup = Boolean(machineQuery.trim() || machineCompanyId || machineCategoryId);
+
+  useEffect(() => {
+    if (loading) return;
+    const timer = window.setTimeout(() => {
+      if (manufacturerId && !manufacturerIdsWithParts.has(manufacturerId)) setManufacturerId("");
+      if (machineId && !machineIdsWithParts.has(machineId)) setMachineId("");
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loading, manufacturerId, machineId, manufacturerIdsWithParts, machineIdsWithParts]);
 
   function selectManufacturer(value: string) {
     setManufacturerId(value);
@@ -129,8 +153,8 @@ export function PartsDashboard() {
       <section className="search-surface">
         <div className="search-box"><SearchIcon/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search description, part number or manufacturer…" aria-label="Search parts"/><kbd>⌘ K</kbd></div>
         <div className="filter-row">
-          <label>Manufacturer<select value={manufacturerId} onChange={(event) => selectManufacturer(event.target.value)}><option value="">All manufacturers</option>{manufacturers.map((manufacturer) => <option key={manufacturer.id} value={manufacturer.id}>{manufacturer.name}</option>)}</select></label>
-          <label>Machine<select value={machineId} onChange={(event) => setMachineId(event.target.value)}><option value="">All machines</option>{filteredMachines.map((machine) => <option key={machine.id} value={machine.id}>{machine.name ?? machine.model}{machine.name ? ` · ${machine.model}` : ""}</option>)}</select></label>
+          <label>Manufacturer<select value={manufacturerId} onChange={(event) => selectManufacturer(event.target.value)}><option value="">All manufacturers</option>{manufacturers.map((manufacturer) => <option key={manufacturer.id} value={manufacturer.id} disabled={!manufacturerIdsWithParts.has(manufacturer.id)}>{manufacturer.name}{manufacturerIdsWithParts.has(manufacturer.id) ? "" : " · no parts"}</option>)}</select></label>
+          <label>Machine<select value={machineId} onChange={(event) => setMachineId(event.target.value)}><option value="">All machines</option>{filteredMachines.map((machine) => <option key={machine.id} value={machine.id} disabled={!machineIdsWithParts.has(machine.id)}>{machine.name ?? machine.model}{machine.name && machine.model ? ` · ${machine.model}` : ""}{machineIdsWithParts.has(machine.id) ? "" : " · no parts"}</option>)}</select></label>
           <label>Supply type<select value={supplyType} onChange={(event) => setSupplyType(event.target.value)}><option value="">All supply types</option>{supplyTypes.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
           <label>Category<select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}><option value="">All categories</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
           <button className="clear-button" onClick={clearFilters}>Clear filters</button>
@@ -138,20 +162,20 @@ export function PartsDashboard() {
       </section>
 
       <section className="results-section">
-        <div className="results-meta"><div><h2>Approved parts</h2><span>{visible.length} results</span></div><label>Sort<select><option>Most relevant</option><option>Description A–Z</option></select></label></div>
+        <div className="results-meta"><div><h2>Approved parts</h2><span>{hasPartLookup ? `${visible.length} results` : `${parts.length} available`}</span></div><label>Sort<select><option>Most relevant</option><option>Description A–Z</option></select></label></div>
         <div className="parts-table" aria-live="polite">
-          <div className="table-head"><span>Part</span><span>Manufacturer</span><span>Part number</span><span>Supply</span><span></span></div>
-          {loading ? <div className="empty-row">Loading approved parts…</div> : error ? <div className="empty-row">Parts could not be loaded: {error}</div> : visible.map((part) => <div className="bom-part-result" key={part.id}><a className="part-row" href={`/parts/${part.id}`} onClick={rememberScroll}>
+          <div className="table-head"><span>Part</span><span>Compatible machines</span><span>Part number</span><span>Supply</span><span></span></div>
+          {loading ? <div className="empty-row">Loading approved parts…</div> : error ? <div className="empty-row">Parts could not be loaded: {error}</div> : hasPartLookup ? visible.map((part) => { const linkedMachines = compatibleMachinesByPart.get(part.id) ?? []; return <div className="bom-part-result" key={part.id}><a className="part-row" href={`/parts/${part.id}`} onClick={rememberScroll}>
             <span className="part-title"><i><BoxIcon/></i><span><strong>{part.description}</strong><small>{part.manufacturer_part_number ?? "No part number"}</small></span></span>
-            <span>{part.manufacturer?.name ?? "—"}</span><span className="mono">{part.manufacturer_part_number ?? "—"}</span><span><em className={`supply ${part.supply_type}`}>{supplyTypes.find((item) => item.code === part.supply_type)?.name ?? part.supply_type}</em></span><span className="row-arrow"><ArrowIcon/></span>
-          </a><AddToBomButton partId={part.id} compact/></div>)}
-          {!loading && !error && visible.length === 0 && <div className="empty-row">No approved parts match the selected search and filters.</div>}
+            <span className="machine-summary"><strong>{linkedMachines.length} {linkedMachines.length === 1 ? "machine" : "machines"}</strong><small>{linkedMachines.length ? <>{linkedMachines.slice(0, 2).map((machine) => machine.name).join(" · ")}{linkedMachines.length > 2 ? ` · +${linkedMachines.length - 2} more` : ""}</> : "No machines linked"}</small></span><span className="mono">{part.manufacturer_part_number ?? "—"}</span><span><em className={`supply ${part.supply_type}`}>{supplyTypes.find((item) => item.code === part.supply_type)?.name ?? part.supply_type}</em></span><span className="row-arrow"><ArrowIcon/></span>
+          </a><AddToBomButton partId={part.id} compact/></div>; }) : <div className="empty-row lookup-prompt"><strong>{parts.length} approved parts available to look up.</strong><span>Enter a search or select a filter to view matching parts.</span></div>}
+          {!loading && !error && hasPartLookup && visible.length === 0 && <div className="empty-row">No approved parts match the selected search and filters.</div>}
         </div>
       </section>
       <section className="results-section machine-search-section">
-        <div className="results-meta"><div><h2>Search machines</h2><span>{visibleMachines.length} results</span></div></div>
+        <div className="results-meta"><div><h2>Search machines</h2><span>{hasMachineLookup ? `${visibleMachines.length} results` : `${machines.length} available`}</span></div></div>
         <div className="search-surface"><div className="search-box"><SearchIcon/><input value={machineQuery} onChange={(e) => setMachineQuery(e.target.value)} placeholder="Search machine name or model…" aria-label="Search machines"/></div><div className="filter-row"><label>Company<select value={machineCompanyId} onChange={(e) => setMachineCompanyId(e.target.value)}><option value="">All companies</option>{manufacturers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Category<select value={machineCategoryId} onChange={(e) => setMachineCategoryId(e.target.value)}><option value="">All categories</option>{machineCategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><button className="clear-button" onClick={() => { setMachineQuery(""); setMachineCompanyId(""); setMachineCategoryId(""); }}>Clear filters</button></div></div>
-        <div className="machine-results">{visibleMachines.map((machine) => <a href={`/machines/${machine.id}`} key={machine.id}><strong>{machine.name}</strong><span>{machine.manufacturer?.name ?? "—"}{machine.model ? ` · ${machine.model}` : ""}</span><small>{machine.category?.name ?? "Uncategorised"}</small><ArrowIcon/></a>)}{!loading && !visibleMachines.length && <div className="empty-row">No machines match the selected search and filters.</div>}</div>
+        <div className="machine-results">{loading ? <div className="empty-row">Loading machines…</div> : hasMachineLookup ? visibleMachines.map((machine) => <a href={`/machines/${machine.id}`} key={machine.id}><strong>{machine.name}</strong><span>{machine.manufacturer?.name ?? "—"}{machine.model ? ` · ${machine.model}` : ""}</span><small>{machine.category?.name ?? "Uncategorised"}</small><ArrowIcon/></a>) : <div className="empty-row lookup-prompt"><strong>{machines.length} machines available to look up.</strong><span>Enter a search or select a filter to view matching machines.</span></div>}{!loading && hasMachineLookup && !visibleMachines.length && <div className="empty-row">No machines match the selected search and filters.</div>}</div>
       </section>
     </main>}</AppShell>
   );
