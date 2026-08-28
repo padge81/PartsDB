@@ -106,7 +106,7 @@ test("BOM cart persists locally and exports ordering information", async () => {
   assert.match(cart, /Compatible machines/);
   assert.match(shell, /href="\/bom"/);
   assert.match(dashboard, /<AddToBomButton/);
-  assert.match(details, /<AddToBomButton/);
+  assert.match(details, /related\.map\(\(item\).*<AddToBomButton partId=\{item\.id\} compact\/>/);
 });
 
 test("parts search restores session filters and scroll position", async () => {
