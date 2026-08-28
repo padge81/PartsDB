@@ -76,6 +76,29 @@ test("part category assignment uses checkbox controls", async () => {
   assert.doesNotMatch(source, /<select multiple/);
 });
 
+test("reference companies use one searchable full editor", async () => {
+  const [manager, editor, route] = await Promise.all([
+    readFile(new URL("../components/reference-data-manager.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/company-editor.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/companies/page.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(manager, /href="\/admin\/companies">Company editor/);
+  assert.match(manager, /Search companies/);
+  assert.doesNotMatch(manager, /renameReference\("companies"/);
+  assert.match(editor, /Company roles/);
+  assert.match(editor, /Ordering information/);
+  assert.match(editor, /Save company/);
+  assert.match(route, /<CompanyEditor\/>/);
+});
+
+test("reference data modules collapse into expandable headers", async () => {
+  const manager = await readFile(new URL("../components/reference-data-manager.tsx", import.meta.url), "utf8");
+  assert.match(manager, /const \[expanded, setExpanded\] = useState\(false\)/);
+  assert.match(manager, /aria-expanded=\{expanded\}/);
+  assert.match(manager, /<ChevronIcon\/>/);
+  assert.match(manager, /expanded && <div className="reference-card-content">/);
+});
+
 test("consider ordering relationships use searchable grouped checkboxes", async () => {
   const selector = await readFile(new URL("../components/ordering-group-selector.tsx", import.meta.url), "utf8");
   const requestEditor = await readFile(new URL("../components/admin-request-editor.tsx", import.meta.url), "utf8");
