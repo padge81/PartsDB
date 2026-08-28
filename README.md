@@ -6,7 +6,7 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.12.3` |
+| Application | `0.12.5` |
 | Database | `0.8.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -29,6 +29,17 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.12.5` / database `0.8.0` — 28 August 2026
+
+- Replaced the plain Machine editor selection list with compact searchable thumbnail cards.
+- Added machine identity, manufacturer/model/category, status and selected-state cues to each picker result.
+
+### `0.12.4` / database `0.8.0` — 28 August 2026
+
+- Renamed the administrator Machines page to Machine editor and linked its back action to Reference Data.
+- Replaced the machine card list and modal with the same searchable picker and inline editor pattern used by Company editor.
+- Preserved direct machine-profile edit links, image replacement, status, category and notes editing.
 
 ### `0.12.3` / database `0.8.0` — 28 August 2026
 
