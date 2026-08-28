@@ -9,5 +9,6 @@ export const ClipboardIcon = (p: IconProps) => <svg {...base} {...p}><rect x="5"
 export const ShieldIcon = (p: IconProps) => <svg {...base} {...p}><path d="M12 3 4.5 6v5c0 5 3.2 8.2 7.5 10 4.3-1.8 7.5-5 7.5-10V6L12 3Z"/><path d="m9 12 2 2 4-4"/></svg>;
 export const PlusIcon = (p: IconProps) => <svg {...base} {...p}><path d="M12 5v14M5 12h14"/></svg>;
 export const ArrowIcon = (p: IconProps) => <svg {...base} {...p}><path d="M5 12h14m-5-5 5 5-5 5"/></svg>;
+export const ChevronIcon = (p: IconProps) => <svg {...base} {...p}><path d="m7 10 5 5 5-5"/></svg>;
 export const LogOutIcon = (p: IconProps) => <svg {...base} {...p}><path d="M10 4H5v16h5M14 8l4 4-4 4M8 12h10"/></svg>;
 export const CopyIcon = (p: IconProps) => <svg {...base} {...p}><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>;
