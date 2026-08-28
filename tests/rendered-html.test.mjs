@@ -114,6 +114,25 @@ test("machines match the searchable single-editor reference layout", async () =>
   assert.doesNotMatch(manager, /control: <a className="reference-edit" href="\/admin\/machines"/);
 });
 
+test("machine editor matches the company editor workflow", async () => {
+  const editor = await readFile(new URL("../components/machine-manager.tsx", import.meta.url), "utf8");
+  assert.match(editor, /href="\/admin\/reference-data">← Back to reference data/);
+  assert.match(editor, /<h1>Machine editor<\/h1>/);
+  assert.match(editor, /Search machines/);
+  assert.match(editor, /Select machine/);
+  assert.match(editor, /className="record-form machine-editor-form"/);
+  assert.doesNotMatch(editor, /className="machine-admin-list"/);
+  assert.doesNotMatch(editor, /className="modal-backdrop"/);
+});
+
+test("machine editor picker retains machine thumbnails", async () => {
+  const editor = await readFile(new URL("../components/machine-manager.tsx", import.meta.url), "utf8");
+  assert.match(editor, /className="machine-picker-list"/);
+  assert.match(editor, /images\[machine\.id\]\?\.signedUrl/);
+  assert.match(editor, /className="machine-picker-thumb"/);
+  assert.match(editor, /aria-pressed=\{editing\?\.id === machine\.id\}/);
+});
+
 test("consider ordering relationships use searchable grouped checkboxes", async () => {
   const selector = await readFile(new URL("../components/ordering-group-selector.tsx", import.meta.url), "utf8");
   const requestEditor = await readFile(new URL("../components/admin-request-editor.tsx", import.meta.url), "utf8");
