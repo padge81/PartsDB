@@ -99,6 +99,21 @@ test("reference data modules collapse into expandable headers", async () => {
   assert.match(manager, /expanded && <div className="reference-card-content">/);
 });
 
+test("company search and add fields have separated aligned layouts", async () => {
+  const manager = await readFile(new URL("../components/reference-data-manager.tsx", import.meta.url), "utf8");
+  assert.match(manager, /className="reference-add-form"/);
+  assert.match(manager, /className="company-role-fields span-2"/);
+  assert.match(manager, />Supply type<select name="supply_type"/);
+});
+
+test("machines match the searchable single-editor reference layout", async () => {
+  const manager = await readFile(new URL("../components/reference-data-manager.tsx", import.meta.url), "utf8");
+  assert.match(manager, /href="\/admin\/machines">Machine editor/);
+  assert.match(manager, /Search machines/);
+  assert.match(manager, /placeholder="Search by machine, manufacturer or model"/);
+  assert.doesNotMatch(manager, /control: <a className="reference-edit" href="\/admin\/machines"/);
+});
+
 test("consider ordering relationships use searchable grouped checkboxes", async () => {
   const selector = await readFile(new URL("../components/ordering-group-selector.tsx", import.meta.url), "utf8");
   const requestEditor = await readFile(new URL("../components/admin-request-editor.tsx", import.meta.url), "utf8");
