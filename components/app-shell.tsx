@@ -16,7 +16,6 @@ const standbyBlockedPaths = [
   /^\/parts\/new$/,
   /^\/admin\/parts\/[^/]+\/edit$/,
   /^\/admin\/requests\/[^/]+$/,
-  /^\/admin\/machines(?:\/|$)/,
   /^\/admin\/reference-data(?:\/|$)/,
   /^\/admin\/bulk-import(?:\/|$)/,
 ];

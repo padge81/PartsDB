@@ -60,12 +60,27 @@ test("admin requests support safe bulk approval alongside individual review", as
     readFile(new URL("../components/admin-dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/approve-part-request.ts", import.meta.url), "utf8"),
   ]);
-  assert.match(dashboard, /Select all pending/);
+  assert.match(dashboard, /Select all visible/);
   assert.match(dashboard, /Bulk approve/);
   assert.match(dashboard, /admin\/requests/);
   assert.match(approval, /find_similar_parts/);
   assert.match(approval, /Possible duplicate requires individual review/);
   assert.match(approval, /from\("request_images"\)/);
+});
+
+test("administrator portal prioritises searchable work and grouped management", async () => {
+  const [dashboard, shell] = await Promise.all([
+    readFile(new URL("../components/admin-dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/app-shell.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(dashboard, /Part request queue/);
+  assert.match(dashboard, /Search requests, machines or users/);
+  assert.match(dashboard, /Pending <span>/);
+  assert.match(dashboard, /Drafts <span>/);
+  assert.match(dashboard, /Database management/);
+  assert.match(dashboard, /Backup and restore/);
+  assert.match(dashboard, /Change server mode/);
+  assert.doesNotMatch(shell, /\^\\\/admin\\\/machines/);
 });
 
 test("part category assignment uses checkbox controls", async () => {
