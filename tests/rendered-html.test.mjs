@@ -80,6 +80,9 @@ test("administrator portal prioritises searchable work and grouped management", 
   assert.match(dashboard, /Database management/);
   assert.match(dashboard, /Backup and restore/);
   assert.match(dashboard, /Change server mode/);
+  assert.match(dashboard, /href="#database-management">Database management/);
+  assert.doesNotMatch(dashboard, />Browse parts</);
+  assert.match(shell, /className=\{`topbar-mode \$\{siteMode\}`\}/);
   assert.doesNotMatch(shell, /\^\\\/admin\\\/machines/);
 });
 

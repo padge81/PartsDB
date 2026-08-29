@@ -64,8 +64,7 @@ export function AdminDashboard() {
   }
 
   return <AppShell requireAdmin>{(profile, siteMode, changeSiteMode) => <main className="workspace admin-workspace">
-    <section className="workspace-heading admin-heading"><div><p className="eyebrow accent">Administrator portal</p><h1>Review and maintain</h1><p>Review incoming parts and manage the controlled PartsDB records.</p></div><div className="heading-actions"><a className="button secondary" href="/dashboard">Browse parts</a><span className="admin-badge"><ShieldIcon/>Administrator</span></div></section>
-    <SiteModeControl siteMode={siteMode} changeSiteMode={changeSiteMode}/>
+    <section className="workspace-heading admin-heading"><div><p className="eyebrow accent">Administrator portal</p><h1>Review and maintain</h1><p>Review incoming parts and manage the controlled PartsDB records.</p></div><a className="button secondary" href="#database-management">Database management</a></section>
     <section className="admin-stat-grid" aria-label="Database summary">
       <a href="#request-queue"><span className="stat-icon amber"><ClipboardIcon/></span><div><strong>{pendingIds.length}</strong><p>Pending requests</p></div><small>Awaiting review</small></a>
       <button type="button" onClick={() => { setRequestFilter("draft"); document.querySelector("#request-queue")?.scrollIntoView({ behavior: "smooth" }); }}><span className="stat-icon blue">✎</span><div><strong>{draftCount}</strong><p>Draft requests</p></div><small>Not ready for approval</small></button>
@@ -81,11 +80,10 @@ export function AdminDashboard() {
       {result && <div className="bulk-summary" aria-live="polite"><strong>Bulk approval complete: {result.approved} approved, {result.skipped.length} skipped, {result.failed.length} failed.</strong>{result.skipped.map((item) => <p key={`skip-${item}`}>Skipped — {item}</p>)}{result.failed.map((item) => <p className="error-text" key={`fail-${item}`}>Failed — {item}</p>)}</div>}
       <div className="admin-request-scroll"><div className="request-list">{loading ? <div className="empty-row">Loading requests…</div> : visibleRequests.map((request) => <div className="bulk-request-item" key={request.id}><label className="request-checkbox">{request.status === "pending" ? <input type="checkbox" checked={selectedIds.includes(request.id)} disabled={processing || siteMode === "standby"} onChange={() => toggle(request.id)} aria-label={`Select ${request.part_description}`}/> : <span title="Drafts must be submitted before approval">—</span>}</label><a href={`/admin/requests/${request.id}`} className="request-row"><span className="request-id">{request.id.slice(0,8)}</span><span><strong>{request.part_description}</strong><small>{request.requester?.display_name ?? "PartsDB user"} · {request.machine_model ?? "No machine"}</small></span><span className="request-age">{request.submitted_at ? new Date(request.submitted_at).toLocaleDateString() : "Draft"}</span><em className={request.status}>{request.status}</em><ArrowIcon/></a></div>)}{!loading && !visibleRequests.length && <div className="empty-row">No matching {requestFilter} requests.</div>}</div></div>
     </section>
-    <section className="admin-management"><div className="results-meta"><div><h2>Database management</h2><span>Controlled administration tools</span></div></div><div className="admin-tool-grid">{managementTools.map((tool) => {
+    <section className="admin-management" id="database-management"><div className="results-meta"><div><h2>Database management</h2><span>Controlled administration tools</span></div></div><div className="admin-tool-grid">{managementTools.map((tool) => {
       const blocked = siteMode === "standby" && tool.maintenanceOnly;
       return <article key={tool.title}><span className="admin-tool-icon"><ShieldIcon/></span><div><h3>{tool.title}</h3><p>{tool.description}</p></div>{blocked ? <span className="admin-tool-link disabled">Maintenance required</span> : <a className="admin-tool-link" href={tool.href}>{tool.action}<ArrowIcon/></a>}</article>;
-    })}</div></section>
-    <section className="admin-system-card"><div><span className="admin-tool-icon"><BoxIcon/></span><div><h2>Backup and restore</h2><p>Create, validate or restore the portable PartsDB archive.</p></div></div><a className="button secondary" href="/admin/backup">Open backup tools</a></section>
+    })}<article><span className="admin-tool-icon"><BoxIcon/></span><div><h3>Backup and restore</h3><p>Create, validate or restore the portable PartsDB archive.</p></div><a className="admin-tool-link" href="/admin/backup">Open backup tools<ArrowIcon/></a></article></div><SiteModeControl siteMode={siteMode} changeSiteMode={changeSiteMode}/></section>
   </main>}</AppShell>;
 }
 

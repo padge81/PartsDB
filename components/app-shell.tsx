@@ -97,7 +97,7 @@ export function AppShell({ children, requireAdmin = false }: {
           <Link className={pathname === "/bom" ? "active" : ""} href="/bom"><BoxIcon/>BOM <span className="nav-count">{bomCart.reduce((total, item) => total + item.quantity, 0)}</span></Link>
           {profile.role === "admin" && <a className={pathname === "/admin" ? "active" : ""} href="/admin"><ShieldIcon/>Admin</a>}
         </nav>
-        <div className="account"><span className="avatar">{initials}</span><span className="account-copy"><strong>{profile.display_name ?? "Parts user"}</strong><small>{profile.role === "admin" ? "Administrator" : "Standard user"}</small></span><button title="Sign out" onClick={signOut}><LogOutIcon/></button></div>
+        <div className="account">{profile.role === "admin" && <a className={`topbar-mode ${siteMode}`} href="/admin#database-management" title="Open database management"><span/>{siteMode}</a>}<span className="avatar">{initials}</span><span className="account-copy"><strong>{profile.display_name ?? "Parts user"}</strong><small>{profile.role === "admin" ? "Administrator" : "Standard user"}</small></span><button title="Sign out" onClick={signOut}><LogOutIcon/></button></div>
       </header>
       {!isSupabaseConfigured && <div className="preview-banner">Interface preview · connect the Supabase browser key to use live data</div>}
       {siteMode === "standby" && <div className="site-mode-banner standby"><strong>Standby — read only</strong><span>Database and image changes are disabled on this server.</span>{profile.role === "admin" && <button type="button" onClick={() => void enableMaintenance()}>Enable maintenance</button>}</div>}

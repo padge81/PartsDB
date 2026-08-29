@@ -35,6 +35,7 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Reorganised the Administrator portal around the part-request queue and grouped database-management tools.
 - Added live approved-part and active-machine totals, Pending/Draft filters, request search, sorting and a bounded scrollable queue.
 - Replaced the large server-mode panel with a compact status control while preserving confirmation safeguards.
+- Displayed server mode in the global administrator navigation and consolidated all management links below the request queue.
 - Allowed the Machine editor to be inspected in Standby mode while retaining read-only save protection.
 
 ### `0.12.5` / database `0.8.0` — 28 August 2026
