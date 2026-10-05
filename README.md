@@ -6,8 +6,8 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.13.0` |
-| Database | `0.8.0` |
+| Application | `0.14.0` |
+| Database | `0.9.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
 
@@ -29,6 +29,17 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.14.0` / database `0.9.0` — 6 October 2026
+
+- Added an isolated `/workshop/preview` route with device-local demonstration records and no production database calls.
+- Added repair-log editing, compressed photo steps, editable circles/arrows/numbers, catalogue links, revision-aware saves and private live storage adapters at `/workshop`.
+- Added downloadable A4 repair-report and workshop-guide PDFs and portable per-job ZIP exports.
+- Added searchable bench references and private custom reference notes, with sources and review status.
+- Added owner-only PostgreSQL tables, private image storage policies and a transactional save RPC. The Supabase workflow validates migrations before merge and applies them on main.
+- Legacy catalogue backups still cover the catalogue only. Export workshop jobs and reference notes separately. Full catalogue restore is blocked when workshop records exist.
+- AI interviewing, visual parts matching, full offline sync and automated workshop archive restore are follow-up work, not represented as active features.
+- See `docs/workshop-preview.md` for preview behaviour, data portability and validation.
 
 ### `0.13.0` / database `0.8.0` — 28 August 2026
 

@@ -93,6 +93,7 @@ export function AppShell({ children, requireAdmin = false }: {
         <a className="brand" href="/dashboard"><span className="brand-mark"><BoxIcon /></span><span>PartsDB</span></a>
         <nav aria-label="Main navigation">
           <a className={pathname === "/dashboard" ? "active" : ""} href="/dashboard"><SearchIcon/>Parts</a>
+          <Link className={pathname.startsWith('/workshop') ? 'active' : ''} href="/workshop"><ClipboardIcon/>Workshop</Link>
           <Link className={pathname === "/requests" ? "active" : ""} href="/requests"><ClipboardIcon/>My requests</Link>
           <Link className={pathname === "/bom" ? "active" : ""} href="/bom"><BoxIcon/>BOM <span className="nav-count">{bomCart.reduce((total, item) => total + item.quantity, 0)}</span></Link>
           {profile.role === "admin" && <a className={pathname === "/admin" ? "active" : ""} href="/admin"><ShieldIcon/>Admin</a>}
