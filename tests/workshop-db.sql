@@ -62,4 +62,74 @@ do $$ begin
  if exists(select 1 from public.repair_logs) then raise exception 'Inactive user can read workshop'; end if;
 end $$;
 reset role;
+
+-- Reference photos, categories and personal starter editions.
+update public.profiles set is_active=true where id='aa000000-0000-4000-8000-000000000001';
+update public.system_metadata set value='live' where key='site_mode';
+insert into storage.objects(bucket_id,name) values
+ ('reference-images','aa000000-0000-4000-8000-000000000001/dd000000-0000-4000-8000-000000000001/photo.webp');
+set local role authenticated;
+update public.bench_references set category='Power supplies',subcategory='ATX',starter_key='ATX 24-pin main power',
+ photos='[{"id":"photo","path":"aa000000-0000-4000-8000-000000000001/dd000000-0000-4000-8000-000000000001/photo.webp","caption":"Connector view"}]'::jsonb
+ where id='dd000000-0000-4000-8000-000000000001';
+do $$ begin
+ if not exists(select 1 from public.bench_references where category='Power supplies' and subcategory='ATX' and jsonb_array_length(photos)=1) then raise exception 'Reference photos/category not saved'; end if;
+ if not exists(select 1 from storage.objects where bucket_id='reference-images') then raise exception 'Owner cannot read reference photo'; end if;
+ begin
+  update public.bench_references set photos='[{"id":"bad","path":"aa000000-0000-4000-8000-000000000002/dd000000-0000-4000-8000-000000000001/photo.webp"}]'::jsonb;
+  raise exception 'Foreign image accepted';
+ exception when raise_exception then if sqlerrm <> 'Invalid reference photo' then raise; end if; end;
+ begin
+  update public.bench_references set photos='[{"id":"missing","path":"aa000000-0000-4000-8000-000000000001/dd000000-0000-4000-8000-000000000001/missing.webp"}]'::jsonb;
+  raise exception 'Missing upload accepted';
+ exception when raise_exception then if sqlerrm <> 'Reference photo upload missing' then raise; end if; end;
+ begin
+  insert into public.bench_references(owner_id,title,category,body,starter_key) values(auth.uid(),'Duplicate','Other','Note','ATX 24-pin main power');
+  raise exception 'Duplicate starter edition accepted';
+ exception when unique_violation then null; end;
+ begin
+  update public.bench_references set category=' ';
+  raise exception 'Empty category accepted';
+ exception when check_violation then null; end;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000002',true);
+set local role authenticated;
+do $$ begin
+ if exists(select 1 from storage.objects where bucket_id='reference-images') then raise exception 'Other user can read reference images'; end if;
+ begin
+  insert into storage.objects(bucket_id,name) values('reference-images','aa000000-0000-4000-8000-000000000001/spoof.webp');
+  raise exception 'Other user can upload to owner folder';
+ exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+update public.system_metadata set value='standby' where key='site_mode';
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000001',true);
+set local role authenticated;
+do $$ begin
+ begin
+  insert into storage.objects(bucket_id,name) values('reference-images','aa000000-0000-4000-8000-000000000001/standby.webp');
+  raise exception 'Standby upload accepted';
+ exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+
+update public.system_metadata set value='live' where key='site_mode';
+insert into storage.objects(bucket_id,name) values('reference-documents','aa000000-0000-4000-8000-000000000001/dd000000-0000-4000-8000-000000000001/datasheet.pdf');
+set local role authenticated;
+update public.bench_references set documents='[{"id":"pdf","name":"Datasheet","bytes":1000,"path":"aa000000-0000-4000-8000-000000000001/dd000000-0000-4000-8000-000000000001/datasheet.pdf"}]'::jsonb;
+do $$ begin
+ if not exists(select 1 from public.bench_references where jsonb_array_length(documents)=1) then raise exception 'PDF not saved'; end if;
+ begin
+  update public.bench_references set documents='[{"id":"pdf","name":"Wrong owner","bytes":1000,"path":"aa000000-0000-4000-8000-000000000002/dd000000-0000-4000-8000-000000000001/datasheet.pdf"}]'::jsonb;
+  raise exception 'Foreign PDF accepted';
+ exception when raise_exception then if sqlerrm <> 'Invalid reference document' then raise; end if; end;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000002',true);
+set local role authenticated;
+do $$ begin
+ if exists(select 1 from storage.objects where bucket_id='reference-documents') then raise exception 'Other user can read PDFs'; end if;
+end $$;
+reset role;
 rollback;

@@ -6,8 +6,8 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.14.0` |
-| Database | `0.9.0` |
+| Application | `0.15.0` |
+| Database | `0.10.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
 
@@ -29,6 +29,16 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.15.0` / database `0.10.0` — 7 October 2026
+
+- Added up to 12 compressed photos per bench reference, camera/gallery capture, captions and removal before saving.
+- Added original-quality PDF datasheets (up to 10 per reference, 20 MB per file), editable titles and downloads. PDFs are included in reference ZIP exports without automatic recompression.
+- Added editable categories and optional subcategories (for example Connectors / Molex), with searchable suggestions and library filters.
+- Added personal editable editions of starter references, retaining source text and tables as editable notes.
+- Added Bench reference editor under Administrator > Database management, using the same private records as Workshop.
+- Added private reference image storage, ownership/path validation, one saved starter edition per owner, and photo-inclusive ZIP exports.
+- Existing references and repair logs are preserved. Reference ZIP import and unified catalogue/workshop backup remain follow-up work.
 
 ### `0.14.0` / database `0.9.0` — 6 October 2026
 

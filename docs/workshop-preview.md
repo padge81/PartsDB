@@ -19,13 +19,13 @@ The default catalogue lookup loads up to 1000 machines and 1000 parts. Server-si
 
 ## Backups and future hosting
 
-The per-job ZIP contains JSON records, compressed unmarked photos and editable annotation coordinates. Reference notes have a separate JSON export. These are portable data exports; automated restore is not implemented. The existing v4 catalogue backup does not include private workshop records. A guard prevents full catalogue restore when any repair logs exist, before image deletion starts. A coordinated full workshop/catalogue restore must be implemented before production adoption.
+The per-job ZIP contains JSON records, compressed unmarked photos and editable annotation coordinates. Reference notes have a separate ZIP export including compressed photos. These are portable data exports; automated restore is not implemented. The existing v4 catalogue backup does not include private workshop records. A guard prevents full catalogue restore when any repair logs exist, before image deletion starts. A coordinated full workshop/catalogue restore must be implemented before production adoption.
 
 Keep PostgreSQL for relational data and private object storage for images. Self-hosted Supabase can retain current Auth/RLS/Storage interfaces. A move to another stack will need replacement authentication and storage adapters. No SharePoint or OneDrive dependency exists.
 
 ## Reference content
 
-Four read-only starter cards cite Intel ATX 3.0 guide v2.0, Molex Fit family and Bolt Depot references reviewed on 5 October 2026. The ATX table lists numbered pin assignments and is deliberately not a physical connector view. Custom cards retain source URL, review state, revision and date. Diagrams, custom reference attachments and reference PDF export can be added in a subsequent revision.
+Four starter cards cite Intel ATX 3.0 guide v2.0, Molex Fit family and Bolt Depot references reviewed on 5 October 2026. The ATX table lists numbered pin assignments and is deliberately not a physical connector view. Custom cards retain source URL, review state, revision and date. Starter cards can be saved as private editable editions. References support custom categories and up to 12 captioned photos. Reference PDF export remains follow-up work.
 
 ## Follow-up capabilities
 
@@ -38,3 +38,7 @@ Build and the existing regression suite should pass. `tests/workshop-db.sql` tes
 ## Release 0.14.0 / database 0.9.0
 
 The workshop is available at `/workshop` after deployment. The isolated preview remains at `/workshop/preview`; preview records are not copied into the live database. Existing catalogue data is preserved by the additive migration. README Updates and application/package versions record this release.
+
+## Release 0.15.0 / database 0.10.0
+
+Bench references now support compressed camera/gallery photos, captions, removal and custom categories with optional subcategories. Category and subcategory filters support component-library browsing. Administrators can open the same private library at `/admin/bench-references`. Starter editing saves an owner-specific edition, without changing other users’ libraries. Migration adds nullable starter keys and default-empty photo arrays, preserving existing references. Images are stored in private `reference-images` and `reference-documents`; expired links are refreshed during archive export. Removed/cancelled uploads may remain unreferenced until future garbage collection. PDF attachments preserve original bytes, with up to 10 PDFs per reference and a 20 MB per-file limit. ZIP export includes images, PDFs and relative paths; restore is not yet implemented.
