@@ -6,12 +6,14 @@ on:
     paths:
       - "supabase/migrations/**"
       - "supabase/config.toml"
+      - "tests/workshop-db.sql"
       - ".github/workflows/supabase-database.yml"
   push:
     branches: [main]
     paths:
       - "supabase/migrations/**"
       - "supabase/config.toml"
+      - "tests/workshop-db.sql"
       - ".github/workflows/supabase-database.yml"
   workflow_dispatch:
 
@@ -46,6 +48,9 @@ jobs:
 
       - name: Lint database
         run: supabase db lint --local --level error
+
+      - name: Verify workshop privacy and atomic saves
+        run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres --set ON_ERROR_STOP=1 --file tests/workshop-db.sql
 
       - name: Remove disposable database
         if: always()

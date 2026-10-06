@@ -195,6 +195,9 @@ export function BackupManager() {
       });
 
       if (mode === "restore") {
+        const workshopGuard = await supabase.rpc('workshop_catalog_restore_allowed');
+        if (workshopGuard.error && workshopGuard.error.code !== 'PGRST202') throw new Error('Could not verify workshop restore protection. No data was cleared.');
+        if (!workshopGuard.error && workshopGuard.data !== true) throw new Error('Full catalogue restore is blocked while workshop logs exist. Export workshop jobs separately and use a coordinated server restore. No data was cleared.');
         const currentObjects: Record<string, string[]> = {};
         for (const tableName of imageTableNames) {
           const { data, error } = await supabase.from(tableName).select("storage_bucket, storage_path");
