@@ -11,6 +11,7 @@ type RequestFilter = "pending" | "draft";
 type RequestSort = "oldest" | "newest";
 
 const managementTools = [
+  { title: "Bench reference editor", description: "Edit your reference notes, categories, pinouts and photos.", href: "/admin/bench-references", action: "Open bench references" },
   { title: "Reference data", description: "Companies, machines, categories and supply types.", href: "/admin/reference-data", action: "Open reference data", maintenanceOnly: true },
   { title: "Company editor", description: "Search and maintain company roles and ordering details.", href: "/admin/companies", action: "Open company editor" },
   { title: "Machine editor", description: "Search machines and maintain details, status and images.", href: "/admin/machines", action: "Open machine editor" },
