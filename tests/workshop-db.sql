@@ -183,8 +183,11 @@ do $$ declare doc jsonb; begin
   perform public.transition_repair_log('bb000000-0000-4000-8000-000000000011',2,'approve');
   raise exception 'Creator self-approved';
  exception when raise_exception then if sqlerrm<>'An administrator must review a pending repair' then raise; end if; end;
+ -- Match the Storage API session flag in this rolled-back disposable test.
+ perform set_config('storage.allow_delete_query','true',true);
  delete from storage.objects where bucket_id='repair-images' and name like '%/shared.webp';
  if found then raise exception 'Creator deleted submitted photo'; end if;
+ perform set_config('storage.allow_delete_query','false',true);
 end $$;
 -- Withdrawal restores editing; resubmission gets a fresh revision.
 select public.transition_repair_log('bb000000-0000-4000-8000-000000000011',2,'withdraw');
