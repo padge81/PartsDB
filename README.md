@@ -6,7 +6,7 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.16.0` |
+| Application | `0.16.1` |
 | Database | `0.10.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -29,6 +29,14 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.16.1` / database `0.10.0` — 8 October 2026
+
+- Renamed Photo steps to Steps and open the sequence editor directly from that section. Empty editable repairs start with a new first step.
+- Kept title and text editing prominent in every step, with add/replace-photo controls inside the editor.
+- The last step changes Next to Add step; new steps open immediately and retain previous draft edits.
+- Added Move step left/right controls inside each step, preserving the selected step and its content while reordering.
+- No database changes. Dependency versions remain unchanged.
 
 ### `0.16.0` / database `0.10.0` — 8 October 2026
 
