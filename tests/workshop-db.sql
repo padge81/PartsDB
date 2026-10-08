@@ -35,8 +35,10 @@ select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000002'
 set local role authenticated;
 do $$ begin
  if exists(select 1 from public.repair_logs) or exists(select 1 from public.bench_references) then raise exception 'Another user can read private records'; end if;
- update public.repair_logs set title='Not mine' where id='bb000000-0000-4000-8000-000000000001';
- if found then raise exception 'Another user can edit private records'; end if;
+ begin
+  update public.repair_logs set title='Not mine' where id='bb000000-0000-4000-8000-000000000001';
+  raise exception 'Direct repair write accepted';
+ exception when insufficient_privilege then null; end;
  begin
    insert into public.bench_references(owner_id,title,category,body) values('aa000000-0000-4000-8000-000000000001','Spoofed','Other','Invalid');
    raise exception 'Spoofed owner was accepted';
@@ -130,6 +132,153 @@ select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000002'
 set local role authenticated;
 do $$ begin
  if exists(select 1 from storage.objects where bucket_id='reference-documents') then raise exception 'Other user can read PDFs'; end if;
+end $$;
+reset role;
+rollback;
+
+-- Approval lifecycle, shared images, admin edits and direct-API bypass attempts.
+begin;
+insert into auth.users(id,email) values
+ ('aa000000-0000-4000-8000-000000000011','approval-owner@example.invalid'),
+ ('aa000000-0000-4000-8000-000000000012','approval-reader@example.invalid'),
+ ('aa000000-0000-4000-8000-000000000013','approval-admin@example.invalid');
+update public.profiles set role='admin' where id='aa000000-0000-4000-8000-000000000013';
+update public.system_metadata set value='live' where key='site_mode';
+insert into storage.objects(bucket_id,name) values
+ ('repair-images','aa000000-0000-4000-8000-000000000011/bb000000-0000-4000-8000-000000000011/shared.webp'),
+ ('repair-images','aa000000-0000-4000-8000-000000000011/bb000000-0000-4000-8000-000000000011/unused.webp'),
+ ('repair-images','aa000000-0000-4000-8000-000000000013/bb000000-0000-4000-8000-000000000011/admin.webp');
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000011',true);
+set local role authenticated;
+select public.save_repair_log('{"id":"bb000000-0000-4000-8000-000000000011","title":"Approval fixture","job_date":"2026-10-09","status":"draft","machine_id":"00000000-0000-0000-0000-000000000201","steps":[{"id":"one","title":"First step","instruction":"","image_path":"aa000000-0000-4000-8000-000000000011/bb000000-0000-4000-8000-000000000011/shared.webp","annotations":[]}],"parts":[{"part_id":"00000000-0000-0000-0000-000000000501","quantity":1}],"publication_status":"approved"}',0);
+do $$ begin
+ if (select publication_status from public.repair_logs where id='bb000000-0000-4000-8000-000000000011')<>'private' then raise exception 'Client set publication status'; end if;
+ begin
+  update public.repair_logs set publication_status='approved';
+  raise exception 'Direct approval bypass';
+ exception when insufficient_privilege then null; end;
+ begin
+  delete from public.repair_log_parts;
+  raise exception 'Direct part deletion bypass';
+ exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000013',true);
+set local role authenticated;
+do $$ begin
+ if exists(select 1 from public.repair_logs where id='bb000000-0000-4000-8000-000000000011') then raise exception 'Admin sees unsubmitted draft'; end if;
+ if exists(select 1 from storage.objects where bucket_id='repair-images' and name like '%/shared.webp') then raise exception 'Admin sees private photo'; end if;
+ if exists(select 1 from public.audit_log where table_name='repair_logs' and record_id='bb000000-0000-4000-8000-000000000011') then raise exception 'Private draft leaked to audit'; end if;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000011',true);
+set local role authenticated;
+select public.transition_repair_log('bb000000-0000-4000-8000-000000000011',1,'submit');
+do $$ declare doc jsonb; begin
+ select to_jsonb(l)||'{"parts":[]}'::jsonb into doc from public.repair_logs l where id='bb000000-0000-4000-8000-000000000011';
+ begin
+  perform public.save_repair_log(doc,2);raise exception 'Owner edited pending repair';
+ exception when raise_exception then if sqlerrm not like 'This repair is read only%' then raise; end if; end;
+ begin
+  perform public.transition_repair_log('bb000000-0000-4000-8000-000000000011',2,'approve');
+  raise exception 'Creator self-approved';
+ exception when raise_exception then if sqlerrm<>'An administrator must review a pending repair' then raise; end if; end;
+ delete from storage.objects where bucket_id='repair-images' and name like '%/shared.webp';
+ if found then raise exception 'Creator deleted submitted photo'; end if;
+end $$;
+-- Withdrawal restores editing; resubmission gets a fresh revision.
+select public.transition_repair_log('bb000000-0000-4000-8000-000000000011',2,'withdraw');
+select public.transition_repair_log('bb000000-0000-4000-8000-000000000011',3,'submit');
+reset role;
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000012',true);
+set local role authenticated;
+do $$ begin
+ if exists(select 1 from public.repair_logs where id='bb000000-0000-4000-8000-000000000011') then raise exception 'Reader sees pending repair'; end if;
+ if exists(select 1 from public.repair_log_parts where repair_log_id='bb000000-0000-4000-8000-000000000011') then raise exception 'Reader sees pending parts'; end if;
+ if exists(select 1 from storage.objects where bucket_id='repair-images') then raise exception 'Reader sees private photos'; end if;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000013',true);
+set local role authenticated;
+do $$ declare doc jsonb; begin
+ if not exists(select 1 from storage.objects where bucket_id='repair-images' and name like '%/shared.webp') then raise exception 'Admin cannot see submitted photo'; end if;
+ if exists(select 1 from storage.objects where bucket_id='repair-images' and name like '%/unused.webp') then raise exception 'Unused photo leaked to admin'; end if;
+ select to_jsonb(l)||'{"parts":[{"part_id":"00000000-0000-0000-0000-000000000501","quantity":2}]}'::jsonb into doc from public.repair_logs l where id='bb000000-0000-4000-8000-000000000011';
+ perform public.save_repair_log(doc||'{"title":"Reviewed repair"}'::jsonb,4);
+ begin
+  perform public.transition_repair_log('bb000000-0000-4000-8000-000000000011',4,'approve');
+  raise exception 'Stale approval accepted';
+ exception when raise_exception then if sqlerrm not like 'This repair changed%' then raise; end if; end;
+end $$;
+select public.transition_repair_log('bb000000-0000-4000-8000-000000000011',5,'approve','Reviewed and approved');
+reset role;
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000012',true);
+set local role authenticated;
+do $$ declare doc jsonb; begin
+ if not exists(select 1 from public.repair_logs where machine_id='00000000-0000-0000-0000-000000000201' and publication_status='approved') then raise exception 'Reader cannot find machine repair'; end if;
+ if (select quantity from public.repair_log_parts where repair_log_id='bb000000-0000-4000-8000-000000000011')<>2 then raise exception 'Shared parts missing'; end if;
+ if not exists(select 1 from storage.objects where bucket_id='repair-images' and name like '%/shared.webp') then raise exception 'Approved photo not shared'; end if;
+ if exists(select 1 from storage.objects where bucket_id='repair-images' and name like '%/unused.webp') then raise exception 'Unused photo shared'; end if;
+ select to_jsonb(l)||'{"parts":[]}'::jsonb into doc from public.repair_logs l where id='bb000000-0000-4000-8000-000000000011';
+ begin perform public.save_repair_log(doc,6);raise exception 'Reader edited approved repair';
+ exception when raise_exception then if sqlerrm not like 'This repair is read only%' then raise; end if; end;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000011',true);
+set local role authenticated;
+do $$ declare doc jsonb; begin
+ select to_jsonb(l)||'{"parts":[]}'::jsonb into doc from public.repair_logs l where id='bb000000-0000-4000-8000-000000000011';
+ begin perform public.save_repair_log(doc,6);raise exception 'Creator edited approved repair';
+ exception when raise_exception then if sqlerrm not like 'This repair is read only%' then raise; end if; end;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000013',true);
+set local role authenticated;
+do $$ declare doc jsonb; begin
+ select to_jsonb(l)||'{"parts":[]}'::jsonb into doc from public.repair_logs l where id='bb000000-0000-4000-8000-000000000011';
+ perform public.save_repair_log(doc||'{"steps":[{"id":"two","title":"Admin photo","image_path":"aa000000-0000-4000-8000-000000000013/bb000000-0000-4000-8000-000000000011/admin.webp","annotations":[]}]}'::jsonb,6);
+ if (select owner_id from public.repair_logs where id='bb000000-0000-4000-8000-000000000011')<>'aa000000-0000-4000-8000-000000000011' then raise exception 'Admin edit changed creator'; end if;
+ begin perform public.transition_repair_log('bb000000-0000-4000-8000-000000000011',7,'return',' ');
+ raise exception 'Return without note accepted';
+ exception when raise_exception then if sqlerrm not like 'Add a review note%' then raise; end if; end;
+end $$;
+reset role;
+update public.system_metadata set value='standby' where key='site_mode';
+set local role authenticated;
+do $$ begin
+ begin perform public.transition_repair_log('bb000000-0000-4000-8000-000000000011',7,'return','Fix notes');
+ raise exception 'Standby approval mutation accepted';
+ exception when raise_exception then if sqlerrm<>'Standby is read only' then raise; end if; end;
+end $$;
+reset role;
+update public.system_metadata set value='live' where key='site_mode';
+set local role authenticated;
+select public.transition_repair_log('bb000000-0000-4000-8000-000000000011',7,'return','Add test details');
+reset role;
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000012',true);
+set local role authenticated;
+do $$ begin
+ if exists(select 1 from public.repair_logs where id='bb000000-0000-4000-8000-000000000011') then raise exception 'Returned repair still shared'; end if;
+ if exists(select 1 from storage.objects where bucket_id='repair-images') then raise exception 'Returned photos still shared'; end if;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000011',true);
+set local role authenticated;
+do $$ declare doc jsonb; begin
+ if not exists(select 1 from storage.objects where bucket_id='repair-images' and name like '%/admin.webp') then raise exception 'Creator cannot see admin photo after return'; end if;
+ select to_jsonb(l)||'{"parts":[]}'::jsonb into doc from public.repair_logs l where id='bb000000-0000-4000-8000-000000000011';
+ perform public.save_repair_log(doc||'{"tests":"Test details added"}'::jsonb,8);
+end $$;
+select public.transition_repair_log('bb000000-0000-4000-8000-000000000011',9,'submit');
+reset role;
+update public.profiles set is_active=false where id='aa000000-0000-4000-8000-000000000013';
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000013',true);
+set local role authenticated;
+do $$ begin
+ if exists(select 1 from public.repair_logs where id='bb000000-0000-4000-8000-000000000011') then raise exception 'Inactive admin reads submissions'; end if;
+ begin perform public.transition_repair_log('bb000000-0000-4000-8000-000000000011',10,'approve');
+ raise exception 'Inactive admin approved';
+ exception when raise_exception then if sqlerrm<>'Active sign-in required' then raise; end if; end;
 end $$;
 reset role;
 rollback;

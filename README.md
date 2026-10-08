@@ -6,8 +6,8 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.16.3` |
-| Database | `0.10.0` |
+| Application | `0.17.0` |
+| Database | `0.11.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
 
@@ -29,6 +29,17 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.17.0` / database `0.11.0` — 9 October 2026
+
+- Added private → submitted → approved repair-log publishing, with creator withdrawal, administrator review notes and return-for-changes/resubmission.
+- Approved repairs and their attached photos/parts are readable by all active signed-in users. Only administrators can edit shared records; private drafts remain creator-only. Submitted records are locked for creator edits until withdrawn or returned.
+- Added Repair log approvals in the Administrator portal, Workshop library filters and direct repair links.
+- Machine search and machine detail pages now list approved repairs for the linked catalogue machine. Submission requires a machine and at least one step.
+- Enforced transitions, active accounts, server standby, revisions and photo access in the database; direct table writes cannot bypass approval. Attached photos cannot be deleted through storage while referenced.
+- Added review/edit auditing for submitted and shared records, with no unsubmitted draft content in the administrator audit trail.
+- Existing logs start private. Repair ZIP exports retain the new publication metadata; catalogue backup/restore scope remains unchanged and catalogue restore remains blocked when repair logs exist. Workshop ZIP restore remains a future feature.
+- Added database tests for creator, reader and administrator access, submission/withdrawal, approval, return/resubmission, photo privacy, stale reviews, direct-API bypasses and standby/inactive protection. Browser verification remains unavailable while the local Windows tool runtime cannot start.
 
 ### `0.16.3` / database `0.10.0` — 9 October 2026
 

@@ -3,7 +3,8 @@ import { getSupabaseBrowserClient } from './supabase';
 export type Mark = { kind: 'circle' | 'arrow' | 'number'; x: number; y: number; x2: number; y2: number; label?: string };
 export type RepairStep = { id: string; title: string; instruction: string; image_path: string; annotations: Mark[]; imageUrl?: string };
 export type RepairPart = { part_id: string; description: string; number: string; quantity: number };
-export type RepairLog = { id: string; title: string; machine_id: string | null; machine_name: string; technician: string; job_date: string; fault: string; outcome: string; tests: string; tools: string; status: 'draft' | 'in_progress' | 'completed'; revision: number; updated_at: string; steps: RepairStep[]; parts: RepairPart[] };
+export type PublicationStatus = 'private' | 'pending' | 'approved' | 'returned';
+export type RepairLog = { owner_id?: string; publication_status?: PublicationStatus; submitted_at?: string | null; reviewed_at?: string | null; reviewed_by?: string | null; review_notes?: string; id: string; title: string; machine_id: string | null; machine_name: string; technician: string; job_date: string; fault: string; outcome: string; tests: string; tools: string; status: 'draft' | 'in_progress' | 'completed'; revision: number; updated_at: string; steps: RepairStep[]; parts: RepairPart[] };
 export type Choice = { id: string; name: string; number?: string };
 export const newLog = (): RepairLog => ({ id: crypto.randomUUID(), title: 'Untitled repair', machine_id: null, machine_name: '', technician: '', job_date: new Date().toLocaleDateString('en-CA'), fault: '', outcome: '', tests: '', tools: '', status: 'draft', revision: 0, updated_at: new Date().toISOString(), steps: [], parts: [] });
 export function checkLog(log: RepairLog) {
@@ -55,7 +56,7 @@ export async function saveLive(log: RepairLog) {
   const document = { ...log, steps: log.steps.map(step => ({ id: step.id, title: step.title, instruction: step.instruction, image_path: step.image_path, annotations: step.annotations })) };
   const { data, error } = await db.rpc('save_repair_log', { document, expected_revision: log.revision });
   if (error) throw new Error(error.message);
-  return { ...log, revision: data.revision as number, updated_at: data.updated_at as string };
+  return { ...log, ...data, steps: log.steps, parts: log.parts } as RepairLog;
 }
 export async function imageDataUrl(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(new Error('Photo could not be read.')); reader.readAsDataURL(file); });
@@ -67,4 +68,18 @@ export async function uploadRepairPhoto(logId: string, file: File) {
   const result = await db.storage.from('repair-images').upload(path, file, { contentType: 'image/webp', upsert: false });
   if (result.error) throw new Error(result.error.message);
   return path;
+}
+
+export async function transitionRepair(log: RepairLog, action: 'submit' | 'withdraw' | 'approve' | 'return', notes = ''): Promise<RepairLog> {
+  const db = getSupabaseBrowserClient(); if (!db) throw new Error('Database is not configured.');
+  const {data,error} = await db.rpc('transition_repair_log',{log_id:log.id,expected_revision:log.revision,action,notes});
+  if(error) throw new Error(error.message);
+  return {...log,...data,steps:log.steps,parts:log.parts};
+}
+export type ApprovedRepair = {id:string;title:string;machine_id:string;machine_name:string;job_date:string};
+export async function approvedRepairs(machineId?:string): Promise<ApprovedRepair[]> {
+  const db=getSupabaseBrowserClient();if(!db)throw new Error('Database is not configured.');
+  let query=db.from('repair_logs').select('id,title,machine_id,machine_name,job_date').eq('publication_status','approved').order('updated_at',{ascending:false});
+  if(machineId)query=query.eq('machine_id',machineId);
+  const {data,error}=await query;if(error)throw new Error(error.message);return data??[];
 }

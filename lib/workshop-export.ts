@@ -64,7 +64,7 @@ export async function exportRepairPdf(log: RepairLog, mode: 'report' | 'guide', 
   section('Testing and verification',log.tests);
   if (mode === 'report') section('Outcome / outstanding work',log.outcome);
   const total = doc.getNumberOfPages();
-  for (let page=1;page<=total;page++) { doc.setPage(page); doc.setDrawColor(210,218,224); doc.line(18,279,192,279); doc.setFontSize(9); doc.setTextColor(85,100,112); doc.text('PartsDB Workshop | '+(preview ? 'Preview' : 'Private repair record'),18,286); doc.text(`${page} / ${total}`,192,286,{align:'right'}); }
+  for (let page=1;page<=total;page++) { doc.setPage(page); doc.setDrawColor(210,218,224); doc.line(18,279,192,279); doc.setFontSize(9); doc.setTextColor(85,100,112); doc.text('PartsDB Workshop | '+(preview ? 'Preview' : log.publication_status === 'approved' ? 'Approved repair record' : 'Private repair record'),18,286); doc.text(`${page} / ${total}`,192,286,{align:'right'}); }
   doc.save(`${filename(log)}-${mode}.pdf`);
 }
 export async function exportRepairArchive(logs: RepairLog[]) {

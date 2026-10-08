@@ -56,3 +56,5 @@
   .repair-photo-editor>.wk-small{font-size:12px!important;line-height:1.4;margin:8px 0}
   .wk-step-card{flex-basis:200px}.wk-step-open{padding:12px;gap:8px}
 }
+
+.wk-publication{padding:18px 24px;background:#f4f7f9;border-top:1px solid #dce3e8}.wk-publication>p{font-size:14px;line-height:1.5;white-space:pre-wrap}.wk-review-controls{margin-top:16px}.wk-review-controls .wk-label{margin-bottom:12px}.wk-machine-link{padding:0 24px;font-size:14px}.wk-machine-link a{color:#17628b;text-decoration:underline}@media(max-width:700px){.wk-publication{padding:14px 12px}.wk-machine-link{padding:0 12px}}

@@ -4,18 +4,20 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { AppShell, type Profile, type SiteMode } from './app-shell';
 import { RepairStepDialog } from './repair-step-dialog';
 import { prepareImage, formatBytes } from '../lib/image-compression';
-import { demoLog, imageDataUrl, loadLive, loadPreview, newLog, prompts, saveLive, savePreview, uploadRepairPhoto, type Choice, type RepairLog, type RepairStep } from '../lib/workshop';
+import { transitionRepair, demoLog, imageDataUrl, loadLive, loadPreview, newLog, prompts, saveLive, savePreview, uploadRepairPhoto, type Choice, type RepairLog, type RepairStep } from '../lib/workshop';
 import { exportRepairArchive, exportRepairPdf } from '../lib/workshop-export';
+import { RepairPublication } from './repair-publication';
 import { BenchReferences } from './bench-references';
 import './workshop.css';
 
-export function Workshop({ preview = false }: { preview?: boolean }) {
+export function Workshop({ preview = false, reviewMode = false }: { preview?: boolean; reviewMode?: boolean }) {
   if (preview) return <div className="wk-preview"><header className="wk-preview-header"><a href="/workshop/preview">PartsDB <span>Workshop</span></a><span>INTERACTIVE PREVIEW</span></header><div className="wk-preview-notice">Isolated preview · fictional sample · saves on this device only · production database untouched</div><WorkshopEditor preview siteMode="live" profile={{id:'preview',display_name:'',role:'admin',is_active:true}}/></div>;
-  return <AppShell>{(profile, siteMode) => <WorkshopEditor profile={profile} siteMode={siteMode}/>}</AppShell>;
+  return <AppShell requireAdmin={reviewMode}>{(profile, siteMode) => <WorkshopEditor profile={profile} siteMode={siteMode} reviewMode={reviewMode}/>}</AppShell>;
 }
-function WorkshopEditor({preview = false,profile,siteMode}: {preview?: boolean;profile: Profile;siteMode: SiteMode}) {
+function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {preview?: boolean;profile: Profile;siteMode: SiteMode;reviewMode?:boolean}) {
   const [logs,setLogs] = useState<RepairLog[]>([]), [job,setJob] = useState<RepairLog|null>(null);
   const [machines,setMachines] = useState<Choice[]>([]), [parts,setParts] = useState<Choice[]>([]);
+  const [scope,setScope]=useState(reviewMode?'pending':'mine');
   const [search,setSearch] = useState(''), [filter,setFilter] = useState('all'), [partSearch,setPartSearch] = useState('');
   const [busy,setBusy] = useState(false), [loading,setLoading] = useState(true), [dirty,setDirty] = useState(false), [error,setError] = useState(''), [message,setMessage] = useState('');
   const [section,setSection] = useState<'record'|'steps'|'parts'|'finish'>('record');
@@ -23,25 +25,45 @@ function WorkshopEditor({preview = false,profile,siteMode}: {preview?: boolean;p
   const [activeStepId,setActiveStepId] = useState<string|null>(null);
   const [exportMode,setExportMode] = useState<'report'|'guide'>('report');
   const gallery = useRef<HTMLInputElement>(null), camera = useRef<HTMLInputElement>(null);
-  const readonly = siteMode === 'standby';
+  const standby=siteMode==='standby',admin=profile.role==='admin';
+  const owner=!job?.owner_id||job.owner_id===profile.id;
+  const publication=job?.publication_status??'private';
+  const readonly=standby||(!preview&&!(owner&&['private','returned'].includes(publication))&&!(admin&&['pending','approved','returned'].includes(publication)));
   useEffect(() => { let alive = true; (async () => {
     try {
       if(preview) { const saved = await loadPreview(); if(alive) { const all = saved.length ? saved : [demoLog()]; setLogs(all); setJob(all[0]); setMachines([{id:'demo-machine',name:'Example claw machine'},{id:'demo-hockey',name:'Example hockey machine'}]); setParts([{id:'demo-motor',name:'Example replacement motor',number:'DEMO-001'},{id:'demo-switch',name:'Example microswitch',number:'DEMO-002'}]); } }
-      else { const result = await loadLive(); if(alive) {setLogs(result.records); setJob(result.records[0] ?? null); setMachines(result.machines); setParts(result.parts);} }
+      else { const result = await loadLive(); if(alive) {setLogs(result.records); const requested=new URLSearchParams(window.location.search).get('log');
+        const initial=requested?result.records.find(r=>r.id===requested):result.records.find(r=>reviewMode?r.publication_status==='pending':r.owner_id===profile.id);
+        setJob(initial??null);if(requested){setScope('all');if(!initial)setError('This repair is unavailable or you do not have permission to view it.');} setMachines(result.machines); setParts(result.parts);} }
     } catch(e) {if(alive) setError(e instanceof Error ? e.message : 'Could not load workshop.');} finally {if(alive)setLoading(false);}
-  })(); return () => {alive = false;}; },[preview]);
+  })(); return () => {alive = false;}; },[preview,profile.id,reviewMode]);
   useEffect(() => { const warn = (event: BeforeUnloadEvent) => {if(dirty) {event.preventDefault(); event.returnValue='';}}; window.addEventListener('beforeunload',warn); return()=>window.removeEventListener('beforeunload',warn); },[dirty]);
   function update(patch: Partial<RepairLog>) {setJob(j=>j?{...j,...patch}:j); setDirty(true); setMessage('');}
   function stepUpdate(id:string,patch:Partial<RepairStep>) {if(job)update({steps:job.steps.map(s=>s.id===id?{...s,...patch}:s)});}
   function select(log: RepairLog) {if(dirty&&!window.confirm('Discard unsaved changes to this repair?'))return;setJob(log);setDirty(false);setError('');setMessage('');setSection('record');}
-  function create() {if(dirty&&!window.confirm('Discard unsaved changes to this repair?'))return;const created=newLog();created.technician=profile.display_name??'';setJob(created);setDirty(true);setSection('record');setError('');setMessage('');setView('repairs');}
+  function create() {if(dirty&&!window.confirm('Discard unsaved changes to this repair?'))return;const created=newLog();created.owner_id=profile.id;created.publication_status='private';setScope('mine');created.technician=profile.display_name??'';setJob(created);setDirty(true);setSection('record');setError('');setMessage('');setView('repairs');}
   async function save() {
     if(!job||readonly)return;setBusy(true);setError('');setMessage('');
     try {const saved=preview?await savePreview(job):await saveLive(job);setJob(saved);setLogs(all=>[saved,...all.filter(x=>x.id!==saved.id)]);setDirty(false);setMessage(preview?'Saved on this device. Use ZIP export to keep a portable copy.':'Saved to Workshop. Available on your other signed-in devices.');}
     catch(e){setError(e instanceof Error?e.message:'Save failed. Your changes remain on screen.');}finally{setBusy(false);}
   }
+  async function publicationAction(action:'submit'|'withdraw'|'approve'|'return',notes=''){
+    if(!job||busy||standby||preview)return;
+    setBusy(true);setError('');setMessage('');
+    try{
+      let saved=job;
+      if(action==='submit'){
+        if(!job.machine_id)throw new Error('Choose a catalogue machine in Job details before submitting.');
+        if(!job.steps.length)throw new Error('Add at least one step before submitting.');
+        saved=await saveLive(job);setJob(saved);setLogs(all=>[saved,...all.filter(x=>x.id!==saved.id)]);setDirty(false);
+      }else if(dirty)throw new Error('Save your changes before reviewing this version.');
+      saved=await transitionRepair(saved,action,notes);
+      setJob(saved);setLogs(all=>[saved,...all.filter(x=>x.id!==saved.id)]);setDirty(false);
+      setMessage(action==='approve'?'Approved. This repair is now visible to all signed-in users and on the linked machine.':action==='return'?'Returned with your review note. This repair is no longer in the shared library.':action==='withdraw'?'Submission withdrawn. You can edit your private draft.':'Submitted for administrator approval.');
+    }catch(e){setError(e instanceof Error?e.message:'The review action failed.');}finally{setBusy(false);}
+  }
   async function photos(event:ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files??[]);event.target.value='';if(!job||!files.length)return;
+    const files = Array.from(event.target.files??[]);event.target.value='';if(!job||!files.length||readonly||busy)return;
     if(job.steps.length+files.length>60){setError('Keep a job to 60 steps or fewer. Split a longer procedure into separate jobs.');return;}
     setBusy(true);setError('');const additions:RepairStep[]=[];
     try {for(const file of files){const prepared=await prepareImage(file);try {const data=await imageDataUrl(prepared.file);const path=preview?'':await uploadRepairPhoto(job.id,prepared.file);additions.push({id:crypto.randomUUID(),title:'',instruction:'',image_path:path,imageUrl:data,annotations:[]});setMessage(`${file.name}: ${formatBytes(prepared.originalBytes)} to ${formatBytes(prepared.compressedBytes)}`);}finally{URL.revokeObjectURL(prepared.previewUrl);}}}
@@ -63,17 +85,19 @@ function WorkshopEditor({preview = false,profile,siteMode}: {preview?: boolean;p
   const activeStep=job?.steps[activeStepIndex];
   function moveStep(index:number,offset:number){if(!job||busy||readonly||index+offset<0||index+offset>=job.steps.length)return;const next=[...job.steps];[next[index],next[index+offset]]=[next[index+offset],next[index]];update({steps:next});}
   async function output(kind:'pdf'|'zip') {if(!job)return;setBusy(true);setError('');try{if(kind==='pdf')await exportRepairPdf(job,exportMode,preview);else await exportRepairArchive([job]);setMessage(kind==='pdf'?'PDF downloaded from the current on-screen record.':'Portable ZIP downloaded with photos and editable annotations.');}catch(e){setError(e instanceof Error?e.message:'Export failed.');}finally{setBusy(false);}}
-  const visible=logs.filter(l=>(filter==='all'||l.status===filter)&&`${l.title} ${l.machine_name} ${l.fault} ${l.parts.map(p=>p.description+' '+p.number).join(' ')}`.toLowerCase().includes(search.toLowerCase()));
+  const visible=logs.filter(l=>(preview||scope==='all'||(scope==='mine'?l.owner_id===profile.id:l.publication_status===scope))&&(filter==='all'||l.status===filter)&&`${l.title} ${l.machine_name} ${l.fault} ${l.parts.map(p=>p.description+' '+p.number).join(' ')}`.toLowerCase().includes(search.toLowerCase()));
   const matchingParts=parts.filter(p=>`${p.name} ${p.number}`.toLowerCase().includes(partSearch.toLowerCase())).filter(p=>!job?.parts.some(x=>x.part_id===p.id)).slice(0,15);
   return <main className="wk-workspace">
-    <div className="wk-heading"><div><p className="wk-eyebrow">YOUR WORKSHOP KNOWLEDGE</p><h1>{view==='repairs'?'Repair notebook':'Bench references'}</h1><p>{view==='repairs'?'Capture it once. Find it on the next repair.':'The details you reach for at the bench.'}</p></div><button className="button primary" onClick={create} disabled={busy||readonly||loading}>＋ New repair</button></div>
+    <div className="wk-heading"><div><p className="wk-eyebrow">YOUR WORKSHOP KNOWLEDGE</p><h1>{view==='repairs'?'Repair notebook':'Bench references'}</h1><p>{view==='repairs'?'Capture it once. Find it on the next repair.':'The details you reach for at the bench.'}</p></div><button className="button primary" onClick={create} disabled={busy||standby||loading}>＋ New repair</button></div>
     <div className="wk-view-tabs"><button className={view==='repairs'?'active':''} onClick={()=>setView('repairs')}>Repair logs</button><button className={view==='references'?'active':''} onClick={()=>setView('references')}>Bench references</button></div>
-    <div hidden={view!=='references'}><BenchReferences preview={preview} readonly={readonly}/></div><div hidden={view!=='repairs'}><div className="wk-layout"><aside className="wk-library"><div className="wk-library-head"><strong>Repair logs</strong><span>{logs.length}</span></div><label className="wk-label">Search your repairs<input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Machine, symptom or part…"/></label><label className="wk-label">Status<select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">All repairs</option><option value="draft">Draft</option><option value="in_progress">In progress</option><option value="completed">Completed</option></select></label><div className="wk-log-list">{loading?<p>Loading repair logs…</p>:visible.map(l=><button disabled={busy} key={l.id} className={`wk-log ${job?.id===l.id?'active':''}`} onClick={()=>select(l)}><span className={`wk-status ${l.status}`}>{l.status.replace('_',' ')}</span><strong>{l.title}</strong><span>{l.machine_name||'Machine not recorded'}</span><small>{l.job_date} · {l.steps.length} steps</small></button>)}{!loading&&!visible.length&&<p className="wk-small">No matching repairs. Start a new log or change your search.</p>}</div><div className="wk-library-note"><strong>Private by default</strong><p>{preview?'Try the workflow here. Preview records are stored only in this browser.':'Only your account can read your workshop logs and photos.'}</p></div></aside>
+    <div hidden={view!=='references'}><BenchReferences preview={preview} readonly={standby}/></div><div hidden={view!=='repairs'}><div className="wk-layout"><aside className="wk-library"><div className="wk-library-head"><strong>Repair logs</strong><span>{logs.length}</span></div>{!preview&&<label className="wk-label">Library<select value={scope} onChange={e=>setScope(e.target.value)}><option value="mine">My repairs</option><option value="approved">Approved library</option>{admin&&<option value="pending">Awaiting approval</option>}{admin&&<option value="returned">Returned for changes</option>}<option value="all">All available repairs</option></select></label>}<label className="wk-label">Search repairs<input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Machine, symptom or part…"/></label><label className="wk-label">Status<select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">All repairs</option><option value="draft">Draft</option><option value="in_progress">In progress</option><option value="completed">Completed</option></select></label><div className="wk-log-list">{loading?<p>Loading repair logs…</p>:visible.map(l=><button disabled={busy} key={l.id} className={`wk-log ${job?.id===l.id?'active':''}`} onClick={()=>select(l)}><span className={`wk-status ${l.status}`}>{l.status.replace('_',' ')}</span><strong>{l.title}</strong><span>{l.machine_name||'Machine not recorded'}</span><small>{l.job_date} · {l.steps.length} steps · {(l.publication_status??'private').replace('_',' ')}</small></button>)}{!loading&&!visible.length&&<p className="wk-small">No matching repairs. Start a new log or change your search.</p>}</div><div className="wk-library-note"><strong>Private by default</strong><p>{preview?'Try the workflow here. Preview records are stored only in this browser.':'Drafts stay private. Submitted logs are visible to administrators; approved logs are shared with all signed-in users.'}</p></div></aside>
     <section className="wk-editor" aria-label="Repair editor">
       {error&&<div className="wk-alert" role="alert">{error}</div>}{message&&<div className="wk-message" role="status">{message}</div>}
-      {!job?<div className="wk-empty"><h2>Your next repair starts here</h2><p>Create a log, take photos and build a guide as you work.</p><button className="button primary" disabled={loading||busy||readonly} onClick={create}>New repair</button></div>:<>
+      {!job?<div className="wk-empty"><h2>Your next repair starts here</h2><p>Create a log, take photos and build a guide as you work.</p><button className="button primary" disabled={loading||busy||standby} onClick={create}>New repair</button></div>:<>
         <div className="wk-editor-top"><div><span className={`wk-status ${job.status}`}>{job.status.replace('_',' ')}</span><span className="wk-save-state">{dirty?'Unsaved changes':`Revision ${job.revision}`}</span><h2>{job.title}</h2></div><button className="button primary" disabled={busy||readonly} onClick={()=>void save()}>{busy?'Working…':'Save repair'}</button></div>
-        {readonly&&<p className="wk-alert">This server is in standby. Viewing and export remain available.</p>}
+        {readonly&&<p className="wk-alert">{standby?'This server is in standby. Viewing and export remain available.':'Viewing only. Submitted and approved repairs can only be edited by an administrator.'}</p>}
+        {!preview&&<RepairPublication key={job.id+':'+job.revision} job={job} owner={owner} admin={admin} busy={busy} standby={standby} dirty={dirty} onAction={(action,notes)=>void publicationAction(action,notes)}/>}
+        {job.machine_id&&!preview&&<p className="wk-machine-link"><a href={`/machines/${job.machine_id}`}>Open linked machine →</a></p>}
         <div className="wk-tabs" aria-label="Repair sections">{([['record','01','Job details'],['steps','02',`Steps (${job.steps.length})`],['parts','03',`Parts (${job.parts.length})`],['finish','04','Finish & export']] as const).map(([id,n,label])=><button key={id} aria-pressed={section===id} disabled={busy} onClick={()=>{setSection(id);if(id==='steps')openSteps();}}><span>{n}</span>{label}</button>)}</div>
         <fieldset className="wk-fields" disabled={busy||(readonly&&section!=='steps')}>
         {section==='record'&&<div className="wk-panel"><div className="wk-section-heading"><h3>What are you working on?</h3><p>Start with what you know. Add the rest as the job progresses.</p></div><label className="wk-label">Repair title<input value={job.title} onChange={e=>update({title:e.target.value})} maxLength={200}/></label><div className="wk-two"><label className="wk-label">Machine<select value={job.machine_id??''} onChange={e=>update({machine_id:e.target.value||null,machine_name:machines.find(m=>m.id===e.target.value)?.name??job.machine_name})}><option value="">Choose a machine…</option>{machines.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label><label className="wk-label">Machine name / asset reference<input value={job.machine_name} onChange={e=>update({machine_name:e.target.value})} placeholder="Model or cabinet identifier"/></label><label className="wk-label">Job date<input type="date" value={job.job_date} onChange={e=>update({job_date:e.target.value})}/></label><label className="wk-label">Technician<input value={job.technician} onChange={e=>update({technician:e.target.value})}/></label></div><label className="wk-label">Reported fault or task<textarea rows={4} value={job.fault} onChange={e=>update({fault:e.target.value})} placeholder="What was happening? When did it occur?"/></label><label className="wk-label">Tools and preparation<textarea rows={3} value={job.tools} onChange={e=>update({tools:e.target.value})} placeholder="Record tools, access requirements and relevant preparation."/></label><p className="wk-small">Use the microphone on your phone keyboard to dictate into any notes field.</p></div>}
