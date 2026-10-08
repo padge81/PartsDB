@@ -6,7 +6,7 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.16.1` |
+| Application | `0.16.2` |
 | Database | `0.10.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -29,6 +29,13 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.16.2` / database `0.10.0` — 8 October 2026
+
+- Reduced mobile Workshop spacing, headings and initial step-text height while retaining readable fields and touch-sized controls.
+- Scaled repair photos down on phones and aligned them left, leaving a 48 px clear strip on the right for scrolling even while a markup tool is active.
+- Kept photo aspect ratios and annotation alignment intact; original photos and PDF exports are unchanged.
+- No database or dependency changes.
 
 ### `0.16.1` / database `0.10.0` — 8 October 2026
 
