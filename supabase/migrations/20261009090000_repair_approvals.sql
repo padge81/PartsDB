@@ -147,7 +147,7 @@ grant execute on function public.transition_repair_log(uuid,integer,text,text) t
 
 -- Unsubmitted drafts do not enter the administrator-visible audit trail.
 create function public.audit_shared_repair() returns trigger
-language plpgsql security definer set search_path='' as $
+language plpgsql security definer set search_path='' as $$
 begin
   if new.publication_status<>'private' or (tg_op='UPDATE' and old.publication_status<>'private') then
     insert into public.audit_log(table_name,record_id,operation,actor_id,old_values,new_values)
@@ -155,7 +155,7 @@ begin
       case when tg_op='UPDATE' then to_jsonb(old) end,to_jsonb(new));
   end if;
   return new;
-end $;
+end $$;
 revoke all on function public.audit_shared_repair() from public;
 create trigger audit_repair_logs after insert or update on public.repair_logs
 for each row execute function public.audit_shared_repair();
