@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { appendGuideSteps } from './workshop-guide';
 import { strToU8, zipSync } from 'fflate';
 import type { RepairLog, RepairStep } from './workshop';
 
@@ -27,21 +28,29 @@ export async function exportRepairPdf(log: RepairLog, mode: 'report' | 'guide', 
   const nextPage = () => { doc.addPage(); y = 22; };
   function text(value: string, size = 11, bold = false) {
     doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size); doc.setTextColor(23,39,53);
+    if (mode === 'guide' && !value.trim()) return;
     const lines: string[] = doc.splitTextToSize(printable(value || 'Not recorded'), width);
     for (const line of lines) { if (y + size*.45 > bottom) nextPage(); doc.text(line,18,y); y += size*.45 + 1; }
     y += 3;
   }
-  function section(title: string, value: string) { if (y > bottom-25) nextPage(); text(title,12,true); text(value); y += 3; }
-  text('PARTSDB / WORKSHOP',10,true);
-  text(mode === 'report' ? 'Repair report' : 'Workshop guide',24,true);
+  function section(title: string, value: string) { if (mode === 'guide' && !value.trim()) return; if (y > bottom-25) nextPage(); text(title,12,true); text(value); y += 3; }
+  if (mode === 'report') text('PARTSDB / WORKSHOP',10,true);
+  text(mode === 'report' ? 'Repair report' : 'Workshop guide',mode === 'guide' ? 10 : 24,true);
   text(log.title,17,true);
   text(`${preview ? 'DEMONSTRATION / ' : ''}${log.status === 'completed' ? 'COMPLETED JOB - verify suitability before reuse' : 'DRAFT - NOT A VERIFIED PROCEDURE'}`,10,true);
-  text(`Machine: ${log.machine_name || 'Not recorded'}\nDate: ${log.job_date}\nTechnician: ${log.technician || 'Not recorded'}\nRecord: ${log.id}\nSaved revision: ${log.revision} | Exported: ${new Date().toLocaleDateString('en-AU')}`,10);
+  if (mode === 'guide') text(`Machine: ${log.machine_name || ''}\nDate: ${log.job_date} | Technician: ${log.technician || ''}\nRecord: ${log.id}\nRevision: ${log.revision} | Exported: ${new Date().toLocaleDateString('en-AU')}`,9);
+  else text(`Machine: ${log.machine_name || 'Not recorded'}\nDate: ${log.job_date}\nTechnician: ${log.technician || 'Not recorded'}\nRecord: ${log.id}\nSaved revision: ${log.revision} | Exported: ${new Date().toLocaleDateString('en-AU')}`,10);
+
   if (mode === 'report') section('Reported fault / task',log.fault);
   section('Tools and preparation',log.tools);
   if (log.parts.length) section('Parts used',log.parts.map(p=>`${p.quantity} x ${p.description}${p.number ? ' | '+p.number : ''}`).join('\n'));
-  else section('Parts used','No parts linked.');
-  for (let i=0;i<log.steps.length;i++) {
+  else if (mode === 'report') section('Parts used','No parts linked.');
+  if (mode === 'guide') {
+    y = await appendGuideSteps(doc,log.steps,async step => {
+      const canvas = await photoCanvas(step);
+      return {data:canvas.toDataURL('image/jpeg',.9),width:canvas.width,height:canvas.height};
+    },y);
+  } else for (let i=0;i<log.steps.length;i++) {
     const step = log.steps[i]; if (y > bottom-55) nextPage();
     text(`${i+1}. ${step.title || 'Untitled step'}`,14,true);
     text(step.instruction);
