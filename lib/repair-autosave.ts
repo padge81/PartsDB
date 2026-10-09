@@ -6,10 +6,12 @@ type Options = {
   backup:(job:RepairLog)=>Promise<void>;
   clear:(id:string)=>Promise<void>;
   onSaved?:(job:RepairLog)=>void;
+  onRecoveredSaved?:(key:string,id:string)=>void;
 };
 export function createRepairAutosave(options:Options){
   let state:AutosaveState={job:null,dirty:false,saving:false,error:'',backupError:'',deviceSaved:false};
   let generation=0,running:Promise<RepairLog|null>|null=null,backupQueue:Promise<void>=Promise.resolve();
+  let restoredSource:{key:string;id:string}|null=null;
   const listeners=new Set<(state:AutosaveState)=>void>();
   const emit=()=>{for(const listener of listeners)listener({...state});};
   function backup(){
@@ -46,6 +48,10 @@ export function createRepairAutosave(options:Options){
           await backup().catch(()=>{});
           const saved=await options.persist(snapshot);
           options.onSaved?.(saved);
+          if(restoredSource?.id===saved.id){
+            const source=restoredSource;restoredSource=null;
+            options.onRecoveredSaved?.(source.key,source.id);
+          }
           if(generation===version){
             state={...state,job:saved,dirty:false,deviceSaved:false,backupError:''};emit();
             // Queue cleanup ahead of subsequent edits, so a newer backup cannot be deleted.
@@ -64,5 +70,5 @@ export function createRepairAutosave(options:Options){
     });
     return running;
   }
-  return {getState:()=>({...state}),open,edit,flush,backup,subscribe(listener:(state:AutosaveState)=>void){listeners.add(listener);listener({...state});return()=>{listeners.delete(listener);};}};
+  return {recoverFrom:(key:string,id:string)=>{restoredSource={key,id};},getState:()=>({...state}),open,edit,flush,backup,subscribe(listener:(state:AutosaveState)=>void){listeners.add(listener);listener({...state});return()=>{listeners.delete(listener);};}};
 }

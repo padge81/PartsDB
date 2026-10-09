@@ -28,21 +28,16 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
   const recoveryAccount=(preview?'preview:':'live:')+profile.id;
   const autosaver=useMemo(()=>{
     const session=recoverySession(),account=(preview?'preview:':'live:')+profile.id;
-    let restoredSource:{key:string;id:string}|null=null;
-    const saver=createRepairAutosave({
+    return createRepairAutosave({
       persist:preview?savePreview:saveLive,
       backup:log=>writeRecovery(account,session,log),
       clear:id=>removeRecovery(account+':'+session+':'+id),
-      onSaved:saved=>{
-        setLogs(all=>[saved,...all.filter(x=>x.id!==saved.id)]);
-        const source=restoredSource;
-        if(source?.id===saved.id){
-          restoredSource=null;setRecoveries(all=>all.filter(d=>d.key!==source.key));
-          if(source.key!==account+':'+session+':'+saved.id)void removeRecovery(source.key).catch(()=>{});
-        }
+      onSaved:saved=>setLogs(all=>[saved,...all.filter(x=>x.id!==saved.id)]),
+      onRecoveredSaved:(key,id)=>{
+        setRecoveries(all=>all.filter(d=>d.key!==key));
+        if(key!==account+':'+session+':'+id)void removeRecovery(key).catch(()=>{});
       },
     });
-    return {...saver,recoverFrom:(key:string,id:string)=>{restoredSource={key,id};}};
   },[preview,profile.id]);
   useEffect(()=>autosaver.subscribe(state=>{
     setJob(state.job);setDirty(state.dirty);
