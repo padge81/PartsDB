@@ -25,23 +25,24 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
   const [busy,setBusy] = useState(false), [loading,setLoading] = useState(true), [dirty,setDirty] = useState(false), [error,setError] = useState(''), [message,setMessage] = useState('');
   const [saveInfo,setSaveInfo]=useState({saving:false,error:'',backupError:'',deviceSaved:false});
   const [recoveries,setRecoveries]=useState<RecoveryDraft[]>([]);
-  const restoredSource=useRef<{key:string;id:string}|null>(null);
   const recoveryAccount=(preview?'preview:':'live:')+profile.id;
   const autosaver=useMemo(()=>{
     const session=recoverySession(),account=(preview?'preview:':'live:')+profile.id;
-    return createRepairAutosave({
+    let restoredSource:{key:string;id:string}|null=null;
+    const saver=createRepairAutosave({
       persist:preview?savePreview:saveLive,
       backup:log=>writeRecovery(account,session,log),
       clear:id=>removeRecovery(account+':'+session+':'+id),
       onSaved:saved=>{
         setLogs(all=>[saved,...all.filter(x=>x.id!==saved.id)]);
-        const source=restoredSource.current;
+        const source=restoredSource;
         if(source?.id===saved.id){
-          restoredSource.current=null;setRecoveries(all=>all.filter(d=>d.key!==source.key));
+          restoredSource=null;setRecoveries(all=>all.filter(d=>d.key!==source.key));
           if(source.key!==account+':'+session+':'+saved.id)void removeRecovery(source.key).catch(()=>{});
         }
       },
     });
+    return {...saver,recoverFrom:(key:string,id:string)=>{restoredSource={key,id};}};
   },[preview,profile.id]);
   useEffect(()=>autosaver.subscribe(state=>{
     setJob(state.job);setDirty(state.dirty);
@@ -119,7 +120,7 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
     try{
       await autosaver.flush();
       const recovered=preview?draft.log:await refreshRepairPhotos(draft.log);
-      restoredSource.current={key:draft.key,id:draft.log.id};autosaver.open(recovered,true);await autosaver.backup();
+      autosaver.recoverFrom(draft.key,draft.log.id);autosaver.open(recovered,true);await autosaver.backup();
       setScope('all');setSection('record');setView('repairs');setActiveStepId(null);
       setMessage('Device draft restored. Automatic saving will check for changes from other devices.');
     }catch(e){setError(e instanceof Error?e.message:'Recovery could not be opened. The device copy is still available.');}
