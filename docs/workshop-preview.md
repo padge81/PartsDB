@@ -3,7 +3,7 @@
 ## Review routes
 
 - `/workshop/preview`: isolated, fictional example with two demonstration catalogue parts. No Supabase calls are made by this route. Saved logs/photos and custom reference notes stay in this browser's IndexedDB. This is explicitly a device-local preview, not cross-device sync.
-- `/workshop`: existing PartsDB authentication, live machine/part lookup, private drafts and an approved shared library. Apply all migrations through `20261009090000_repair_approvals.sql` for the current publishing workflow.
+- `/workshop`: existing PartsDB authentication, live machine/part lookup, private drafts and an approved shared library. Apply all migrations through `20261009100000_measurement_annotations.sql` for publishing and measurement arrows.
 - `/admin/workshop`: administrator-only submission review and shared-guide editing.
 
 The UI supports camera/gallery capture, text steps, step reordering, circles/arrows/numbers, undo/clear, existing part links, repair outcome/testing and completion checks. Photos reuse `prepareImage`: WebP at 0.78 quality, max 1600 px longest side, 15 MiB input limit. Unmarked compressed photos and normalized annotations remain separate. Original full-resolution camera files are not retained by the app.
@@ -16,7 +16,7 @@ PDF exports use the current on-screen record (including unsaved edits), A4 pages
 
 RLS keeps unsubmitted repair drafts and bench references creator-only, including against other admins. Submitted/returned repairs are visible to their creator and active admins; approved repairs and their attached photos/parts are visible to all active signed-in users. Creators can edit private/returned logs; admins can edit submitted/returned/approved logs. Checked RPCs enforce revision-aware saves and submit/withdraw/approve/return transitions; direct repair-table mutation is revoked. The save RPC applies the log and part links atomically and verifies each new photo path or retains an existing attachment. Unattached photos are never shared, and referenced photos cannot be deleted through Storage. Standby prohibits mutations. Signed photo URLs are temporary presentation values and are never stored in the database. Photos are immutable unique objects; no overwrite permission is granted. Removed/replaced steps may leave unreferenced photos: garbage collection is a future maintenance feature.
 
-The default catalogue lookup loads up to 1000 machines and 1000 parts. Server-side paginated search is needed for larger catalogues before production use. Live machine search and machine detail pages list approved repairs. Reverse repair lists on part pages remain a follow-up.
+The default machine lookup loads up to 1000 machines. Parts are fetched in pages for the selected machine only, restricted to active catalogue parts linked through part_machines. Larger machine catalogues still need paginated machine search. Live machine search and machine detail pages list approved repairs. Reverse repair lists on part pages remain a follow-up.
 
 ## Backups and future hosting
 
@@ -49,3 +49,7 @@ Bench references now support compressed camera/gallery photos, captions, removal
 Existing repairs default to private. The creator selects a catalogue machine, adds at least one step, then uses Save & submit for approval. Admins review via Administrator > Repair log approvals and approve or return with feedback. Pending submissions can be withdrawn by the creator. Removing an approval returns the log for changes and removes it from machine search; already downloaded files and previously issued signed URLs are not revoked. All approval actions and saves check the expected revision and server mode. Shared-record changes enter the admin audit trail; unsubmitted drafts do not. Repair ZIPs preserve publication metadata; automatic workshop restore remains unimplemented.
 
 The database regression suite exercises the workflow with creator, reader and admin identities in a disposable Supabase instance, including Storage policies, invalid transitions, revision conflicts, standby and inactive accounts. Local browser interaction tests could not run during this release because the Windows tool runtime was unavailable.
+
+## Release 0.18.0 / database 0.12.0
+
+The Measure tool draws a double-ended arrow. It starts unselected, supports Undo/Clear, persists with the photo annotations and appears in PDF exports. Record actual dimensions in the instructions; there is no automatic scale calibration. Parts selection requires a catalogue machine and only lists compatible active parts. Changing the machine preserves parts already linked to the repair, while refreshing the selectable catalogue. The isolated preview demonstrates separate parts for the claw and hockey examples.

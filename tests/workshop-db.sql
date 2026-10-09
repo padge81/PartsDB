@@ -285,3 +285,26 @@ do $$ begin
 end $$;
 reset role;
 rollback;
+
+-- Measurement annotations round-trip through the same protected save RPC.
+begin;
+insert into auth.users(id,email) values('aa000000-0000-4000-8000-000000000021','measurement-test@example.invalid');
+update public.system_metadata set value='live' where key='site_mode';
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000021',true);
+set local role authenticated;
+select public.save_repair_log('{"id":"bb000000-0000-4000-8000-000000000021","title":"Measurement test","job_date":"2026-10-09","status":"draft","steps":[{"id":"measure","title":"Bolt spacing","instruction":"Record the dimension","image_path":"","annotations":[{"kind":"double_arrow","x":0.8,"y":0.2,"x2":0.1,"y2":0.9},{"kind":"arrow","x":0.1,"y":0.1,"x2":0.4,"y2":0.4}]}],"parts":[]}',0);
+do $$ declare doc jsonb; begin
+ select to_jsonb(l)||'{"parts":[]}'::jsonb into doc from public.repair_logs l where id='bb000000-0000-4000-8000-000000000021';
+ if doc#>>'{steps,0,annotations,0,kind}'<>'double_arrow' or (doc#>>'{steps,0,annotations,0,x}')::numeric<>0.8 then raise exception 'Measurement arrow did not round-trip'; end if;
+ perform public.save_repair_log(doc,1);
+ begin
+   perform public.save_repair_log(jsonb_set(doc,'{steps,0,annotations,0,x}','1.2'::jsonb),2);
+   raise exception 'Out-of-bounds measurement accepted';
+ exception when raise_exception then if sqlerrm<>'Invalid annotation' then raise; end if; end;
+ begin
+   perform public.save_repair_log(jsonb_set(doc,'{steps,0,annotations,0,kind}','"unknown"'::jsonb),2);
+   raise exception 'Unknown annotation accepted';
+ exception when raise_exception then if sqlerrm<>'Invalid annotation' then raise; end if; end;
+end $$;
+reset role;
+rollback;

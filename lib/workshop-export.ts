@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { drawRepairArrow } from './repair-annotations';
 import { appendGuideSteps } from './workshop-guide';
 import { strToU8, zipSync } from 'fflate';
 import type { RepairLog, RepairStep } from './workshop';
@@ -13,7 +14,7 @@ async function photoCanvas(step: RepairStep) {
     const x = mark.x*canvas.width, y = mark.y*canvas.height, x2 = mark.x2*canvas.width, y2 = mark.y2*canvas.height;
     ctx.beginPath();
     if (mark.kind === 'circle') { ctx.ellipse((x+x2)/2, (y+y2)/2, Math.max(Math.abs(x2-x)/2,canvas.width*.025), Math.max(Math.abs(y2-y)/2,canvas.height*.025), 0, 0, Math.PI*2); ctx.stroke(); }
-    if (mark.kind === 'arrow') { ctx.moveTo(x,y); ctx.lineTo(x2,y2); ctx.stroke(); const angle = Math.atan2(y2-y,x2-x), length = ctx.lineWidth*5; ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2-length*Math.cos(angle-.45), y2-length*Math.sin(angle-.45)); ctx.lineTo(x2-length*Math.cos(angle+.45), y2-length*Math.sin(angle+.45)); ctx.closePath(); ctx.fill(); }
+    if (mark.kind === 'arrow' || mark.kind === 'double_arrow') drawRepairArrow(ctx,x,y,x2,y2,mark.kind==='double_arrow');
     if (mark.kind === 'number') { const radius = canvas.width*.028; ctx.arc(x,y,radius,0,Math.PI*2); ctx.fill(); ctx.fillStyle = '#102b3f'; ctx.font = `bold ${radius*1.15}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(mark.label ?? '',x,y); ctx.fillStyle = '#ffdb3c'; }
   }
   return canvas;

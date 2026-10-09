@@ -1,6 +1,6 @@
 import { getSupabaseBrowserClient } from './supabase';
 
-export type Mark = { kind: 'circle' | 'arrow' | 'number'; x: number; y: number; x2: number; y2: number; label?: string };
+export type Mark = { kind: 'circle' | 'arrow' | 'double_arrow' | 'number'; x: number; y: number; x2: number; y2: number; label?: string };
 export type RepairStep = { id: string; title: string; instruction: string; image_path: string; annotations: Mark[]; imageUrl?: string };
 export type RepairPart = { part_id: string; description: string; number: string; quantity: number };
 export type PublicationStatus = 'private' | 'pending' | 'approved' | 'returned';
@@ -16,7 +16,7 @@ export function prompts(log: RepairLog) {
   return [!log.fault.trim() && 'What fault or task prompted this job?', !log.machine_name && 'Which machine did you work on?', !log.parts.length && 'Were any parts replaced? Link them if they are in the catalogue.', log.steps.some(s => !s.instruction.trim()) && 'What should a technician do in each photo step?', !log.tests.trim() && 'How did you test the repair?', !log.outcome.trim() && 'What was the final result?'].filter(Boolean) as string[];
 }
 export function demoLog(): RepairLog {
-  return { ...newLog(), id: 'preview-sample', title: 'Prize meter signal check', machine_name: 'Example claw machine', technician: 'Demo technician', fault: 'Prize accounting does not match the number of prizes won.', tools: 'Multimeter, service manual', status: 'in_progress', steps: [{ id: 'sample-step', title: 'Record the meter connection', instruction: 'Add a photo of the meter wiring. Circle the connection you are describing and record the observed pulse count. This is a demonstration record, not a verified repair instruction.', image_path: '', annotations: [] }], tests: '', outcome: '' };
+  return { ...newLog(), id: 'preview-sample', machine_id: 'demo-machine', title: 'Prize meter signal check', machine_name: 'Example claw machine', technician: 'Demo technician', fault: 'Prize accounting does not match the number of prizes won.', tools: 'Multimeter, service manual', status: 'in_progress', steps: [{ id: 'sample-step', title: 'Record the meter connection', instruction: 'Add a photo of the meter wiring. Circle the connection you are describing and record the observed pulse count. This is a demonstration record, not a verified repair instruction.', image_path: '', annotations: [] }], tests: '', outcome: '' };
 }
 
 function previewDB(): Promise<IDBDatabase> {
@@ -32,13 +32,12 @@ export async function savePreview(log: RepairLog): Promise<RepairLog> {
 }
 export async function loadLive() {
   const db = getSupabaseBrowserClient(); if (!db) throw new Error('Database is not configured.');
-  const [logs, machines, parts] = await Promise.all([
+  const [logs, machines] = await Promise.all([
     db.from('repair_logs').select('*,repair_log_parts(part_id,quantity,part:parts(description,manufacturer_part_number))').order('updated_at', { ascending: false }),
     db.from('machines').select('id,name').eq('is_active', true).order('name').limit(1000),
-    db.from('parts').select('id,description,manufacturer_part_number').eq('status', 'active').order('description').limit(1000),
   ]);
   if (logs.error) throw new Error('Workshop storage is not ready: ' + logs.error.message);
-  if (machines.error || parts.error) throw new Error('The parts or machine catalogue could not be loaded.');
+  if (machines.error) throw new Error('The parts or machine catalogue could not be loaded.');
   const records: RepairLog[] = [];
   for (const row of logs.data ?? []) {
     const steps: RepairStep[] = [];
@@ -49,7 +48,7 @@ export async function loadLive() {
     }
     records.push({ ...row, steps, parts: (row.repair_log_parts ?? []).map((p: { part_id: string; quantity: number; part: { description: string; manufacturer_part_number: string } }) => ({ part_id: p.part_id, quantity: p.quantity, description: p.part?.description ?? 'Unavailable part', number: p.part?.manufacturer_part_number ?? '' })) });
   }
-  return { records, machines: (machines.data ?? []) as Choice[], parts: (parts.data ?? []).map(p => ({ id: p.id, name: p.description, number: p.manufacturer_part_number ?? '' })) };
+  return { records, machines: (machines.data ?? []) as Choice[] };
 }
 export async function saveLive(log: RepairLog) {
   checkLog(log); const db = getSupabaseBrowserClient(); if (!db) throw new Error('Database is not configured.');
@@ -82,4 +81,18 @@ export async function approvedRepairs(machineId?:string): Promise<ApprovedRepair
   let query=db.from('repair_logs').select('id,title,machine_id,machine_name,job_date').eq('publication_status','approved').order('updated_at',{ascending:false});
   if(machineId)query=query.eq('machine_id',machineId);
   const {data,error}=await query;if(error)throw new Error(error.message);return data??[];
+}
+
+export async function loadMachineParts(machineId: string): Promise<Choice[]> {
+  const db=getSupabaseBrowserClient();if(!db)throw new Error('Database is not configured.');
+  const parts: Choice[]=[];
+  for(let offset=0;;offset+=1000){
+    const {data,error}=await db.from('parts')
+      .select('id,description,manufacturer_part_number,part_machines!inner(machine_id)')
+      .eq('status','active').eq('part_machines.machine_id',machineId)
+      .order('description').order('id').range(offset,offset+999);
+    if(error)throw new Error('Compatible parts could not be loaded. '+error.message);
+    parts.push(...(data??[]).map(p=>({id:p.id,name:p.description,number:p.manufacturer_part_number??''})));
+    if(!data||data.length<1000)return parts;
+  }
 }

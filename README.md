@@ -6,8 +6,8 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.17.0` |
-| Database | `0.11.0` |
+| Application | `0.18.0` |
+| Database | `0.12.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
 
@@ -29,6 +29,14 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.18.0` / database `0.12.0` — 9 October 2026
+
+- Added a Measure photo tool for double-ended arrows, with matching arrowheads in both PDF formats. Dimension values can be recorded in step instructions; this is a markup tool, not automatic image measurement.
+- Extended saved annotation validation to accept double_arrow while retaining coordinate, ownership, approval, revision and standby checks. Existing annotations and archive contents remain compatible with the current app.
+- The Workshop parts picker now loads active parts linked to the selected catalogue machine, with paged fetching, machine-switch stale-response protection and clear loading/empty/error states. Select a machine first; already linked repair parts are preserved when changing machines.
+- Updated isolated preview examples to demonstrate machine-specific parts.
+- Added arrow direction/export geometry and database annotation round-trip/validation checks. Dependencies unchanged.
 
 ### `0.17.0` / database `0.11.0` — 9 October 2026
 
