@@ -84,7 +84,7 @@ export function AppShell({ children, requireAdmin = false }: {
   if (!profile) return null;
   if (requireAdmin && profile.role !== "admin") return <main className="state-page"><ShieldIcon/><h1>Administrator access required</h1><a className="button primary" href="/home">Return home</a></main>;
 
-  const module=activeModule(pathname);
+  const selectedModule=activeModule(pathname);
   const initials = (profile.display_name ?? "Parts User").split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
   const blockedByStandby = siteMode === "standby" && standbyBlockedPaths.some((pattern) => pattern.test(pathname));
 
@@ -94,14 +94,14 @@ export function AppShell({ children, requireAdmin = false }: {
         <a className="brand" href="/home" aria-label="PartsDB home"><span className="brand-mark"><BoxIcon/></span><span>PartsDB</span></a>
         <nav aria-label="Main navigation">
           <a href="/home" className={pathname==='/home'?'active':''} aria-current={pathname==='/home'?'page':undefined}>Home</a>
-          {modules.map(item=><a key={item.id} href={item.href} className={module===item.id?'active':''} aria-current={module===item.id?'location':undefined}>{item.title}</a>)}
+          {modules.map(item=><a key={item.id} href={item.href} className={selectedModule===item.id?'active':''} aria-current={selectedModule===item.id?'location':undefined}>{item.title}</a>)}
         </nav>
         <div className="account">
           {profile.role==='admin'&&<a className={'admin-nav-link'+(pathname.startsWith('/admin')?' active':'')} href="/admin" aria-current={pathname.startsWith('/admin')?'location':undefined}><ShieldIcon/>Admin</a>}
           <details className="account-menu"><summary aria-label="Account menu"><span className="avatar">{initials}</span></summary><div><strong>{profile.display_name??'PartsDB user'}</strong><small>{profile.role==='admin'?'Administrator':'Standard user'}</small>{profile.role==='admin'&&<a href="/admin#database-management">Server mode: {siteMode}</a>}<button onClick={signOut}><LogOutIcon/>Sign out</button></div></details>
         </div>
       </header>
-      {module&&<nav className="module-subnav" aria-label={module+' navigation'}>{moduleLinks[module].map(item=><a key={item.href} href={item.href} className={activeModuleLink(pathname,item.href)?'active':''} aria-current={activeModuleLink(pathname,item.href)?'page':undefined}>{item.title}{item.href==='/bom'&&<span className="nav-count">{bomCart.reduce((total,item)=>total+item.quantity,0)}</span>}</a>)}</nav>}
+      {selectedModule&&<nav className="module-subnav" aria-label={selectedModule+' navigation'}>{moduleLinks[selectedModule].map(item=><a key={item.href} href={item.href} className={activeModuleLink(pathname,item.href)?'active':''} aria-current={activeModuleLink(pathname,item.href)?'page':undefined}>{item.title}{item.href==='/bom'&&<span className="nav-count">{bomCart.reduce((total,item)=>total+item.quantity,0)}</span>}</a>)}</nav>}
       {!isSupabaseConfigured && <div className="preview-banner">Interface preview · connect the Supabase browser key to use live data</div>}
       {siteMode === "standby" && <div className="site-mode-banner standby"><strong>Standby — read only</strong><span>Database and image changes are disabled on this server.</span>{profile.role === "admin" && <button type="button" onClick={() => void enableMaintenance()}>Enable maintenance</button>}</div>}
       {siteMode === "maintenance" && <div className="site-mode-banner maintenance"><strong>Maintenance — editing enabled</strong><span>Return this server to standby after restoring or testing.</span>{profile.role === "admin" && <button type="button" onClick={() => void changeSiteMode("standby")}>Return to standby</button>}</div>}

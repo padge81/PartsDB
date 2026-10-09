@@ -15,8 +15,8 @@ test('secondary navigation marks only its exact destination or supported alias',
 });
 test('each module has an overview and every module action has a route',async()=>{
  const {existsSync}=await import('node:fs');
- for(const module of modules){
-  assert.equal(moduleLinks[module.id][0].href,module.href);
-  for(const item of moduleLinks[module.id])assert.ok(existsSync('app'+item.href+'/page.tsx'),item.href);
+ for(const itemModule of modules){
+  assert.equal(moduleLinks[itemModule.id][0].href,itemModule.href);
+  for(const item of moduleLinks[itemModule.id])assert.ok(existsSync('app'+item.href+'/page.tsx'),item.href);
  }
 });
