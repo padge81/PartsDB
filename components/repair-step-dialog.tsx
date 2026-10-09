@@ -17,7 +17,7 @@ export function RepairStepDialog({step,index,count,busy,readonly,dirty,error,mes
     <header className="wk-dialog-heading"><div><p className="wk-eyebrow">REPAIR SEQUENCE</p><h2 id="step-dialog-title">Step {index+1} of {count}</h2></div><button type="button" className="button secondary" disabled={busy} onClick={onClose} aria-label="Close step editor">Close</button></header>
     <div className="wk-dialog-body">
       {error&&<p className="wk-alert" role="alert">{error}</p>}{message&&<p className="wk-message" role="status">{message}</p>}
-      {readonly&&<p className="wk-alert">Standby: viewing only.</p>}
+      {readonly&&<p className="wk-alert">Viewing only. Editing is unavailable for this repair or server mode.</p>}
       <fieldset className="wk-fields" disabled={busy||readonly}>
         <div className="wk-step-move" aria-label="Reorder current step"><strong>Move step</strong><button type="button" className="button secondary" disabled={index===0} onClick={()=>onMove(-1)}>← Move step left</button><button type="button" className="button secondary" disabled={last} onClick={()=>onMove(1)}>Move step right →</button></div>
         <div className="wk-dialog-columns">

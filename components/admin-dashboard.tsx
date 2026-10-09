@@ -11,6 +11,7 @@ type RequestFilter = "pending" | "draft";
 type RequestSort = "oldest" | "newest";
 
 const managementTools = [
+  { title: "Repair log approvals", description: "Review submitted repairs, return feedback and maintain approved guides.", href: "/admin/workshop", action: "Review repair logs" },
   { title: "Bench reference editor", description: "Edit your reference notes, categories, pinouts and photos.", href: "/admin/bench-references", action: "Open bench references" },
   { title: "Reference data", description: "Companies, machines, categories and supply types.", href: "/admin/reference-data", action: "Open reference data", maintenanceOnly: true },
   { title: "Company editor", description: "Search and maintain company roles and ordering details.", href: "/admin/companies", action: "Open company editor" },
@@ -20,6 +21,7 @@ const managementTools = [
 
 export function AdminDashboard() {
   const [requests, setRequests] = useState<AdminRequest[]>([]), [loading, setLoading] = useState(true);
+  const [pendingRepairs,setPendingRepairs]=useState(0);
   const [approvedParts, setApprovedParts] = useState(0), [activeMachines, setActiveMachines] = useState(0);
   const [requestFilter, setRequestFilter] = useState<RequestFilter>("pending"), [requestSort, setRequestSort] = useState<RequestSort>("oldest"), [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]), [confirming, setConfirming] = useState(false), [processing, setProcessing] = useState(false);
@@ -27,11 +29,13 @@ export function AdminDashboard() {
 
   const loadDashboard = useCallback(async () => {
     const supabase = getSupabaseBrowserClient(); if (!supabase) { setLoading(false); return; }
-    const [requestResult, partResult, machineResult] = await Promise.all([
+    const [requestResult, partResult, machineResult,repairResult] = await Promise.all([
       supabase.from("part_requests").select("*,requester:profiles!part_requests_requested_by_fkey(display_name)").in("status", ["pending", "draft"]).order("submitted_at", { ascending: true }),
       supabase.from("parts").select("id", { count: "exact", head: true }).eq("status", "active"),
       supabase.from("machines").select("id", { count: "exact", head: true }).eq("is_active", true),
+      supabase.from("repair_logs").select("id",{count:"exact",head:true}).eq("publication_status","pending"),
     ]);
+    setPendingRepairs(repairResult.count??0);
     setRequests((requestResult.data ?? []) as unknown as AdminRequest[]); setApprovedParts(partResult.count ?? 0); setActiveMachines(machineResult.count ?? 0); setLoading(false);
   }, []);
 
@@ -72,6 +76,7 @@ export function AdminDashboard() {
       <a href="/dashboard"><span className="stat-icon green"><BoxIcon/></span><div><strong>{approvedParts}</strong><p>Approved parts</p></div><small>Available to search</small></a>
       <a href="/admin/machines"><span className="stat-icon blue">⚙</span><div><strong>{activeMachines}</strong><p>Active machines</p></div><small>Open Machine editor</small></a>
     </section>
+    <section className="admin-panel"><div className="panel-heading"><div><h2>Repair log approvals</h2><p>{pendingRepairs} submitted repairs awaiting review.</p></div><a className="button primary" href="/admin/workshop">Review repair logs</a></div></section>
     <section className="admin-panel" id="request-queue"><div className="panel-heading"><div><h2>Part request queue</h2><p>Review requests individually or select complete submissions for bulk approval.</p></div><span>{visibleRequests.length} shown</span></div>
       {siteMode === "standby" && <div className="backup-note"><strong>Standby protection active</strong><p>Requests can be inspected, but approval and editing require Maintenance mode.</p></div>}
       <div className="admin-request-tools"><div className="request-tabs" role="tablist" aria-label="Request status"><button type="button" role="tab" aria-selected={requestFilter === "pending"} className={requestFilter === "pending" ? "active" : ""} onClick={() => { setRequestFilter("pending"); setConfirming(false); }}>Pending <span>{pendingIds.length}</span></button><button type="button" role="tab" aria-selected={requestFilter === "draft"} className={requestFilter === "draft" ? "active" : ""} onClick={() => { setRequestFilter("draft"); setConfirming(false); }}>Drafts <span>{draftCount}</span></button></div><label className="admin-request-search"><SearchIcon/><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search requests, machines or users"/></label><label className="admin-request-sort">Sort<select value={requestSort} onChange={(event) => setRequestSort(event.target.value as RequestSort)}><option value="oldest">Oldest first</option><option value="newest">Newest first</option></select></label></div>

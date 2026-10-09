@@ -6,6 +6,7 @@ import { AppShell } from "./app-shell";
 import { ArrowIcon, BoxIcon, PlusIcon, SearchIcon } from "./icons";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "../lib/supabase";
 import { useSupplyTypes } from "../lib/use-supply-types";
+import type { ApprovedRepair } from "../lib/workshop";
 import { AddToBomButton } from "./add-to-bom-button";
 
 type Part = { id: string; description: string; manufacturer_part_number: string | null; supply_type: string; manufacturer?: { name: string } | null };
@@ -41,6 +42,7 @@ export function PartsDashboard() {
   const [machineCompanyId, setMachineCompanyId] = useState("");
   const [machineCategoryId, setMachineCategoryId] = useState("");
   const [machineCategories, setMachineCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [repairs,setRepairs]=useState<ApprovedRepair[]>([]),[repairError,setRepairError]=useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [searchRestored, setSearchRestored] = useState(false);
@@ -82,7 +84,8 @@ export function PartsDashboard() {
       supabase.from("machine_categories").select("id,name").eq("is_active", true).order("name"),
       supabase.from("categories").select("id,name").eq("is_active", true).order("name"),
       supabase.from("part_categories").select("part_id,category_id"),
-    ]).then(([partResult, manufacturerResult, machineResult, compatibilityResult, machineCategoryResult, categoryResult, partCategoryResult]) => {
+      supabase.from("repair_logs").select("id,title,machine_id,machine_name,job_date").eq("publication_status","approved").order("updated_at",{ascending:false}),
+    ]).then(([partResult, manufacturerResult, machineResult, compatibilityResult, machineCategoryResult, categoryResult, partCategoryResult, repairResult]) => {
       if (partResult.error) setError(partResult.error.message); else setParts((partResult.data ?? []) as unknown as Part[]);
       setManufacturers((manufacturerResult.data ?? []) as Manufacturer[]);
       setMachines((machineResult.data ?? []) as unknown as Machine[]);
@@ -90,6 +93,7 @@ export function PartsDashboard() {
       setMachineCategories((machineCategoryResult.data ?? []) as Array<{ id: string; name: string }>);
       setCategories((categoryResult.data ?? []) as Category[]);
       setPartCategories((partCategoryResult.data ?? []) as PartCategory[]);
+      setRepairs(repairResult.data??[]);if(repairResult.error)setRepairError("Approved repair logs could not be loaded. Please reload.");
       setLoading(false);
     });
   }, []);
@@ -176,6 +180,7 @@ export function PartsDashboard() {
         <div className="results-meta"><div><h2>Search machines</h2><span>{hasMachineLookup ? `${visibleMachines.length} results` : `${machines.length} available`}</span></div></div>
         <div className="search-surface"><div className="search-box"><SearchIcon/><input value={machineQuery} onChange={(e) => setMachineQuery(e.target.value)} placeholder="Search machine name or model…" aria-label="Search machines"/></div><div className="filter-row"><label>Company<select value={machineCompanyId} onChange={(e) => setMachineCompanyId(e.target.value)}><option value="">All companies</option>{manufacturers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Category<select value={machineCategoryId} onChange={(e) => setMachineCategoryId(e.target.value)}><option value="">All categories</option>{machineCategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><button className="clear-button" onClick={() => { setMachineQuery(""); setMachineCompanyId(""); setMachineCategoryId(""); }}>Clear filters</button></div></div>
         <div className="machine-results">{loading ? <div className="empty-row">Loading machines…</div> : hasMachineLookup ? visibleMachines.map((machine) => <a href={`/machines/${machine.id}`} key={machine.id}><strong>{machine.name}</strong><span>{machine.manufacturer?.name ?? "—"}{machine.model ? ` · ${machine.model}` : ""}</span><small>{machine.category?.name ?? "Uncategorised"}</small><ArrowIcon/></a>) : <div className="empty-row lookup-prompt"><strong>{machines.length} machines available to look up.</strong><span>Enter a search or select a filter to view matching machines.</span></div>}{!loading && hasMachineLookup && !visibleMachines.length && <div className="empty-row">No machines match the selected search and filters.</div>}</div>
+        {hasMachineLookup&&<section className="results-section"><div className="results-meta"><div><h2>Approved repair logs</h2><span>For the machines matching your search</span></div></div><div className="parts-table">{repairError?<div className="empty-row">{repairError}</div>:loading?<div className="empty-row">Loading repair logs…</div>:repairs.filter(r=>visibleMachines.some(m=>m.id===r.machine_id)).map(r=><a key={r.id} className="part-row machine-part-row" href={`/workshop?log=${r.id}`} onClick={rememberScroll}><span className="part-title"><span><strong>{r.title}</strong><small>{machines.find(m=>m.id===r.machine_id)?.name??r.machine_name} · {r.job_date}</small></span></span><span className="row-arrow"><ArrowIcon/></span></a>)}{!loading&&!repairError&&!repairs.some(r=>visibleMachines.some(m=>m.id===r.machine_id))&&<div className="empty-row">No approved repair logs for these machines yet.</div>}</div></section>}
       </section>
     </main>}</AppShell>
   );
