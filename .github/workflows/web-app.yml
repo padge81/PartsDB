@@ -26,5 +26,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
-      - run: node --experimental-strip-types --test tests/workshop-guide.test.mjs tests/repair-annotations.test.mjs tests/repair-autosave.test.mjs
+      - run: node --experimental-strip-types --test tests/workshop-guide.test.mjs tests/repair-annotations.test.mjs tests/repair-autosave.test.mjs tests/navigation.test.mjs
       - run: npm run build
