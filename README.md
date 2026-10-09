@@ -6,7 +6,7 @@ A centralised, searchable repository for external machine parts, supplier orderi
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.18.0` |
+| Application | `0.19.0` |
 | Database | `0.12.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -29,6 +29,14 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Keep machine documents, notes, requests and images separate from part-request records.
 
 ## Updates
+
+### `0.19.0` / database `0.12.0` — 10 October 2026
+
+- Repair logs save automatically after a short editing pause, when adding/leaving steps and before switching repairs or exporting. New repairs are saved without needing the manual Save button.
+- Added a serialized save queue that retains edits made during an in-flight save and advances the expected revision before saving the newer content. Export waits for the latest save; failed saves prevent normal export and show a recovery ZIP option.
+- Added account-scoped IndexedDB recovery drafts with separate editor-session keys, visible Restore/Download/Dismiss controls and refreshed photo links. Recovery preserves revision checks rather than overwriting newer server data.
+- Photos added in a batch enter the device recovery copy after each successful upload. Save status distinguishes Workshop saving, device-only recovery, confirmed saves and failures. Device storage failure is surfaced without preventing an available cloud save.
+- Added tests for overlapping saves, typing during saves, failures/retry, revision conflicts, export waiting, device-storage failure and delayed recovery writes. No database or dependency changes.
 
 ### `0.18.0` / database `0.12.0` — 9 October 2026
 

@@ -8,7 +8,7 @@
 
 The UI supports camera/gallery capture, text steps, step reordering, circles/arrows/numbers, undo/clear, existing part links, repair outcome/testing and completion checks. Photos reuse `prepareImage`: WebP at 0.78 quality, max 1600 px longest side, 15 MiB input limit. Unmarked compressed photos and normalized annotations remain separate. Original full-resolution camera files are not retained by the app.
 
-PDF exports use the current on-screen record (including unsaved edits), A4 pages, pagination, marked-up photos, parts and verification. Repair reports include fault/outcome history; guides focus on preparation, parts, steps and verification. A completed job is not a certification that the procedure is appropriate for another machine. PDFs use a Latin font; unsupported characters currently become `?`.
+PDF exports wait for the current editable record to save successfully, A4 pages, pagination, marked-up photos, parts and verification. Repair reports include fault/outcome history; guides focus on preparation, parts, steps and verification. A completed job is not a certification that the procedure is appropriate for another machine. PDFs use a Latin font; unsupported characters currently become `?`.
 
 ## Database and storage
 
@@ -53,3 +53,9 @@ The database regression suite exercises the workflow with creator, reader and ad
 ## Release 0.18.0 / database 0.12.0
 
 The Measure tool draws a double-ended arrow. It starts unselected, supports Undo/Clear, persists with the photo annotations and appears in PDF exports. Record actual dimensions in the instructions; there is no automatic scale calibration. Parts selection requires a catalogue machine and only lists compatible active parts. Changing the machine preserves parts already linked to the repair, while refreshing the selectable catalogue. The isolated preview demonstrates separate parts for the claw and hockey examples.
+
+## Release 0.19.0 / database 0.12.0
+
+Workshop saves after a 1.2-second editing pause, on step navigation/addition, and before changing repairs or exporting. An in-flight save never replaces newer editor content; a subsequent save uses the acknowledged revision. Online and page-hide events also request a save. Unload completion is not assumed.
+
+Each edit queues an IndexedDB recovery copy scoped to the signed-in account and a unique editor session. Incomplete saves are offered for recovery on reopening Workshop. Recovered records retain their expected revision; conflicts require review/export rather than a forced overwrite. Newly uploaded photo data is retained in the recovery record; existing remote photos may require connectivity to refresh links. This is draft recovery, not complete offline photo capture/synchronization. Browser storage can be unavailable, cleared or evicted; the UI reports failures and distinguishes a device copy from a confirmed Workshop save. Normal export stops if saving fails; an explicit recovery ZIP can preserve the on-screen draft.

@@ -96,3 +96,15 @@ export async function loadMachineParts(machineId: string): Promise<Choice[]> {
     if(!data||data.length<1000)return parts;
   }
 }
+
+export async function refreshRepairPhotos(log:RepairLog):Promise<RepairLog>{
+  if(typeof navigator!=='undefined'&&!navigator.onLine)return log;
+  const db=getSupabaseBrowserClient();if(!db)return log;
+  const steps=await Promise.all(log.steps.map(async step=>{
+    if(!step.image_path||step.imageUrl?.startsWith('data:'))return step;
+    try{const signed=await db.storage.from('repair-images').createSignedUrl(step.image_path,3600);
+      return signed.error?step:{...step,imageUrl:signed.data.signedUrl};
+    }catch{return step;}
+  }));
+  return {...log,steps};
+}
