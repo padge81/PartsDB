@@ -15,7 +15,7 @@ export function LoginScreen() {
 
   useEffect(() => {
     getSupabaseBrowserClient()?.auth.getSession().then(({ data }) => {
-      if (data.session) router.replace("/dashboard");
+      if (data.session) router.replace("/home");
     });
   }, [router]);
 
@@ -31,7 +31,7 @@ export function LoginScreen() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) setMessage(error.message);
-    else router.push("/dashboard");
+    else router.push("/home");
   }
 
   return (
@@ -39,12 +39,12 @@ export function LoginScreen() {
       <section className="login-story">
         <Link className="brand brand-light" href="/" aria-label="PartsDB home"><span className="brand-mark"><BoxIcon /></span><span>PartsDB</span></Link>
         <div className="story-content">
-          <p className="eyebrow">External parts repository</p>
-          <h1>The right part.<br />The first time.</h1>
-          <p className="story-copy">A reliable source for machine compatibility, supplier ordering details and approved parts information.</p>
+          <p className="eyebrow">Your technician workspace</p>
+          <h1>Parts. Machines.<br />Workshop.</h1>
+          <p className="story-copy">Find parts, understand your machines and keep the knowledge from every repair.</p>
           <div className="feature-list">
             <div><span><SearchIcon /></span><p><strong>Search with context</strong>Find by machine, supplier or part number.</p></div>
-            <div><span><ShieldIcon /></span><p><strong>Controlled information</strong>Every new part passes through administrator approval.</p></div>
+            <div><span><ShieldIcon /></span><p><strong>Controlled information</strong>Share approved parts and repair guides with your team.</p></div>
           </div>
         </div>
         <p className="story-foot">Built for technicians, maintainers and purchasing teams.</p>
@@ -61,7 +61,7 @@ export function LoginScreen() {
             {message && <p className="form-message" role="alert">{message}</p>}
             <button className="button primary wide" disabled={busy}>{busy ? "Signing in…" : "Sign in"}<ArrowIcon /></button>
           </form>
-          {!isSupabaseConfigured && <button className="text-button" onClick={() => router.push("/dashboard")}>Open interface preview</button>}
+          {!isSupabaseConfigured && <button className="text-button" onClick={() => router.push("/home")}>Open interface preview</button>}
           <p className="support-copy">Need access? Contact your PartsDB administrator.</p>
         </div>
       </section>

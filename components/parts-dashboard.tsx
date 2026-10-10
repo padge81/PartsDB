@@ -25,7 +25,8 @@ const previewParts: Part[] = [
   { id: "4", description: "Pneumatic solenoid valve 5/2 way", manufacturer_part_number: "VUVG-L14-M52", supply_type: "dfl", manufacturer: { name: "Festo" } },
 ];
 
-export function PartsDashboard() {
+export function PartsDashboard({mode='parts'}:{mode?:'parts'|'machines'}) {
+  const searchKey=mode==='machines'?'partsdb-machine-search-state-v1':SEARCH_SESSION_KEY;
   const supplyTypes = useSupplyTypes();
   const [query, setQuery] = useState("");
   const [parts, setParts] = useState<Part[]>(previewParts);
@@ -44,6 +45,7 @@ export function PartsDashboard() {
   const [machineCategories, setMachineCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [repairs,setRepairs]=useState<ApprovedRepair[]>([]),[repairError,setRepairError]=useState("");
   const [error, setError] = useState("");
+  const [machineError,setMachineError]=useState("");
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [searchRestored, setSearchRestored] = useState(false);
   const scrollRestored = useRef(false);
@@ -51,27 +53,27 @@ export function PartsDashboard() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
-        const saved = JSON.parse(window.sessionStorage.getItem(SEARCH_SESSION_KEY) ?? "null") as SavedSearch | null;
+        const saved = JSON.parse(window.sessionStorage.getItem(searchKey) ?? "null") as SavedSearch | null;
         if (saved) { setQuery(saved.query ?? ""); setManufacturerId(saved.manufacturerId ?? ""); setMachineId(saved.machineId ?? ""); setSupplyType(saved.supplyType ?? ""); setCategoryId(saved.categoryId ?? ""); setMachineQuery(saved.machineQuery ?? ""); setMachineCompanyId(saved.machineCompanyId ?? ""); setMachineCategoryId(saved.machineCategoryId ?? ""); }
-      } catch { window.sessionStorage.removeItem(SEARCH_SESSION_KEY); }
+      } catch { window.sessionStorage.removeItem(searchKey); }
       setSearchRestored(true);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [searchKey]);
 
   useEffect(() => {
     if (!searchRestored) return;
     let previousScroll = 0;
-    try { previousScroll = (JSON.parse(window.sessionStorage.getItem(SEARCH_SESSION_KEY) ?? "null") as SavedSearch | null)?.scrollY ?? 0; } catch { /* Invalid state is replaced below. */ }
-    window.sessionStorage.setItem(SEARCH_SESSION_KEY, JSON.stringify({ query, manufacturerId, machineId, supplyType, categoryId, machineQuery, machineCompanyId, machineCategoryId, scrollY: previousScroll } satisfies SavedSearch));
-  }, [searchRestored, query, manufacturerId, machineId, supplyType, categoryId, machineQuery, machineCompanyId, machineCategoryId]);
+    try { previousScroll = (JSON.parse(window.sessionStorage.getItem(searchKey) ?? "null") as SavedSearch | null)?.scrollY ?? 0; } catch { /* Invalid state is replaced below. */ }
+    window.sessionStorage.setItem(searchKey, JSON.stringify({ query, manufacturerId, machineId, supplyType, categoryId, machineQuery, machineCompanyId, machineCategoryId, scrollY: previousScroll } satisfies SavedSearch));
+  }, [searchKey, searchRestored, query, manufacturerId, machineId, supplyType, categoryId, machineQuery, machineCompanyId, machineCategoryId]);
 
   useEffect(() => {
     if (!searchRestored || loading || scrollRestored.current) return;
     scrollRestored.current = true;
-    const timer = window.setTimeout(() => { try { const saved = JSON.parse(window.sessionStorage.getItem(SEARCH_SESSION_KEY) ?? "null") as SavedSearch | null; window.scrollTo({ top: saved?.scrollY ?? 0 }); } catch { /* Stay at the top. */ } }, 50);
+    const timer = window.setTimeout(() => { try { const saved = JSON.parse(window.sessionStorage.getItem(searchKey) ?? "null") as SavedSearch | null; window.scrollTo({ top: saved?.scrollY ?? 0 }); } catch { /* Stay at the top. */ } }, 50);
     return () => window.clearTimeout(timer);
-  }, [searchRestored, loading]);
+  }, [searchKey, searchRestored, loading]);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -88,7 +90,7 @@ export function PartsDashboard() {
     ]).then(([partResult, manufacturerResult, machineResult, compatibilityResult, machineCategoryResult, categoryResult, partCategoryResult, repairResult]) => {
       if (partResult.error) setError(partResult.error.message); else setParts((partResult.data ?? []) as unknown as Part[]);
       setManufacturers((manufacturerResult.data ?? []) as Manufacturer[]);
-      setMachines((machineResult.data ?? []) as unknown as Machine[]);
+      setMachines((machineResult.data ?? []) as unknown as Machine[]);if(machineResult.error)setMachineError(machineResult.error.message);
       setCompatibility((compatibilityResult.data ?? []).map((row) => ({ part_id: row.part_id, machine_id: row.machine_id })));
       setMachineCategories((machineCategoryResult.data ?? []) as Array<{ id: string; name: string }>);
       setCategories((categoryResult.data ?? []) as Category[]);
@@ -144,17 +146,17 @@ export function PartsDashboard() {
     if (machineId && !machines.some((machine) => machine.id === machineId && (!value || machine.manufacturer_id === value))) setMachineId("");
   }
 
-  function rememberScroll() { try { const saved = JSON.parse(window.sessionStorage.getItem(SEARCH_SESSION_KEY) ?? "{}") as Partial<SavedSearch>; window.sessionStorage.setItem(SEARCH_SESSION_KEY, JSON.stringify({ ...saved, scrollY: window.scrollY })); } catch { /* Navigation should still continue. */ } }
-  function clearFilters() { setQuery(""); setManufacturerId(""); setMachineId(""); setSupplyType(""); setCategoryId(""); window.sessionStorage.removeItem(SEARCH_SESSION_KEY); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  function rememberScroll() { try { const saved = JSON.parse(window.sessionStorage.getItem(searchKey) ?? "{}") as Partial<SavedSearch>; window.sessionStorage.setItem(searchKey, JSON.stringify({ ...saved, scrollY: window.scrollY })); } catch { /* Navigation should still continue. */ } }
+  function clearFilters() { setQuery(""); setManufacturerId(""); setMachineId(""); setSupplyType(""); setCategoryId(""); window.sessionStorage.removeItem(searchKey); window.scrollTo({ top: 0, behavior: "smooth" }); }
 
   return (
     <AppShell>{(_, siteMode) => <main className="workspace">
       <section className="workspace-heading">
-        <div><p className="eyebrow accent">Parts repository</p><h1>Find the part you need</h1><p>Search approved ordering information across machines, suppliers and manufacturers.</p></div>
-        {siteMode === "standby" ? <span className="button primary disabled" title="Editing is disabled in standby mode"><PlusIcon/>Add part</span> : <Link className="button primary" href="/parts/new"><PlusIcon/>Add part</Link>}
+        <div><p className="eyebrow accent">{mode==='parts'?'Parts':'Machines'}</p><h1>{mode==='parts'?'Find the part you need':'Find a machine'}</h1><p>{mode==='parts'?'Search approved ordering information across machines, suppliers and manufacturers.':'Search your machines and open their compatible parts and approved repair guides.'}</p></div>
+        {mode==='parts'&&(siteMode === "standby" ? <span className="button primary disabled" title="Editing is disabled in standby mode"><PlusIcon/>Add part</span> : <Link className="button primary" href="/parts/new"><PlusIcon/>Add part</Link>)}
       </section>
 
-      <section className="search-surface">
+      {mode==='parts'&&<><section className="search-surface">
         <div className="search-box"><SearchIcon/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search description, part number or manufacturer…" aria-label="Search parts"/><kbd>⌘ K</kbd></div>
         <div className="filter-row">
           <label>Manufacturer<select value={manufacturerId} onChange={(event) => selectManufacturer(event.target.value)}><option value="">All manufacturers</option>{manufacturers.map((manufacturer) => <option key={manufacturer.id} value={manufacturer.id} disabled={!manufacturerIdsWithParts.has(manufacturer.id)}>{manufacturer.name}{manufacturerIdsWithParts.has(manufacturer.id) ? "" : " · no parts"}</option>)}</select></label>
@@ -176,12 +178,13 @@ export function PartsDashboard() {
           {!loading && !error && hasPartLookup && visible.length === 0 && <div className="empty-row">No approved parts match the selected search and filters.</div>}
         </div>
       </section>
-      <section className="results-section machine-search-section">
+      </>}
+      {mode==='machines'&&<section className="results-section machine-search-section">
         <div className="results-meta"><div><h2>Search machines</h2><span>{hasMachineLookup ? `${visibleMachines.length} results` : `${machines.length} available`}</span></div></div>
         <div className="search-surface"><div className="search-box"><SearchIcon/><input value={machineQuery} onChange={(e) => setMachineQuery(e.target.value)} placeholder="Search machine name or model…" aria-label="Search machines"/></div><div className="filter-row"><label>Company<select value={machineCompanyId} onChange={(e) => setMachineCompanyId(e.target.value)}><option value="">All companies</option>{manufacturers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Category<select value={machineCategoryId} onChange={(e) => setMachineCategoryId(e.target.value)}><option value="">All categories</option>{machineCategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><button className="clear-button" onClick={() => { setMachineQuery(""); setMachineCompanyId(""); setMachineCategoryId(""); }}>Clear filters</button></div></div>
-        <div className="machine-results">{loading ? <div className="empty-row">Loading machines…</div> : hasMachineLookup ? visibleMachines.map((machine) => <a href={`/machines/${machine.id}`} key={machine.id}><strong>{machine.name}</strong><span>{machine.manufacturer?.name ?? "—"}{machine.model ? ` · ${machine.model}` : ""}</span><small>{machine.category?.name ?? "Uncategorised"}</small><ArrowIcon/></a>) : <div className="empty-row lookup-prompt"><strong>{machines.length} machines available to look up.</strong><span>Enter a search or select a filter to view matching machines.</span></div>}{!loading && hasMachineLookup && !visibleMachines.length && <div className="empty-row">No machines match the selected search and filters.</div>}</div>
-        {hasMachineLookup&&<section className="results-section"><div className="results-meta"><div><h2>Approved repair logs</h2><span>For the machines matching your search</span></div></div><div className="parts-table">{repairError?<div className="empty-row">{repairError}</div>:loading?<div className="empty-row">Loading repair logs…</div>:repairs.filter(r=>visibleMachines.some(m=>m.id===r.machine_id)).map(r=><a key={r.id} className="part-row machine-part-row" href={`/workshop?log=${r.id}`} onClick={rememberScroll}><span className="part-title"><span><strong>{r.title}</strong><small>{machines.find(m=>m.id===r.machine_id)?.name??r.machine_name} · {r.job_date}</small></span></span><span className="row-arrow"><ArrowIcon/></span></a>)}{!loading&&!repairError&&!repairs.some(r=>visibleMachines.some(m=>m.id===r.machine_id))&&<div className="empty-row">No approved repair logs for these machines yet.</div>}</div></section>}
-      </section>
+        <div className="machine-results">{loading ? <div className="empty-row">Loading machines…</div> : machineError ? <div className="empty-row">Machines could not be loaded: {machineError}</div> : hasMachineLookup ? visibleMachines.map((machine) => <a href={`/machines/${machine.id}`} key={machine.id} onClick={rememberScroll}><strong>{machine.name}</strong><span>{machine.manufacturer?.name ?? "—"}{machine.model ? ` · ${machine.model}` : ""}</span><small>{machine.category?.name ?? "Uncategorised"}</small><ArrowIcon/></a>) : <div className="empty-row lookup-prompt"><strong>{machines.length} machines available to look up.</strong><span>Enter a search or select a filter to view matching machines.</span></div>}{!loading && !machineError && hasMachineLookup && !visibleMachines.length && <div className="empty-row">No machines match the selected search and filters.</div>}</div>
+        {hasMachineLookup&&!machineError&&<section className="results-section"><div className="results-meta"><div><h2>Approved repair logs</h2><span>For the machines matching your search</span></div></div><div className="parts-table">{repairError?<div className="empty-row">{repairError}</div>:loading?<div className="empty-row">Loading repair logs…</div>:repairs.filter(r=>visibleMachines.some(m=>m.id===r.machine_id)).map(r=><a key={r.id} className="part-row machine-part-row" href={`/workshop/logs?log=${r.id}`} onClick={rememberScroll}><span className="part-title"><span><strong>{r.title}</strong><small>{machines.find(m=>m.id===r.machine_id)?.name??r.machine_name} · {r.job_date}</small></span></span><span className="row-arrow"><ArrowIcon/></span></a>)}{!loading&&!repairError&&!repairs.some(r=>visibleMachines.some(m=>m.id===r.machine_id))&&<div className="empty-row">No approved repair logs for these machines yet.</div>}</div></section>}
+      </section>}
     </main>}</AppShell>
   );
 }

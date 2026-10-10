@@ -1,12 +1,12 @@
 # PartsDB
 
-A centralised, searchable repository for external machine parts, supplier ordering information, machine compatibility, images and controlled add-part approvals.
+A technician workspace for parts, machines and workshop knowledge: approved ordering information, machine compatibility, repair guides and bench references.
 
 ## Current revision
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.19.0` |
+| Application | `0.20.0` |
 | Database | `0.12.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -28,7 +28,26 @@ The application footer displays both revisions so a frontend/database mismatch i
 - Add controlled machine change requests with title, notes and compressed images.
 - Keep machine documents, notes, requests and images separate from part-request records.
 
+## Navigation
+
+Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** landing pages. The main navigation selects a module; the secondary navigation contains that module's tools. Administration and account controls remain separate.
+
+- **Parts:** Search parts, add a part, my requests and parts list / BOM.
+- **Machines:** Search machines, then open compatible parts and approved repair logs from a machine.
+- **Workshop:** Repair logs (with automatic saving) and bench references (notes, images and datasheets).
+- Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
+
 ## Updates
+
+### `0.20.0` / database `0.12.0` — 10 October 2026
+
+- Added Home and dedicated Parts, Machines and Workshop overview pages with direct links to their tools. Sign-in now opens Home.
+- Simplified the main bar to Home / Parts / Machines / Workshop, moved tool links into module navigation, and separated Admin and the account menu. Mobile uses a dedicated four-button module row and wrapping tool links.
+- Split machine search from parts search, with independent remembered filters and scroll positions. Machine results retain linked approved repair guides.
+- Added direct repair-log and bench-reference routes. Existing repair links redirect, machine details return to machine search, and legacy parts-search links still work.
+- Preserved permissions, standby protections, autosave and existing data. No database migration or dependency changes.
+- Added route ownership, active navigation and destination tests. GitHub lint, automated tests and build are required before release; interactive browser verification is unavailable in this session.
+
 
 ### `0.19.0` / database `0.12.0` — 10 October 2026
 
