@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.20.0` |
+| Application | `0.20.1` |
 | Database | `0.12.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -38,6 +38,15 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.20.1` / database `0.12.0` — 10 October 2026
+
+- Simplified repair status to Draft and Completed. Legacy in-progress records and device copies load as Draft and are written as Draft on their next save; database compatibility is retained for older clients.
+- Repair lists show Draft by default. Admin review queues and directly linked logs retain access to all statuses.
+- Mobile now switches between the repair list and editor. New repair, selecting a repair and restoring a draft open the editor directly, with a save-before-return Back to repair list button.
+- New repair clears previous search filters and selects Draft. Existing autosave and completion validation remain in place.
+- Added legacy-status compatibility coverage. Interactive phone verification remains unavailable in this session.
+
 
 ### `0.20.0` / database `0.12.0` — 10 October 2026
 

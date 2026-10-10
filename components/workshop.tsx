@@ -1,6 +1,7 @@
 'use client';
 /* eslint-disable @next/next/no-img-element -- Thumbnails use precompressed private or device-local images. */
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { repairStatus } from '../lib/repair-status';
 import { createRepairAutosave } from '../lib/repair-autosave';
 import { readRecoveries, writeRecovery, removeRecovery, recoverySession, type RecoveryDraft } from '../lib/repair-recovery';
 import { AppShell, type Profile, type SiteMode } from './app-shell';
@@ -20,8 +21,10 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
   const [logs,setLogs] = useState<RepairLog[]>([]), [job,setJob] = useState<RepairLog|null>(null);
   const [machines,setMachines] = useState<Choice[]>([]), [parts,setParts] = useState<Choice[]>([]);
   const [partsMachineId,setPartsMachineId]=useState<string|null>(null),[partsLoading,setPartsLoading]=useState(false),[partsError,setPartsError]=useState('');
+  const [mobileEditor,setMobileEditor]=useState(false);
+  const editor=useRef<HTMLElement>(null);
   const [scope,setScope]=useState(reviewMode?'pending':'mine');
-  const [search,setSearch] = useState(''), [filter,setFilter] = useState('all'), [partSearch,setPartSearch] = useState('');
+  const [search,setSearch] = useState(''), [filter,setFilter] = useState(reviewMode?'all':'draft'), [partSearch,setPartSearch] = useState('');
   const [busy,setBusy] = useState(false), [loading,setLoading] = useState(true), [dirty,setDirty] = useState(false), [error,setError] = useState(''), [message,setMessage] = useState('');
   const [saveInfo,setSaveInfo]=useState({saving:false,error:'',backupError:'',deviceSaved:false});
   const [recoveries,setRecoveries]=useState<RecoveryDraft[]>([]);
@@ -55,12 +58,19 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
   useEffect(() => { let alive = true; (async () => {
     try {
       try{const drafts=await readRecoveries(recoveryAccount);if(alive)setRecoveries(drafts);}catch(e){if(alive)setError(e instanceof Error?e.message:'Device recovery unavailable.');}
-      if(preview) { const saved = await loadPreview(); if(alive) { const all = saved.length ? saved : [demoLog()]; setLogs(all); autosaver.open(all[0],all[0].revision===0); setMachines([{id:'demo-machine',name:'Example claw machine'},{id:'demo-hockey',name:'Example hockey machine'}]); } }
+      if(preview) { const saved = await loadPreview(); if(alive) { const all = saved.length ? saved : [demoLog()]; setLogs(all); const firstDraft=all.find(r=>r.status==='draft');autosaver.open(firstDraft??null,firstDraft?.revision===0); setMachines([{id:'demo-machine',name:'Example claw machine'},{id:'demo-hockey',name:'Example hockey machine'}]); } }
       else { const result = await loadLive(); if(alive) {setLogs(result.records); const requested=new URLSearchParams(window.location.search).get('log');
-        const initial=requested?result.records.find(r=>r.id===requested):result.records.find(r=>reviewMode?r.publication_status==='pending':r.owner_id===profile.id);
-        autosaver.open(initial??null);if(requested){setScope('all');if(!initial)setError('This repair is unavailable or you do not have permission to view it.');} setMachines(result.machines);} }
+        const initial=requested?result.records.find(r=>r.id===requested):result.records.find(r=>reviewMode?r.publication_status==='pending':r.owner_id===profile.id&&r.status==='draft');
+        autosaver.open(initial??null);if(requested){setScope('all');setFilter('all');setMobileEditor(!!initial);if(!initial)setError('This repair is unavailable or you do not have permission to view it.');} setMachines(result.machines);} }
     } catch(e) {if(alive) setError(e instanceof Error ? e.message : 'Could not load workshop.');} finally {if(alive)setLoading(false);}
   })(); return () => {alive = false;}; },[preview,profile.id,reviewMode,recoveryAccount,autosaver]);
+  const editorVisible=mobileEditor||Boolean(error||saveInfo.error||saveInfo.backupError);
+  const openedJobId=job?.id;
+  useEffect(()=>{
+    if(!editorVisible||!openedJobId||!window.matchMedia('(max-width:700px)').matches)return;
+    const frame=window.requestAnimationFrame(()=>{editor.current?.focus({preventScroll:true});editor.current?.scrollIntoView({block:'start'});});
+    return()=>window.cancelAnimationFrame(frame);
+  },[editorVisible,openedJobId]);
   const selectedMachineId=job?.machine_id??null;
   useEffect(()=>{
     let alive=true;
@@ -93,14 +103,20 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
   function stepUpdate(id:string,patch:Partial<RepairStep>){const current=autosaver.getState().job;if(current)update({steps:current.steps.map(s=>s.id===id?{...s,...patch}:s)});}
   async function select(log:RepairLog){
     if(busy)return;setBusy(true);setError('');
-    try{await autosaver.flush();const current=autosaver.getState().job;autosaver.open(current?.id===log.id?current:log);setActiveStepId(null);setMessage('');setSection('record');}
+    try{await autosaver.flush();const current=autosaver.getState().job;autosaver.open(current?.id===log.id?current:log);setActiveStepId(null);setMessage('');setSection('record');setMobileEditor(true);}
+    catch(e){setError(e instanceof Error?e.message:'Save failed. Your draft has been kept.');}
+    finally{setBusy(false);}
+  }
+  async function showLibrary(){
+    if(busy)return;setBusy(true);setError('');
+    try{await autosaver.flush();setMobileEditor(false);setActiveStepId(null);}
     catch(e){setError(e instanceof Error?e.message:'Save failed. Your draft has been kept.');}
     finally{setBusy(false);}
   }
   async function create(){
     if(busy||standby)return;setBusy(true);setError('');
     try{await autosaver.flush();const created=newLog();created.owner_id=profile.id;created.publication_status='private';created.technician=profile.display_name??'';
-      autosaver.open(created,true);setScope('mine');setActiveStepId(null);setSection('record');setMessage('');setView('repairs');
+      autosaver.open(created,true);setScope('mine');setFilter('draft');setSearch('');setMobileEditor(true);setActiveStepId(null);setSection('record');setMessage('');setView('repairs');
     }catch(e){setError(e instanceof Error?e.message:'Save failed. Your draft has been kept.');}
     finally{setBusy(false);}
   }
@@ -114,9 +130,10 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
     if(busy)return;setBusy(true);setError('');
     try{
       await autosaver.flush();
-      const recovered=preview?draft.log:await refreshRepairPhotos(draft.log);
+      const source={...draft.log,status:repairStatus(draft.log.status)};
+      const recovered=preview?source:await refreshRepairPhotos(source);
       autosaver.recoverFrom(draft.key,draft.log.id);autosaver.open(recovered,true);await autosaver.backup();
-      setScope('all');setSection('record');setView('repairs');setActiveStepId(null);
+      setScope('all');setFilter('all');setMobileEditor(true);setSection('record');setView('repairs');setActiveStepId(null);
       setMessage('Device draft restored. Automatic saving will check for changes from other devices.');
     }catch(e){setError(e instanceof Error?e.message:'Recovery could not be opened. The device copy is still available.');}
     finally{setBusy(false);}
@@ -186,8 +203,9 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
     <div className="wk-heading"><div><p className="wk-eyebrow">YOUR WORKSHOP KNOWLEDGE</p><h1>{view==='repairs'?'Repair notebook':'Bench references'}</h1><p>{view==='repairs'?'Capture it once. Find it on the next repair.':'The details you reach for at the bench.'}</p></div><button className="button primary" onClick={create} disabled={busy||standby||loading}>＋ New repair</button></div>
     {!!recoveries.length&&<section className="wk-publication" aria-label="Device recovery drafts"><strong>Recoverable drafts on this device</strong><p>These copies may contain work that was not saved to Workshop. Restoring keeps the original revision, so a newer saved version will not be overwritten.</p>{recoveries.map(draft=><div key={draft.key}><p><strong>{draft.log.title}</strong> · {new Date(draft.savedAt).toLocaleString()}</p><div className="wk-ref-actions"><button className="button primary" disabled={busy||loading} onClick={()=>void restoreDraft(draft)}>Restore draft</button><button className="button secondary" disabled={busy} onClick={()=>void recoveryExport(draft)}>Download recovery ZIP</button><button className="button secondary" disabled={busy} onClick={()=>void discardRecovery(draft)}>Dismiss recovery copy</button></div></div>)}</section>}
     {preview&&<div className="wk-view-tabs"><button className={view==='repairs'?'active':''} onClick={()=>setView('repairs')}>Repair logs</button><button className={view==='references'?'active':''} onClick={()=>setView('references')}>Bench references</button></div>}
-    {preview&&<div hidden={view!=='references'}><BenchReferences preview={preview} readonly={standby}/></div>}<div hidden={view!=='repairs'}><div className="wk-layout"><aside className="wk-library"><div className="wk-library-head"><strong>Repair logs</strong><span>{logs.length}</span></div>{!preview&&<label className="wk-label">Library<select value={scope} onChange={e=>setScope(e.target.value)}><option value="mine">My repairs</option><option value="approved">Approved library</option>{admin&&<option value="pending">Awaiting approval</option>}{admin&&<option value="returned">Returned for changes</option>}<option value="all">All available repairs</option></select></label>}<label className="wk-label">Search repairs<input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Machine, symptom or part…"/></label><label className="wk-label">Status<select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">All repairs</option><option value="draft">Draft</option><option value="in_progress">In progress</option><option value="completed">Completed</option></select></label><div className="wk-log-list">{loading?<p>Loading repair logs…</p>:visible.map(l=><button disabled={busy} key={l.id} className={`wk-log ${job?.id===l.id?'active':''}`} onClick={()=>select(l)}><span className={`wk-status ${l.status}`}>{l.status.replace('_',' ')}</span><strong>{l.title}</strong><span>{l.machine_name||'Machine not recorded'}</span><small>{l.job_date} · {l.steps.length} steps · {(l.publication_status??'private').replace('_',' ')}</small></button>)}{!loading&&!visible.length&&<p className="wk-small">No matching repairs. Start a new log or change your search.</p>}</div><div className="wk-library-note"><strong>Private by default</strong><p>{preview?'Try the workflow here. Preview records are stored only in this browser.':'Drafts stay private. Submitted logs are visible to administrators; approved logs are shared with all signed-in users.'}</p></div></aside>
-    <section className="wk-editor" aria-label="Repair editor">
+    {preview&&<div hidden={view!=='references'}><BenchReferences preview={preview} readonly={standby}/></div>}<div hidden={view!=='repairs'}><div className={`wk-layout ${editorVisible?'wk-mobile-editor-open':''}`}><aside className="wk-library"><div className="wk-library-head"><strong>Repair logs</strong><span>{visible.length}</span></div>{!preview&&<label className="wk-label">Library<select value={scope} onChange={e=>setScope(e.target.value)}><option value="mine">My repairs</option><option value="approved">Approved library</option>{admin&&<option value="pending">Awaiting approval</option>}{admin&&<option value="returned">Returned for changes</option>}<option value="all">All available repairs</option></select></label>}<label className="wk-label">Search repairs<input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Machine, symptom or part…"/></label><label className="wk-label">Status<select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">All repairs</option><option value="draft">Draft</option><option value="completed">Completed</option></select></label><div className="wk-log-list">{loading?<p>Loading repair logs…</p>:visible.map(l=><button disabled={busy} key={l.id} className={`wk-log ${job?.id===l.id?'active':''}`} onClick={()=>select(l)}><span className={`wk-status ${l.status}`}>{l.status.replace('_',' ')}</span><strong>{l.title}</strong><span>{l.machine_name||'Machine not recorded'}</span><small>{l.job_date} · {l.steps.length} steps · {(l.publication_status??'private').replace('_',' ')}</small></button>)}{!loading&&!visible.length&&<p className="wk-small">No matching repairs. Start a new log or change your search.</p>}</div><div className="wk-library-note"><strong>Private by default</strong><p>{preview?'Try the workflow here. Preview records are stored only in this browser.':'Drafts stay private. Submitted logs are visible to administrators; approved logs are shared with all signed-in users.'}</p></div></aside>
+    <section ref={editor} tabIndex={-1} className="wk-editor" aria-label="Repair editor">
+      <button className="button secondary wk-back-to-library" disabled={busy||loading} onClick={()=>void showLibrary()}>← Back to repair list</button>
       {(error||saveInfo.error||saveInfo.backupError)&&<div className="wk-alert" role="alert">{error||saveInfo.error}{saveInfo.backupError&&<p>{saveInfo.backupError}</p>}{dirty&&<p>Keep this page open until saved. You can retry with Save now.</p>}{dirty&&job&&<button className="button secondary" disabled={busy} onClick={()=>void recoveryExport({key:'',account:recoveryAccount,session:'',savedAt:new Date().toISOString(),log:job})}>Download unsaved recovery ZIP</button>}</div>}{message&&<div className="wk-message" role="status">{message}</div>}
       {!job?<div className="wk-empty"><h2>Your next repair starts here</h2><p>Create a log, take photos and build a guide as you work.</p><button className="button primary" disabled={loading||busy||standby} onClick={create}>New repair</button></div>:<>
         <div className="wk-editor-top"><div><span className={`wk-status ${job.status}`}>{job.status.replace('_',' ')}</span><span className="wk-save-state">{saveStatus}</span><h2>{job.title}</h2></div><button className="button primary" disabled={busy||readonly||saveInfo.saving} onClick={()=>void save()}>{saveInfo.saving?'Saving…':'Save now'}</button></div>
@@ -203,7 +221,7 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
           {!!job.steps.length&&<p className="wk-small">Browse steps left to right. Open any step to edit, then use Previous and Next. The arrows below each card change its position.</p>}
         </div>}
         {section==='parts'&&<div className="wk-panel"><div className="wk-section-heading"><h3>Parts used in this repair</h3><p>Choose from catalogue parts compatible with the machine selected in Job details. Already linked parts are kept if you change machines.</p></div>{preview&&<p className="wk-small">Fictional examples filtered to your selected demonstration machine.</p>}<div className="wk-linked-parts">{job.parts.map(p=><div className="wk-linked-part" key={p.part_id}><div><strong>{p.description}</strong><small>{p.number||'No part number'}</small>{!preview&&<a href={`/parts/${p.part_id}`} target="_blank" rel="noreferrer">Open part record</a>}</div><label className="wk-label">Quantity<input type="number" min="1" step="1" value={p.quantity} onChange={e=>update({parts:job.parts.map(x=>x.part_id===p.part_id?{...x,quantity:Number(e.target.value)}:x)})}/></label><button className="button secondary" onClick={()=>update({parts:job.parts.filter(x=>x.part_id!==p.part_id)})}>Remove</button></div>)}</div><label className="wk-label">Find a compatible part<input disabled={!selectedMachineId||partsLoading||partsMachineId!==selectedMachineId} value={partSearch} onChange={e=>setPartSearch(e.target.value)} placeholder="Part number or description"/></label><div className="wk-part-results">{matchingParts.map(p=><button key={p.id} onClick={()=>update({parts:[...job.parts,{part_id:p.id,description:p.name,number:p.number??'',quantity:1}]})}><span><strong>{p.name}</strong><small>{p.number||'No part number'}</small></span><span>＋ Link</span></button>)}{!selectedMachineId?<p>Choose a catalogue machine in Job details to find compatible parts.</p>:partsError?<p role="alert">{partsError}</p>:partsLoading||partsMachineId!==selectedMachineId?<p>Loading compatible parts…</p>:!matchingParts.length&&<p>No matching unlinked parts for this machine.</p>}</div></div>}
-        {section==='finish'&&<div className="wk-panel"><div className="wk-section-heading"><h3>Close the loop</h3><p>Record the result so a future repair starts with evidence.</p></div><label className="wk-label">Testing and verification<textarea rows={4} value={job.tests} onChange={e=>update({tests:e.target.value})} placeholder="What did you test, and what was the result?"/></label><label className="wk-label">Outcome and outstanding work<textarea rows={4} value={job.outcome} onChange={e=>update({outcome:e.target.value})} placeholder="Was the fault resolved? What still needs attention?"/></label><label className="wk-label">Job status<select value={job.status} onChange={e=>update({status:e.target.value as RepairLog['status']})}><option value="draft">Draft</option><option value="in_progress">In progress</option><option value="completed">Completed</option></select></label><div className="wk-questions"><h4>Useful details to capture</h4>{prompts(job).length?<ul>{prompts(job).map(p=><li key={p}>{p}</li>)}</ul>:<p>The core job details are recorded.</p>}<p className="wk-small">Checklist prompts. AI interviewing and image search are not connected yet.</p></div></div>}
+        {section==='finish'&&<div className="wk-panel"><div className="wk-section-heading"><h3>Close the loop</h3><p>Record the result so a future repair starts with evidence.</p></div><label className="wk-label">Testing and verification<textarea rows={4} value={job.tests} onChange={e=>update({tests:e.target.value})} placeholder="What did you test, and what was the result?"/></label><label className="wk-label">Outcome and outstanding work<textarea rows={4} value={job.outcome} onChange={e=>update({outcome:e.target.value})} placeholder="Was the fault resolved? What still needs attention?"/></label><label className="wk-label">Job status<select value={job.status} onChange={e=>update({status:e.target.value as RepairLog['status']})}><option value="draft">Draft</option><option value="completed">Completed</option></select></label><div className="wk-questions"><h4>Useful details to capture</h4>{prompts(job).length?<ul>{prompts(job).map(p=><li key={p}>{p}</li>)}</ul>:<p>The core job details are recorded.</p>}<p className="wk-small">Checklist prompts. AI interviewing and image search are not connected yet.</p></div></div>}
         </fieldset>
         {section==='finish'&&<div className="wk-export"><div><p className="wk-eyebrow">TAKE IT TO THE BENCH</p><h3>A clear, printable record</h3><p>A4 layout, numbered photos and page numbers. Your repair is saved automatically before export.</p></div><div className="wk-export-actions"><label className="wk-label">PDF format<select disabled={busy} value={exportMode} onChange={e=>setExportMode(e.target.value as 'report'|'guide')}><option value="report">Repair report</option><option value="guide">Workshop guide</option></select></label><button disabled={busy} className="button primary" onClick={()=>void output('pdf')}>Download PDF</button><button disabled={busy} className="button secondary" onClick={()=>void output('zip')}>Export job ZIP</button><p className="wk-small">ZIP keeps the unmarked photos and editable annotations for future migration.</p></div></div>}
       </>}
