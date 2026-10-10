@@ -1,10 +1,11 @@
+import {repairStatus,type RepairStatus} from './repair-status';
 import { getSupabaseBrowserClient } from './supabase';
 
 export type Mark = { kind: 'circle' | 'arrow' | 'double_arrow' | 'number'; x: number; y: number; x2: number; y2: number; label?: string };
 export type RepairStep = { id: string; title: string; instruction: string; image_path: string; annotations: Mark[]; imageUrl?: string };
 export type RepairPart = { part_id: string; description: string; number: string; quantity: number };
 export type PublicationStatus = 'private' | 'pending' | 'approved' | 'returned';
-export type RepairLog = { owner_id?: string; publication_status?: PublicationStatus; submitted_at?: string | null; reviewed_at?: string | null; reviewed_by?: string | null; review_notes?: string; id: string; title: string; machine_id: string | null; machine_name: string; technician: string; job_date: string; fault: string; outcome: string; tests: string; tools: string; status: 'draft' | 'in_progress' | 'completed'; revision: number; updated_at: string; steps: RepairStep[]; parts: RepairPart[] };
+export type RepairLog = { owner_id?: string; publication_status?: PublicationStatus; submitted_at?: string | null; reviewed_at?: string | null; reviewed_by?: string | null; review_notes?: string; id: string; title: string; machine_id: string | null; machine_name: string; technician: string; job_date: string; fault: string; outcome: string; tests: string; tools: string; status: RepairStatus; revision: number; updated_at: string; steps: RepairStep[]; parts: RepairPart[] };
 export type Choice = { id: string; name: string; number?: string };
 export const newLog = (): RepairLog => ({ id: crypto.randomUUID(), title: 'Untitled repair', machine_id: null, machine_name: '', technician: '', job_date: new Date().toLocaleDateString('en-CA'), fault: '', outcome: '', tests: '', tools: '', status: 'draft', revision: 0, updated_at: new Date().toISOString(), steps: [], parts: [] });
 export function checkLog(log: RepairLog) {
@@ -16,7 +17,7 @@ export function prompts(log: RepairLog) {
   return [!log.fault.trim() && 'What fault or task prompted this job?', !log.machine_name && 'Which machine did you work on?', !log.parts.length && 'Were any parts replaced? Link them if they are in the catalogue.', log.steps.some(s => !s.instruction.trim()) && 'What should a technician do in each photo step?', !log.tests.trim() && 'How did you test the repair?', !log.outcome.trim() && 'What was the final result?'].filter(Boolean) as string[];
 }
 export function demoLog(): RepairLog {
-  return { ...newLog(), id: 'preview-sample', machine_id: 'demo-machine', title: 'Prize meter signal check', machine_name: 'Example claw machine', technician: 'Demo technician', fault: 'Prize accounting does not match the number of prizes won.', tools: 'Multimeter, service manual', status: 'in_progress', steps: [{ id: 'sample-step', title: 'Record the meter connection', instruction: 'Add a photo of the meter wiring. Circle the connection you are describing and record the observed pulse count. This is a demonstration record, not a verified repair instruction.', image_path: '', annotations: [] }], tests: '', outcome: '' };
+  return { ...newLog(), id: 'preview-sample', machine_id: 'demo-machine', title: 'Prize meter signal check', machine_name: 'Example claw machine', technician: 'Demo technician', fault: 'Prize accounting does not match the number of prizes won.', tools: 'Multimeter, service manual', status: 'draft', steps: [{ id: 'sample-step', title: 'Record the meter connection', instruction: 'Add a photo of the meter wiring. Circle the connection you are describing and record the observed pulse count. This is a demonstration record, not a verified repair instruction.', image_path: '', annotations: [] }], tests: '', outcome: '' };
 }
 
 function previewDB(): Promise<IDBDatabase> {
@@ -24,10 +25,10 @@ function previewDB(): Promise<IDBDatabase> {
 }
 export async function loadPreview(): Promise<RepairLog[]> {
   const db = await previewDB();
-  return new Promise((resolve, reject) => { const tx = db.transaction('logs', 'readonly'); const r = tx.objectStore('logs').getAll(); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); tx.oncomplete = () => db.close(); });
+  return new Promise((resolve, reject) => { const tx = db.transaction('logs', 'readonly'); const r = tx.objectStore('logs').getAll(); r.onsuccess = () => resolve(r.result.map((log:RepairLog)=>({...log,status:repairStatus(log.status)}))); r.onerror = () => reject(r.error); tx.oncomplete = () => db.close(); });
 }
 export async function savePreview(log: RepairLog): Promise<RepairLog> {
-  checkLog(log); const db = await previewDB(); const saved = { ...log, revision: log.revision + 1, updated_at: new Date().toISOString() };
+  checkLog(log); const db = await previewDB(); const saved = { ...log, status:repairStatus(log.status), revision: log.revision + 1, updated_at: new Date().toISOString() };
   return new Promise((resolve, reject) => { const tx = db.transaction('logs', 'readwrite'); const store = tx.objectStore('logs'); const request = store.get(log.id); request.onsuccess = () => { if (request.result && request.result.revision !== log.revision) { tx.abort(); return; } store.put(saved); }; tx.oncomplete = () => { db.close(); resolve(saved); }; tx.onabort = tx.onerror = () => { db.close(); reject(new Error('Save failed or another tab changed this log. Export your changes, then reload.')); }; });
 }
 export async function loadLive() {
@@ -46,16 +47,16 @@ export async function loadLive() {
       if (step.image_path) { const signed = await db.storage.from('repair-images').createSignedUrl(step.image_path, 3600); if (signed.error) throw new Error('A repair photo could not be loaded. Please retry.'); imageUrl = signed.data.signedUrl; }
       steps.push({ ...step, imageUrl });
     }
-    records.push({ ...row, steps, parts: (row.repair_log_parts ?? []).map((p: { part_id: string; quantity: number; part: { description: string; manufacturer_part_number: string } }) => ({ part_id: p.part_id, quantity: p.quantity, description: p.part?.description ?? 'Unavailable part', number: p.part?.manufacturer_part_number ?? '' })) });
+    records.push({ ...row, status:repairStatus(row.status), steps, parts: (row.repair_log_parts ?? []).map((p: { part_id: string; quantity: number; part: { description: string; manufacturer_part_number: string } }) => ({ part_id: p.part_id, quantity: p.quantity, description: p.part?.description ?? 'Unavailable part', number: p.part?.manufacturer_part_number ?? '' })) });
   }
   return { records, machines: (machines.data ?? []) as Choice[] };
 }
 export async function saveLive(log: RepairLog) {
   checkLog(log); const db = getSupabaseBrowserClient(); if (!db) throw new Error('Database is not configured.');
-  const document = { ...log, steps: log.steps.map(step => ({ id: step.id, title: step.title, instruction: step.instruction, image_path: step.image_path, annotations: step.annotations })) };
+  const document = { ...log, status:repairStatus(log.status), steps: log.steps.map(step => ({ id: step.id, title: step.title, instruction: step.instruction, image_path: step.image_path, annotations: step.annotations })) };
   const { data, error } = await db.rpc('save_repair_log', { document, expected_revision: log.revision });
   if (error) throw new Error(error.message);
-  return { ...log, ...data, steps: log.steps, parts: log.parts } as RepairLog;
+  return { ...log, ...data, status:repairStatus(data.status??log.status), steps: log.steps, parts: log.parts } as RepairLog;
 }
 export async function imageDataUrl(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(new Error('Photo could not be read.')); reader.readAsDataURL(file); });
@@ -73,7 +74,7 @@ export async function transitionRepair(log: RepairLog, action: 'submit' | 'withd
   const db = getSupabaseBrowserClient(); if (!db) throw new Error('Database is not configured.');
   const {data,error} = await db.rpc('transition_repair_log',{log_id:log.id,expected_revision:log.revision,action,notes});
   if(error) throw new Error(error.message);
-  return {...log,...data,steps:log.steps,parts:log.parts};
+  return {...log,...data,status:repairStatus(data.status??log.status),steps:log.steps,parts:log.parts};
 }
 export type ApprovedRepair = {id:string;title:string;machine_id:string;machine_name:string;job_date:string};
 export async function approvedRepairs(machineId?:string): Promise<ApprovedRepair[]> {

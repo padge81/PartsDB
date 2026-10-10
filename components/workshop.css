@@ -58,3 +58,10 @@
 }
 
 .wk-publication{padding:18px 24px;background:#f4f7f9;border-top:1px solid #dce3e8}.wk-publication>p{font-size:14px;line-height:1.5;white-space:pre-wrap}.wk-review-controls{margin-top:16px}.wk-review-controls .wk-label{margin-bottom:12px}.wk-machine-link{padding:0 24px;font-size:14px}.wk-machine-link a{color:#17628b;text-decoration:underline}@media(max-width:700px){.wk-publication{padding:14px 12px}.wk-machine-link{padding:0 12px}}
+
+.wk-back-to-library{display:none}.wk-editor{scroll-margin-top:112px}
+@media(max-width:700px){
+ .wk-layout:not(.wk-mobile-editor-open)>.wk-editor{display:none}
+ .wk-layout.wk-mobile-editor-open>.wk-library{display:none}
+ .wk-back-to-library{display:inline-flex;margin:12px 12px 0;min-height:44px;font-size:13px!important}
+}
