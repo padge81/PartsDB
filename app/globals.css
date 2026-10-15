@@ -200,11 +200,17 @@ a.hub-card:hover { border-color:#c6a58d; box-shadow:0 8px 24px #102b3f0d; }
  .hub-admin p { flex-basis:100%; }
 }
 
-/* Search growing option lists without replacing native form controls. */
-.searchable-select{display:grid;gap:6px;width:100%;min-width:0;text-transform:none;letter-spacing:normal}
-.searchable-select .select-search-input{width:100%;min-width:0;min-height:42px;padding:10px 12px;border:1px solid #cdd7dd;border-radius:7px;background:#fff;color:var(--ink);font-size:14px;font-weight:400}
-.searchable-select select{width:100%;min-width:0;min-height:44px}
-.searchable-select .select-search-input:focus{outline:2px solid var(--orange);outline-offset:1px}
-.select-search-hint{color:var(--muted);font-size:11px;font-weight:400;line-height:1.4}
-.searchable-select:has(:disabled){opacity:.7}
-@media(max-width:700px){.searchable-select .select-search-input,.searchable-select select{font-size:16px;min-height:44px}}
+
+/* One editable field with a searchable option list. */
+.searchable-select{display:block;position:relative;width:100%;min-width:0;text-transform:none;letter-spacing:normal}
+.searchable-select .select-combo-input{width:100%;min-width:0;min-height:44px;padding:10px 32px 10px 12px;border:1px solid #cdd7dd;border-radius:7px;background:#fff;color:var(--ink);font-size:14px;font-weight:400;line-height:1.45}
+.searchable-select .select-combo-input:focus{outline:2px solid var(--orange);outline-offset:1px}
+.select-combo-chevron{position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted)}
+.searchable-select select[hidden]{display:none!important}
+.select-combo-options{position:fixed;z-index:1000;overflow-y:auto;overscroll-behavior:contain;background:#fff;border:1px solid #cdd7dd;border-radius:8px;box-shadow:0 8px 24px #102b3f26;padding:4px}
+.select-combo-options button{display:block;width:100%;min-height:44px;padding:10px 12px;border:0;border-radius:5px;background:#fff;color:#172735;font:inherit;font-size:14px;text-align:left;cursor:pointer;white-space:normal;overflow-wrap:anywhere}
+.select-combo-options button:hover,.select-combo-options button[data-active=true]{background:#eaf1f6}
+.select-combo-options button[aria-selected=true]{font-weight:700}
+.select-combo-options button:disabled{color:#87939b;cursor:not-allowed}
+.select-combo-empty{display:block;padding:12px;color:#64727e;font-size:13px}
+@media(max-width:700px){.searchable-select .select-combo-input,.select-combo-options button{font-size:16px;min-height:44px}}

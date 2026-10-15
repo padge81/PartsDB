@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.21.0` |
+| Application | `0.21.1` |
 | Database | `0.12.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -38,6 +38,15 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.21.1` / database `0.12.0` — 16 October 2026
+
+- Replaced separate search boxes and dropdowns with a single editable combobox everywhere using the shared searchable picker.
+- Tap to open, type to narrow and choose a result. Leaving without a selection restores the previous choice. Empty/reset options remain available.
+- Added keyboard navigation, disabled-option handling, required-selection validation and form reset support. A hidden native select retains existing change handlers and submitted IDs.
+- Option panels render outside clipped cards/modals and reposition for scrolling, resizing and the mobile keyboard.
+- Browser fixture checks cover filtering, selected IDs, required validation, form submission and reset. No database or dependency changes.
+
 
 ### `0.21.0` / database `0.12.0` — 16 October 2026
 
