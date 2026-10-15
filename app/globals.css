@@ -199,3 +199,12 @@ a.hub-card:hover { border-color:#c6a58d; box-shadow:0 8px 24px #102b3f0d; }
  .hub-admin { align-items:flex-start; gap:8px; margin-top:24px; }
  .hub-admin p { flex-basis:100%; }
 }
+
+/* Search growing option lists without replacing native form controls. */
+.searchable-select{display:grid;gap:6px;width:100%;min-width:0;text-transform:none;letter-spacing:normal}
+.searchable-select .select-search-input{width:100%;min-width:0;min-height:42px;padding:10px 12px;border:1px solid #cdd7dd;border-radius:7px;background:#fff;color:var(--ink);font-size:14px;font-weight:400}
+.searchable-select select{width:100%;min-width:0;min-height:44px}
+.searchable-select .select-search-input:focus{outline:2px solid var(--orange);outline-offset:1px}
+.select-search-hint{color:var(--muted);font-size:11px;font-weight:400;line-height:1.4}
+.searchable-select:has(:disabled){opacity:.7}
+@media(max-width:700px){.searchable-select .select-search-input,.searchable-select select{font-size:16px;min-height:44px}}
