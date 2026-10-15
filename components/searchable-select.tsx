@@ -26,7 +26,7 @@ export function SearchableSelect({children,searchLabel,onChange,...props}:Props)
   <input className="select-search-input" type="search" value={query} disabled={props.disabled}
    aria-label={'Filter '+searchLabel} aria-controls={props.id} autoComplete="off"
    placeholder={'Type to filter '+searchLabel+'…'} onChange={event=>setQuery(event.target.value)}
-   onKeyDown={event=>{if(event.key==='Enter')event.preventDefault();if(event.key==='Escape'){setQuery('');event.stopPropagation();}}/>
+   onKeyDown={event=>{if(event.key==='Enter')event.preventDefault();if(event.key==='Escape'){setQuery('');event.stopPropagation();}}}/>
   <select {...props} ref={select} aria-label={props['aria-label']??searchLabel} aria-describedby={[props['aria-describedby'],query?hintId:''].filter(Boolean).join(' ')||undefined}
    onChange={event=>{setUncontrolled(event.target.value);setQuery('');onChange?.(event);}}>
    {visible.map(option=>option.node)}
