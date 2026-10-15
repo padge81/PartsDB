@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.20.1` |
+| Application | `0.21.0` |
 | Database | `0.12.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -38,6 +38,15 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.21.0` / database `0.12.0` — 16 October 2026
+
+- Added type-to-filter fields to growing dropdowns across parts search, machine search, Workshop machine selection, bench-reference categories/subcategories, part submissions and admin editors.
+- Manufacturer, machine, supplier, category and configurable supply-type lists narrow using case-insensitive words. Current selections and empty/reset choices remain available, including when the search has no matches.
+- Native dropdowns retain required-field validation, form names/defaults, disabled options, standby fieldset protection and existing change handlers. Search text is not submitted; choosing an option clears the filter and form reset clears it too.
+- Short status, sort and export-mode lists remain native. Existing searchable company and primary machine pickers are retained.
+- Added filtering regression checks. Application revision and Git history updated; no database migration or dependency changes.
+
 
 ### `0.20.1` / database `0.12.0` — 10 October 2026
 
