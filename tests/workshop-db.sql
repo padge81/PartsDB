@@ -308,3 +308,98 @@ do $$ declare doc jsonb; begin
 end $$;
 reset role;
 rollback;
+
+-- Deletion permissions, revision conflicts, standby and stale-save protection.
+begin;
+insert into auth.users(id,email) values
+ ('aa000000-0000-4000-8000-000000000031','delete-owner@example.invalid'),
+ ('aa000000-0000-4000-8000-000000000032','delete-reader@example.invalid'),
+ ('aa000000-0000-4000-8000-000000000033','delete-admin@example.invalid');
+update public.profiles set role='admin' where id='aa000000-0000-4000-8000-000000000033';
+update public.system_metadata set value='live' where key='site_mode';
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000031',true);
+set local role authenticated;
+select public.save_repair_log('{"id":"bb000000-0000-4000-8000-000000000031","title":"Delete fixture","job_date":"2026-10-16","status":"draft","machine_id":"00000000-0000-0000-0000-000000000201","steps":[{"id":"one","title":"Step","instruction":"","image_path":"","annotations":[]}],"parts":[{"part_id":"00000000-0000-0000-0000-000000000501","quantity":1}]}',0);
+reset role;
+
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000032',true);
+set local role authenticated;
+do $$ begin
+ begin perform public.delete_repair_log('bb000000-0000-4000-8000-000000000031',1);raise exception 'Reader deleted private log';
+ exception when raise_exception then if sqlerrm<>'Repair not available' then raise; end if; end;
+ begin delete from public.repair_logs;raise exception 'Direct deletion allowed';
+ exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000033',true);
+set local role authenticated;
+do $$ begin
+ begin perform public.delete_repair_log('bb000000-0000-4000-8000-000000000031',1);raise exception 'Admin deleted another private log';
+ exception when raise_exception then if sqlerrm<>'Repair not available' then raise; end if; end;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000031',true);
+set local role authenticated;
+do $$ begin
+ begin perform public.delete_repair_log('bb000000-0000-4000-8000-000000000031',0);raise exception 'Stale delete accepted';
+ exception when raise_exception then if sqlerrm not like 'This repair changed%' then raise; end if; end;
+end $$;
+select public.transition_repair_log('bb000000-0000-4000-8000-000000000031',1,'submit');
+reset role;
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000033',true);
+set local role authenticated;
+select public.transition_repair_log('bb000000-0000-4000-8000-000000000031',2,'approve');
+reset role;
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000031',true);
+set local role authenticated;
+do $$ begin
+ begin perform public.delete_repair_log('bb000000-0000-4000-8000-000000000031',3);raise exception 'Owner deleted shared log';
+ exception when raise_exception then if sqlerrm<>'Only an administrator can delete a shared repair' then raise; end if; end;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000032',true);
+set local role authenticated;
+do $$ begin
+ begin perform public.delete_repair_log('bb000000-0000-4000-8000-000000000031',3);raise exception 'Reader deleted shared log';
+ exception when raise_exception then if sqlerrm<>'Only an administrator can delete a shared repair' then raise; end if; end;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000033',true);
+update public.system_metadata set value='standby' where key='site_mode';
+set local role authenticated;
+do $$ begin
+ begin perform public.delete_repair_log('bb000000-0000-4000-8000-000000000031',3);raise exception 'Standby delete accepted';
+ exception when raise_exception then if sqlerrm<>'Standby is read only' then raise; end if; end;
+end $$;
+reset role;
+update public.system_metadata set value='live' where key='site_mode';
+update public.profiles set is_active=false where id='aa000000-0000-4000-8000-000000000033';
+set local role authenticated;
+do $$ begin
+ begin perform public.delete_repair_log('bb000000-0000-4000-8000-000000000031',3);raise exception 'Inactive delete accepted';
+ exception when raise_exception then if sqlerrm<>'Active sign-in required' then raise; end if; end;
+end $$;
+reset role;
+update public.profiles set is_active=true where id='aa000000-0000-4000-8000-000000000033';
+set local role authenticated;
+select public.delete_repair_log('bb000000-0000-4000-8000-000000000031',3);
+reset role;
+do $$ begin
+ if exists(select 1 from public.repair_logs where id='bb000000-0000-4000-8000-000000000031') then raise exception 'Log not deleted'; end if;
+ if exists(select 1 from public.repair_log_parts where repair_log_id='bb000000-0000-4000-8000-000000000031') then raise exception 'Part links remain'; end if;
+ if not exists(select 1 from public.audit_log where record_id='bb000000-0000-4000-8000-000000000031' and operation='DELETE') then raise exception 'Deletion not audited'; end if;
+end $$;
+select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000031',true);
+set local role authenticated;
+do $$ begin
+ begin perform public.save_repair_log('{"id":"bb000000-0000-4000-8000-000000000031","steps":[],"parts":[]}',3);raise exception 'Stale save recreated deleted log';
+ exception when raise_exception then if sqlerrm<>'Repair no longer exists or access is unavailable' then raise; end if; end;
+end $$;
+select public.save_repair_log('{"id":"bb000000-0000-4000-8000-000000000032","title":"Private deletion","job_date":"2026-10-16","status":"draft","steps":[],"parts":[]}',0);
+select public.delete_repair_log('bb000000-0000-4000-8000-000000000032',1);
+reset role;
+do $$ begin
+ if exists(select 1 from public.repair_logs where id='bb000000-0000-4000-8000-000000000032') then raise exception 'Private log remains'; end if;
+ if exists(select 1 from public.audit_log where record_id='bb000000-0000-4000-8000-000000000032') then raise exception 'Private deletion leaked to audit'; end if;
+end $$;
+rollback;

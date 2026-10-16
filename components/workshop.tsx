@@ -8,7 +8,7 @@ import { readRecoveries, writeRecovery, removeRecovery, recoverySession, type Re
 import { AppShell, type Profile, type SiteMode } from './app-shell';
 import { RepairStepDialog } from './repair-step-dialog';
 import { prepareImage, formatBytes } from '../lib/image-compression';
-import { refreshRepairPhotos, loadMachineParts, transitionRepair, demoLog, imageDataUrl, loadLive, loadPreview, newLog, prompts, saveLive, savePreview, uploadRepairPhoto, type Choice, type RepairLog, type RepairStep } from '../lib/workshop';
+import { deleteRepair, refreshRepairPhotos, loadMachineParts, transitionRepair, demoLog, imageDataUrl, loadLive, loadPreview, newLog, prompts, saveLive, savePreview, uploadRepairPhoto, type Choice, type RepairLog, type RepairStep } from '../lib/workshop';
 import { exportRepairArchive, exportRepairPdf } from '../lib/workshop-export';
 import { RepairPublication } from './repair-publication';
 import { BenchReferences } from './bench-references';
@@ -55,6 +55,7 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
   const standby=siteMode==='standby',admin=profile.role==='admin';
   const owner=!job?.owner_id||job.owner_id===profile.id;
   const publication=job?.publication_status??'private';
+  const canDelete=preview||(publication==='approved'?admin:owner||(admin&&['pending','returned'].includes(publication)));
   const readonly=standby||(!preview&&!(owner&&['private','returned'].includes(publication))&&!(admin&&['pending','approved','returned'].includes(publication)));
   useEffect(() => { let alive = true; (async () => {
     try {
@@ -119,6 +120,26 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
     try{await autosaver.flush();const created=newLog();created.owner_id=profile.id;created.publication_status='private';created.technician=profile.display_name??'';
       autosaver.open(created,true);setScope('mine');setFilter('draft');setSearch('');setMobileEditor(true);setActiveStepId(null);setSection('record');setMessage('');setView('repairs');
     }catch(e){setError(e instanceof Error?e.message:'Save failed. Your draft has been kept.');}
+    finally{setBusy(false);}
+  }
+  async function deleteJob(){
+    if(!job||busy||standby||!canDelete)return;
+    if(!window.confirm(`Delete “${job.title}”? This permanently removes the repair log and its steps${publication==='approved'?' from the shared library and machine page':''}. This cannot be undone.`))return;
+    const id=job.id;
+    setBusy(true);setError('');setMessage('');
+    try{
+      await autosaver.remove(current=>deleteRepair(current,preview));
+      setLogs(all=>all.filter(log=>log.id!==id));
+      setActiveStepId(null);setMobileEditor(false);
+      setMessage('Repair log deleted.');
+      try{
+        const copies=await readRecoveries(recoveryAccount);
+        await Promise.all(copies.filter(d=>d.log.id===id).map(d=>removeRecovery(d.key)));
+        setRecoveries(all=>all.filter(d=>d.log.id!==id));
+      }catch{setMessage('Repair log deleted. A device recovery copy could not be cleared; dismiss it if it appears.');}
+      const url=new URL(window.location.href);
+      if(url.searchParams.get('log')===id){url.searchParams.delete('log');window.history.replaceState(null,'',url);}
+    }catch(e){setError(e instanceof Error?e.message:'The repair could not be deleted.');}
     finally{setBusy(false);}
   }
   async function save(){
@@ -209,7 +230,7 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
       <button className="button secondary wk-back-to-library" disabled={busy||loading} onClick={()=>void showLibrary()}>← Back to repair list</button>
       {(error||saveInfo.error||saveInfo.backupError)&&<div className="wk-alert" role="alert">{error||saveInfo.error}{saveInfo.backupError&&<p>{saveInfo.backupError}</p>}{dirty&&<p>Keep this page open until saved. You can retry with Save now.</p>}{dirty&&job&&<button className="button secondary" disabled={busy} onClick={()=>void recoveryExport({key:'',account:recoveryAccount,session:'',savedAt:new Date().toISOString(),log:job})}>Download unsaved recovery ZIP</button>}</div>}{message&&<div className="wk-message" role="status">{message}</div>}
       {!job?<div className="wk-empty"><h2>Your next repair starts here</h2><p>Create a log, take photos and build a guide as you work.</p><button className="button primary" disabled={loading||busy||standby} onClick={create}>New repair</button></div>:<>
-        <div className="wk-editor-top"><div><span className={`wk-status ${job.status}`}>{job.status.replace('_',' ')}</span><span className="wk-save-state">{saveStatus}</span><h2>{job.title}</h2></div><button className="button primary" disabled={busy||readonly||saveInfo.saving} onClick={()=>void save()}>{saveInfo.saving?'Saving…':'Save now'}</button></div>
+        <div className="wk-editor-top"><div><span className={`wk-status ${job.status}`}>{job.status.replace('_',' ')}</span><span className="wk-save-state">{saveStatus}</span><h2>{job.title}</h2></div><div className="wk-ref-actions"><button className="button primary" disabled={busy||readonly||saveInfo.saving} onClick={()=>void save()}>{saveInfo.saving?'Saving…':'Save now'}</button>{canDelete&&<button type="button" className="button danger" disabled={busy||standby} onClick={()=>void deleteJob()}>Delete repair</button>}</div></div>
         {readonly&&<p className="wk-alert">{standby?'This server is in standby. Viewing and export remain available.':'Viewing only. Submitted and approved repairs can only be edited by an administrator.'}</p>}
         {!preview&&<RepairPublication key={job.id} job={job} owner={owner} admin={admin} busy={busy} standby={standby} dirty={dirty} onAction={(action,notes)=>void publicationAction(action,notes)}/>}
         {job.machine_id&&!preview&&<p className="wk-machine-link"><a href={`/machines/${job.machine_id}`}>Open linked machine →</a></p>}

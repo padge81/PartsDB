@@ -6,8 +6,8 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.21.4` |
-| Database | `0.12.0` |
+| Application | `0.22.0` |
+| Database | `0.13.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
 
@@ -38,6 +38,15 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.22.0` / database `0.13.0` — 16 October 2026
+
+- Added confirmed repair-log deletion. Creators can delete their non-approved logs; only active administrators can delete approved/shared logs. Administrators can also delete submitted or returned logs they can access.
+- Database deletion checks permissions, write mode and expected revision, removes the log and its part links atomically, and audits deletions of submitted/shared records without exposing private drafts.
+- Deletion waits for any active save, stops further queued saves, clears the editor and local recovery copies, and removes shared records from future library/machine queries. Other devices' stale saves cannot recreate a saved deleted log.
+- Preview deletion stays device-local. Uploaded Storage objects are retained as unlinked files; deletion removes the repair and its photo references, not a guaranteed physical purge of uploaded files or audit history.
+- Added database permission and stale-save checks plus autosave/deletion race and failure tests. Catalogue backup format is unchanged; deleting a repair does not delete catalogue parts or machines.
+
 
 ### `0.21.4` / database `0.12.0` — 16 October 2026
 
