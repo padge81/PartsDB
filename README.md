@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.23.0` |
+| Application | `0.24.0` |
 | Database | `0.13.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -38,6 +38,14 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.24.0` / database `0.13.0` — 17 October 2026
+
+- Parts search shows the first photo by display order in the existing 40 px thumbnail space, with the box icon retained for missing/unavailable images.
+- Desktop hover or keyboard focus opens a larger contained preview outside the results table, without shifting rows. Escape, scrolling, resizing or leaving the thumbnail closes it; touch users can open the part record as before.
+- Private photo links are requested as thumbnails approach the viewport and refreshed while mounted. Image loading failures do not block search.
+- No database migration or dependency changes.
+
 
 ### `0.23.0` / database `0.13.0` — 17 October 2026
 
