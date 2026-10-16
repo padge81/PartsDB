@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.21.1` |
+| Application | `0.21.2` |
 | Database | `0.12.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -38,6 +38,14 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.21.2` / database `0.12.0` — 16 October 2026
+
+- Fixed My requests, the admin submission queue and request summaries displaying “No machine” when a selected machine has a name but no optional model.
+- Request displays now prefer machine_name, fall back to legacy machine_model, and acknowledge additional machine IDs when no primary name is present.
+- Added machine_name to the My requests query and admin search. Existing machine links and approval behaviour are unchanged.
+- Added regression coverage for named machines without models, legacy requests, additional-only compatibility and genuinely empty requests. No database migration.
+
 
 ### `0.21.1` / database `0.12.0` — 16 October 2026
 
