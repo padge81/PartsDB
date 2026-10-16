@@ -214,3 +214,7 @@ a.hub-card:hover { border-color:#c6a58d; box-shadow:0 8px 24px #102b3f0d; }
 .select-combo-options button:disabled{color:#87939b;cursor:not-allowed}
 .select-combo-empty{display:block;padding:12px;color:#64727e;font-size:13px}
 @media(max-width:700px){.searchable-select .select-combo-input,.select-combo-options button{font-size:16px;min-height:44px}}
+
+.bom-part-copy { min-width:0; display:grid; gap:4px; }.bom-part-copy .value-with-copy>a { min-width:0; overflow-wrap:anywhere; }.bom-part-copy .value-with-copy button:focus-visible { outline:2px solid var(--orange); outline-offset:2px; }
+@media (max-width:560px) { .bom-part-copy .value-with-copy button { width:40px; height:40px; } }
+.bom-part-copy .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }

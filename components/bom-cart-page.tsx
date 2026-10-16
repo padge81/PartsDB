@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "./app-shell";
-import { BoxIcon } from "./icons";
+import { BoxIcon, CopyIcon } from "./icons";
 import { clearBomCart, removeFromBom, updateBomItem, useBomCart } from "../lib/bom-cart";
 import { getSupabaseBrowserClient } from "../lib/supabase";
 import { useSupplyTypes } from "../lib/use-supply-types";
@@ -12,6 +12,26 @@ type SupplierInfo = { part_id: string; supplier_part_number: string | null; supp
 type MachineInfo = { part_id: string; machine?: { name: string | null; model: string | null; manufacturer?: { name: string } | null } | null };
 
 function csvCell(value: string | number) { const text = String(value), safe = typeof value === "string" && /^[=+@-]/.test(text) ? `'${text}` : text; return `"${safe.replaceAll('"', '""')}"`; }
+
+function BomCopyButton({ value, label }: { value: string; label: string }) {
+  const [status, setStatus] = useState("");
+  useEffect(() => {
+    if (!status) return;
+    const timer = window.setTimeout(() => setStatus(""), 2000);
+    return () => window.clearTimeout(timer);
+  }, [status]);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setStatus("Copied");
+    } catch {
+      setStatus("Could not copy");
+    }
+  }
+  return <button type="button" title={label} aria-label={label} onClick={copy}>
+    <CopyIcon/><span className="sr-only" role="status">{status}</span>{status && <em aria-hidden="true">{status}</em>}
+  </button>;
+}
 
 export function BomCartPage() {
   const cart = useBomCart(), supplyTypes = useSupplyTypes();
@@ -41,7 +61,10 @@ export function BomCartPage() {
     {!cart.length ? <section className="detail-state bom-empty"><BoxIcon/><h1>Your BOM cart is empty</h1><p>Add parts while searching or viewing a part record.</p><a className="button primary" href="/dashboard">Browse parts</a></section> : <section className="bom-list">
       <div className="bom-head"><span>Part</span><span>Preferred supplier</span><span>Quantity</span><span>Notes</span><span></span></div>
       {cart.map((item) => { const part = parts.find((row) => row.id === item.partId), supplier = suppliers.find((row) => row.part_id === item.partId); return <article className="bom-row" key={item.partId}>
-        <a href={`/parts/${item.partId}`}><strong>{part?.description ?? (loading ? "Loading part…" : "Unavailable part")}</strong><small>{part?.manufacturer_part_number ?? "No manufacturer part number"}</small></a>
+        <div className="bom-part-copy">
+          <div className="value-with-copy"><a href={`/parts/${item.partId}`}><strong>{part?.description ?? (loading ? "Loading part…" : "Unavailable part")}</strong></a>{part?.description && <BomCopyButton value={part.description} label="Copy part description"/>}</div>
+          <div className="value-with-copy"><a href={`/parts/${item.partId}`}><small>{part?.manufacturer_part_number || "No manufacturer part number"}</small></a>{part?.manufacturer_part_number && <BomCopyButton value={part.manufacturer_part_number} label="Copy manufacturer part number"/>}</div>
+        </div>
         <span><strong>{supplier?.supplier?.name ?? "—"}</strong><small>{supplier?.supplier_part_number ?? "No supplier part number"}</small></span>
         <label>Quantity<input type="number" min="1" step="1" value={item.quantity} onChange={(event) => updateBomItem(item.partId, { quantity: Number(event.target.value) || 1 })}/></label>
         <label>Line notes<input value={item.notes} placeholder="Optional notes" onChange={(event) => updateBomItem(item.partId, { notes: event.target.value })}/></label>
