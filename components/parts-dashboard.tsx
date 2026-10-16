@@ -1,5 +1,7 @@
 "use client";
 
+import {loadCatalogueCompatibility} from '../lib/catalogue-compatibility';
+import {readAllRows} from '../lib/machine-compatibility';
 import { SearchableSelect } from './searchable-select';
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -80,10 +82,10 @@ export function PartsDashboard({mode='parts'}:{mode?:'parts'|'machines'}) {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
     Promise.all([
-      supabase.from("parts").select("id,description,manufacturer_part_number,supply_type,manufacturer:companies(name)").eq("status", "active").order("description"),
+      readAllRows((from,to)=>supabase.from("parts").select("id,description,manufacturer_part_number,supply_type,manufacturer:companies(name)").eq("status", "active").order("description").order("id").range(from,to)),
       supabase.from("companies").select("id,name,company_roles!inner(role)").eq("is_active", true).eq("company_roles.role", "manufacturer").order("name"),
       supabase.from("machines").select("id,model,name,notes,manufacturer_id,category_id,manufacturer:companies(id,name),category:machine_categories(name)").eq("is_active", true).order("name"),
-      supabase.from("part_machines").select("part_id,machine_id"),
+      loadCatalogueCompatibility(),
       supabase.from("machine_categories").select("id,name").eq("is_active", true).order("name"),
       supabase.from("categories").select("id,name").eq("is_active", true).order("name"),
       supabase.from("part_categories").select("part_id,category_id"),
@@ -92,6 +94,7 @@ export function PartsDashboard({mode='parts'}:{mode?:'parts'|'machines'}) {
       if (partResult.error) setError(partResult.error.message); else setParts((partResult.data ?? []) as unknown as Part[]);
       setManufacturers((manufacturerResult.data ?? []) as Manufacturer[]);
       setMachines((machineResult.data ?? []) as unknown as Machine[]);if(machineResult.error)setMachineError(machineResult.error.message);
+      if(compatibilityResult.error)setError("Machine compatibility could not be loaded: "+compatibilityResult.error.message);
       setCompatibility((compatibilityResult.data ?? []).map((row) => ({ part_id: row.part_id, machine_id: row.machine_id })));
       setMachineCategories((machineCategoryResult.data ?? []) as Array<{ id: string; name: string }>);
       setCategories((categoryResult.data ?? []) as Category[]);
@@ -134,13 +137,13 @@ export function PartsDashboard({mode='parts'}:{mode?:'parts'|'machines'}) {
   const hasMachineLookup = Boolean(machineQuery.trim() || machineCompanyId || machineCategoryId);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || error) return;
     const timer = window.setTimeout(() => {
       if (manufacturerId && !manufacturerIdsWithParts.has(manufacturerId)) setManufacturerId("");
       if (machineId && !machineIdsWithParts.has(machineId)) setMachineId("");
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [loading, manufacturerId, machineId, manufacturerIdsWithParts, machineIdsWithParts]);
+  }, [loading, error, manufacturerId, machineId, manufacturerIdsWithParts, machineIdsWithParts]);
 
   function selectManufacturer(value: string) {
     setManufacturerId(value);
