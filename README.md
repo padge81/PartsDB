@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.22.0` |
+| Application | `0.22.1` |
 | Database | `0.13.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -38,6 +38,12 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.22.1` / database `0.13.0` — 17 October 2026
+
+- Explicitly included .jxl and image/jxl in photo file-picker filters for repair logs/steps, bench references, machines and part images so JPEG XL files can be selected without switching to All files.
+- Camera capture filters and existing browser decoding/WebP compression remain unchanged. This fixes file selection on supported browsers; it does not introduce a new JPEG XL decoder.
+- No database migration or dependency changes.
 
 ### `0.22.0` / database `0.13.0` — 16 October 2026
 
