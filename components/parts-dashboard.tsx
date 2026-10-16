@@ -1,18 +1,19 @@
 "use client";
 
+import {PartThumbnail,type PartThumbnailImage} from "./part-thumbnail";
 import {loadCatalogueCompatibility} from '../lib/catalogue-compatibility';
 import {readAllRows} from '../lib/machine-compatibility';
 import { SearchableSelect } from './searchable-select';
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "./app-shell";
-import { ArrowIcon, BoxIcon, PlusIcon, SearchIcon } from "./icons";
+import { ArrowIcon, PlusIcon, SearchIcon } from "./icons";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "../lib/supabase";
 import { useSupplyTypes } from "../lib/use-supply-types";
 import type { ApprovedRepair } from "../lib/workshop";
 import { AddToBomButton } from "./add-to-bom-button";
 
-type Part = { id: string; description: string; manufacturer_part_number: string | null; supply_type: string; manufacturer?: { name: string } | null };
+type Part = { part_images?:PartThumbnailImage[]; id: string; description: string; manufacturer_part_number: string | null; supply_type: string; manufacturer?: { name: string } | null };
 type Manufacturer = { id: string; name: string };
 type Machine = { id: string; model: string | null; name: string; notes: string | null; manufacturer_id: string; category_id: string | null; manufacturer?: Manufacturer | null; category?: { name: string } | null };
 type Compatibility = { part_id: string; machine_id: string };
@@ -82,7 +83,7 @@ export function PartsDashboard({mode='parts'}:{mode?:'parts'|'machines'}) {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
     Promise.all([
-      readAllRows((from,to)=>supabase.from("parts").select("id,description,manufacturer_part_number,supply_type,manufacturer:companies(name)").eq("status", "active").order("description").order("id").range(from,to)),
+      readAllRows((from,to)=>supabase.from("parts").select("id,description,manufacturer_part_number,supply_type,manufacturer:companies(name),part_images(id,storage_path,caption,sort_order)").eq("status", "active").order("description").order("id").range(from,to)),
       supabase.from("companies").select("id,name,company_roles!inner(role)").eq("is_active", true).eq("company_roles.role", "manufacturer").order("name"),
       supabase.from("machines").select("id,model,name,notes,manufacturer_id,category_id,manufacturer:companies(id,name),category:machine_categories(name)").eq("is_active", true).order("name"),
       loadCatalogueCompatibility(),
@@ -176,7 +177,7 @@ export function PartsDashboard({mode='parts'}:{mode?:'parts'|'machines'}) {
         <div className="parts-table" aria-live="polite">
           <div className="table-head"><span>Part</span><span>Compatible machines</span><span>Part number</span><span>Supply</span><span></span></div>
           {loading ? <div className="empty-row">Loading approved parts…</div> : error ? <div className="empty-row">Parts could not be loaded: {error}</div> : hasPartLookup ? visible.map((part) => { const linkedMachines = compatibleMachinesByPart.get(part.id) ?? []; return <div className="bom-part-result" key={part.id}><a className="part-row" href={`/parts/${part.id}`} onClick={rememberScroll}>
-            <span className="part-title"><i><BoxIcon/></i><span><strong>{part.description}</strong><small>{part.manufacturer_part_number ?? "No part number"}</small></span></span>
+            <span className="part-title"><PartThumbnail images={part.part_images} description={part.description}/><span><strong>{part.description}</strong><small>{part.manufacturer_part_number ?? "No part number"}</small></span></span>
             <span className="machine-summary"><strong>{linkedMachines.length} {linkedMachines.length === 1 ? "machine" : "machines"}</strong><small>{linkedMachines.length ? <>{linkedMachines.slice(0, 2).map((machine) => machine.name).join(" · ")}{linkedMachines.length > 2 ? ` · +${linkedMachines.length - 2} more` : ""}</> : "No machines linked"}</small></span><span className="mono">{part.manufacturer_part_number ?? "—"}</span><span><em className={`supply ${part.supply_type}`}>{supplyTypes.find((item) => item.code === part.supply_type)?.name ?? part.supply_type}</em></span><span className="row-arrow"><ArrowIcon/></span>
           </a><AddToBomButton partId={part.id} compact/></div>; }) : <div className="empty-row lookup-prompt"><strong>{parts.length} approved parts available to look up.</strong><span>Enter a search or select a filter to view matching parts.</span></div>}
           {!loading && !error && hasPartLookup && visible.length === 0 && <div className="empty-row">No approved parts match the selected search and filters.</div>}

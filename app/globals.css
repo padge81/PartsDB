@@ -222,3 +222,9 @@ a.hub-card:hover { border-color:#c6a58d; box-shadow:0 8px 24px #102b3f0d; }
 /* Keep header and row tracks identical; separate part copy controls from supplier details. */
 .bom-part-copy { padding-right:16px; border-right:1px solid var(--line); }
 @media (max-width:900px) { .bom-part-copy { padding-right:0; padding-bottom:12px; border-right:0; border-bottom:1px solid var(--line); } }
+
+.part-title .part-thumbnail { overflow:hidden; padding:0; }
+.part-thumbnail img { display:block; width:40px; height:40px; object-fit:contain; background:#f5f7f8; }
+.part-thumbnail:focus-visible { outline:2px solid var(--orange); outline-offset:3px; }
+.part-thumbnail-preview { position:fixed; z-index:10000; width:min(240px,calc(100vw - 24px),calc(100vh - 24px)); aspect-ratio:1; padding:8px; border:1px solid var(--line); border-radius:12px; background:white; box-shadow:0 8px 28px #18324433; pointer-events:none; }
+.part-thumbnail-preview img { display:block; width:100%; height:100%; object-fit:contain; }
