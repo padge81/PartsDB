@@ -10,6 +10,7 @@ type Options = {
 };
 export function createRepairAutosave(options:Options){
   let state:AutosaveState={job:null,dirty:false,saving:false,error:'',backupError:'',deviceSaved:false};
+  let removing=false;
   let generation=0,running:Promise<RepairLog|null>|null=null,backupQueue:Promise<void>=Promise.resolve();
   let restoredSource:{key:string;id:string}|null=null;
   const listeners=new Set<(state:AutosaveState)=>void>();
@@ -27,22 +28,23 @@ export function createRepairAutosave(options:Options){
     return operation;
   }
   function open(job:RepairLog|null,dirty=false){
+    if(removing)throw new Error('Wait for deletion to finish.');
     if(running)throw new Error('Wait for the current save to finish.');
     generation++;state={job,dirty,saving:false,error:'',backupError:'',deviceSaved:false};emit();
     if(dirty)void backup().catch(()=>{});
   }
   function edit(patch:Partial<RepairLog>){
-    if(!state.job)return;
+    if(!state.job||removing)return;
     generation++;state={...state,job:{...state.job,...patch},dirty:true,error:'',deviceSaved:false};emit();
     void backup().catch(()=>{});
   }
   function flush():Promise<RepairLog|null>{
     if(running)return running;
-    if(!state.job||!state.dirty)return Promise.resolve(state.job);
+    if(removing||!state.job||!state.dirty)return Promise.resolve(state.job);
     running=Promise.resolve().then(async()=>{
       state={...state,saving:true,error:''};emit();
       try{
-        while(state.job&&state.dirty){
+        while(state.job&&state.dirty&&!removing){
           const snapshot=state.job,version=generation;
           // Try the device copy first, but still allow cloud saving if device storage is full.
           await backup().catch(()=>{});
@@ -70,5 +72,20 @@ export function createRepairAutosave(options:Options){
     });
     return running;
   }
-  return {recoverFrom:(key:string,id:string)=>{restoredSource={key,id};},getState:()=>({...state}),open,edit,flush,backup,subscribe(listener:(state:AutosaveState)=>void){listeners.add(listener);listener({...state});return()=>{listeners.delete(listener);};}};
+  async function remove(deleteLog:(job:RepairLog)=>Promise<void>){
+    if(removing)throw new Error('Deletion is already in progress.');
+    removing=true;
+    try{
+      // Finish any in-flight request, but do not save further edits before deletion.
+      await running?.catch(()=>{});
+      const current=state.job;
+      if(!current)return;
+      await deleteLog(current);
+      generation++;restoredSource=null;
+      state={job:null,dirty:false,saving:false,error:'',backupError:'',deviceSaved:false};emit();
+      await backupQueue.catch(()=>{});
+      await options.clear(current.id).catch(()=>{});
+    }finally{removing=false;}
+  }
+  return {remove,recoverFrom:(key:string,id:string)=>{restoredSource={key,id};},getState:()=>({...state}),open,edit,flush,backup,subscribe(listener:(state:AutosaveState)=>void){listeners.add(listener);listener({...state});return()=>{listeners.delete(listener);};}};
 }

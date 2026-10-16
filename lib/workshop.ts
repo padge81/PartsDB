@@ -29,7 +29,7 @@ export async function loadPreview(): Promise<RepairLog[]> {
 }
 export async function savePreview(log: RepairLog): Promise<RepairLog> {
   checkLog(log); const db = await previewDB(); const saved = { ...log, status:repairStatus(log.status), revision: log.revision + 1, updated_at: new Date().toISOString() };
-  return new Promise((resolve, reject) => { const tx = db.transaction('logs', 'readwrite'); const store = tx.objectStore('logs'); const request = store.get(log.id); request.onsuccess = () => { if (request.result && request.result.revision !== log.revision) { tx.abort(); return; } store.put(saved); }; tx.oncomplete = () => { db.close(); resolve(saved); }; tx.onabort = tx.onerror = () => { db.close(); reject(new Error('Save failed or another tab changed this log. Export your changes, then reload.')); }; });
+  return new Promise((resolve, reject) => { const tx = db.transaction('logs', 'readwrite'); const store = tx.objectStore('logs'); const request = store.get(log.id); request.onsuccess = () => { if ((!request.result && log.revision !== 0) || (request.result && request.result.revision !== log.revision)) { tx.abort(); return; } store.put(saved); }; tx.oncomplete = () => { db.close(); resolve(saved); }; tx.onabort = tx.onerror = () => { db.close(); reject(new Error('Save failed or another tab changed this log. Export your changes, then reload.')); }; });
 }
 export async function loadLive() {
   const db = getSupabaseBrowserClient(); if (!db) throw new Error('Database is not configured.');
@@ -108,4 +108,22 @@ export async function refreshRepairPhotos(log:RepairLog):Promise<RepairLog>{
     }catch{return step;}
   }));
   return {...log,steps};
+}
+
+export async function deleteRepair(log:RepairLog,preview=false):Promise<void>{
+  if(preview){
+    const db=await previewDB();
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction('logs','readwrite'),store=tx.objectStore('logs'),request=store.get(log.id);
+      request.onsuccess=()=>{
+        if(request.result&&request.result.revision!==log.revision){tx.abort();return;}
+        store.delete(log.id);
+      };
+      tx.oncomplete=()=>{db.close();resolve();};
+      tx.onabort=tx.onerror=()=>{db.close();reject(new Error('This repair changed in another tab. Reload before deleting.'));};
+    });
+  }
+  const db=getSupabaseBrowserClient();if(!db)throw new Error('Database is not configured.');
+  const {error}=await db.rpc('delete_repair_log',{log_id:log.id,expected_revision:log.revision});
+  if(error)throw new Error(error.message);
 }

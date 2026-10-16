@@ -69,3 +69,28 @@ test('late backup writes are serialized before cleanup and cannot resurrect an o
   saver.open(job(),true);await entered.promise;saver.edit({title:'Latest'});const pending=saver.flush();release.resolve();await pending;
   assert.equal(local,null);assert.equal(saver.getState().job.title,'Latest');assert.equal(saver.getState().dirty,false);
 });
+
+test('deletion waits for an in-flight save and prevents queued edits from recreating it',async()=>{
+  const entered=gate(),release=gate();let calls=0,removed;
+  const f=fixture(async log=>{calls++;entered.resolve();await release.promise;return {...log,revision:1};});
+  f.saver.open(job(),true);const saving=f.saver.flush();await entered.promise;
+  f.saver.edit({title:'Unsaved edit'});
+  const deleting=f.saver.remove(async log=>{removed=log;});
+  f.saver.edit({title:'Blocked edit'});await f.saver.backup();
+  release.resolve();await saving;await deleting;await f.saver.flush();
+  assert.equal(calls,1);assert.equal(removed.revision,1);
+  assert.equal(f.saver.getState().job,null);assert.equal(f.local(),null);
+});
+test('failed deletion retains the draft and permits saving again',async()=>{
+  const f=fixture(async log=>({...log,revision:1}));
+  f.saver.open(job(),true);
+  await assert.rejects(f.saver.remove(async()=>{throw new Error('Permission denied');}),/Permission denied/);
+  assert.equal(f.saver.getState().dirty,true);assert.equal(f.saver.getState().job.id,'repair');
+  await f.saver.flush();assert.equal(f.saver.getState().dirty,false);
+});
+test('an invalid unsaved draft can be deleted without trying to save it',async()=>{
+  const f=fixture(async()=>{throw new Error('Must not save');});
+  f.saver.open({...job(),title:''},true);
+  await f.saver.remove(async log=>assert.equal(log.revision,0));
+  assert.equal(f.saver.getState().job,null);assert.equal(f.local(),null);
+});
