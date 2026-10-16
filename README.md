@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.21.3` |
+| Application | `0.21.4` |
 | Database | `0.12.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -38,6 +38,12 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.21.4` / database `0.12.0` — 16 October 2026
+
+- Aligned BOM column headers with row content by giving the actions column the same fixed width in both grids.
+- Added a subtle divider and spacing between part copy controls and supplier details, switching to a horizontal divider in the stacked mobile layout.
+- No database migration or dependency changes.
 
 ### `0.21.3` / database `0.12.0` — 16 October 2026
 
