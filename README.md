@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.26.1` |
+| Application | `0.27.0` |
 | Database | `0.13.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -38,6 +38,15 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.27.0` / database `0.13.0` — 17 October 2026
+
+- Added a dedicated repair guide view with overview/preparation, Start guide, one annotated photo step at a time, Previous/Next, an all-steps list, parts used, testing/outcome and guide PDF download.
+- Machine links and approved/completed repair selections open guide view. Own drafts continue opening in the editor; the administrator review workflow retains its editor by default.
+- View guide saves pending edits first and remains in the editor on failure. Edit log appears only when existing ownership, publication and server-mode permissions allow editing. Guide photos omit markup controls and editing prompts.
+- The same view can be tried in the device-local Workshop preview. Added default-view regression coverage; autosave and database permissions remain unchanged.
+- No database migration or dependency changes.
+
 
 ### `0.26.1` / database `0.13.0` — 17 October 2026
 
