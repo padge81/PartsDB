@@ -1,7 +1,7 @@
 "use client";
 
 import {CopyValueButton} from "./copy-value-button";
-import {PartThumbnail,type PartThumbnailImage} from "./part-thumbnail";
+import {PartThumbnail,MachineThumbnail,type PartThumbnailImage} from "./part-thumbnail";
 import {loadCatalogueCompatibility} from '../lib/catalogue-compatibility';
 import {readAllRows} from '../lib/machine-compatibility';
 import { SearchableSelect } from './searchable-select';
@@ -16,7 +16,7 @@ import { AddToBomButton } from "./add-to-bom-button";
 
 type Part = { part_images?:PartThumbnailImage[]; id: string; description: string; manufacturer_part_number: string | null; supply_type: string; manufacturer?: { name: string } | null };
 type Manufacturer = { id: string; name: string };
-type Machine = { id: string; model: string | null; name: string; notes: string | null; manufacturer_id: string; category_id: string | null; manufacturer?: Manufacturer | null; category?: { name: string } | null };
+type Machine = { image?:{storage_path:string;caption:string|null}|null; id: string; model: string | null; name: string; notes: string | null; manufacturer_id: string; category_id: string | null; manufacturer?: Manufacturer | null; category?: { name: string } | null };
 type Compatibility = { part_id: string; machine_id: string };
 type Category = { id: string; name: string };
 type PartCategory = { part_id: string; category_id: string };
@@ -86,7 +86,7 @@ export function PartsDashboard({mode='parts'}:{mode?:'parts'|'machines'}) {
     Promise.all([
       readAllRows((from,to)=>supabase.from("parts").select("id,description,manufacturer_part_number,supply_type,manufacturer:companies(name),part_images(id,storage_path,caption,sort_order)").eq("status", "active").order("description").order("id").range(from,to)),
       supabase.from("companies").select("id,name,company_roles!inner(role)").eq("is_active", true).eq("company_roles.role", "manufacturer").order("name"),
-      supabase.from("machines").select("id,model,name,notes,manufacturer_id,category_id,manufacturer:companies(id,name),category:machine_categories(name)").eq("is_active", true).order("name"),
+      supabase.from("machines").select("id,model,name,notes,manufacturer_id,category_id,manufacturer:companies(id,name),category:machine_categories(name),image:machine_images(storage_path,caption)").eq("is_active", true).order("name"),
       loadCatalogueCompatibility(),
       supabase.from("machine_categories").select("id,name").eq("is_active", true).order("name"),
       supabase.from("categories").select("id,name").eq("is_active", true).order("name"),
@@ -193,7 +193,7 @@ export function PartsDashboard({mode='parts'}:{mode?:'parts'|'machines'}) {
       {mode==='machines'&&<section className="results-section machine-search-section">
         <div className="results-meta"><div><h2>Search machines</h2><span>{hasMachineLookup ? `${visibleMachines.length} results` : `${machines.length} available`}</span></div></div>
         <div className="search-surface"><div className="search-box"><SearchIcon/><input value={machineQuery} onChange={(e) => setMachineQuery(e.target.value)} placeholder="Search machine name or model…" aria-label="Search machines"/></div><div className="filter-row"><label>Company<SearchableSelect searchLabel="manufacturers" value={machineCompanyId} onChange={(e) => setMachineCompanyId(e.target.value)}><option value="">All companies</option>{manufacturers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</SearchableSelect></label><label>Category<SearchableSelect searchLabel="categories" value={machineCategoryId} onChange={(e) => setMachineCategoryId(e.target.value)}><option value="">All categories</option>{machineCategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</SearchableSelect></label><button className="clear-button" onClick={() => { setMachineQuery(""); setMachineCompanyId(""); setMachineCategoryId(""); }}>Clear filters</button></div></div>
-        <div className="machine-results">{loading ? <div className="empty-row">Loading machines…</div> : machineError ? <div className="empty-row">Machines could not be loaded: {machineError}</div> : hasMachineLookup ? visibleMachines.map((machine) => <a href={`/machines/${machine.id}`} key={machine.id} onClick={rememberScroll}><strong>{machine.name}</strong><span>{machine.manufacturer?.name ?? "—"}{machine.model ? ` · ${machine.model}` : ""}</span><small>{machine.category?.name ?? "Uncategorised"}</small><ArrowIcon/></a>) : <div className="empty-row lookup-prompt"><strong>{machines.length} machines available to look up.</strong><span>Enter a search or select a filter to view matching machines.</span></div>}{!loading && !machineError && hasMachineLookup && !visibleMachines.length && <div className="empty-row">No machines match the selected search and filters.</div>}</div>
+        <div className="machine-results">{loading ? <div className="empty-row">Loading machines…</div> : machineError ? <div className="empty-row">Machines could not be loaded: {machineError}</div> : hasMachineLookup ? visibleMachines.map((machine) => <a href={`/machines/${machine.id}`} key={machine.id} onClick={rememberScroll}><MachineThumbnail image={machine.image} description={machine.name}/><strong>{machine.name}</strong><span>{machine.manufacturer?.name ?? "—"}{machine.model ? ` · ${machine.model}` : ""}</span><small>{machine.category?.name ?? "Uncategorised"}</small><ArrowIcon/></a>) : <div className="empty-row lookup-prompt"><strong>{machines.length} machines available to look up.</strong><span>Enter a search or select a filter to view matching machines.</span></div>}{!loading && !machineError && hasMachineLookup && !visibleMachines.length && <div className="empty-row">No machines match the selected search and filters.</div>}</div>
         {hasMachineLookup&&!machineError&&<section className="results-section"><div className="results-meta"><div><h2>Approved repair logs</h2><span>For the machines matching your search</span></div></div><div className="parts-table">{repairError?<div className="empty-row">{repairError}</div>:loading?<div className="empty-row">Loading repair logs…</div>:repairs.filter(r=>visibleMachines.some(m=>m.id===r.machine_id)).map(r=><a key={r.id} className="part-row machine-part-row" href={`/workshop/logs?log=${r.id}`} onClick={rememberScroll}><span className="part-title"><span><strong>{r.title}</strong><small>{machines.find(m=>m.id===r.machine_id)?.name??r.machine_name} · {r.job_date}</small></span></span><span className="row-arrow"><ArrowIcon/></span></a>)}{!loading&&!repairError&&!repairs.some(r=>visibleMachines.some(m=>m.id===r.machine_id))&&<div className="empty-row">No approved repair logs for these machines yet.</div>}</div></section>}
       </section>}
     </main>}</AppShell>

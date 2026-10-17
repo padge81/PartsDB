@@ -28,3 +28,10 @@ test('Parts opens search directly and has no Overview option',()=>{
  assert.equal(activeModule('/parts/overview'),'parts');
  assert.equal(activeModuleLink('/parts/search','/parts/overview'),false);
 });
+
+test('Machines opens search directly and has no Overview option',()=>{
+ assert.equal(modules.find(item=>item.id==='machines').href,'/machines/search');
+ assert.equal(moduleLinks.machines.some(item=>item.title==='Overview'),false);
+ assert.equal(moduleLinks.machines[0].href,'/machines/search');
+ assert.equal(activeModule('/machines/search'),'machines');
+});

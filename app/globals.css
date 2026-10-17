@@ -269,3 +269,9 @@ a.hub-card:hover { border-color:#c6a58d; box-shadow:0 8px 24px #102b3f0d; }
 /* Keep primary and module navigation together, including their wrapped mobile heights. */
 .app-navigation { position:sticky; top:0; z-index:20; flex:none; background:#fff; box-shadow:0 2px 8px #1832440a; }
 .app-navigation .topbar { position:relative; top:auto; z-index:auto; }
+
+.machine-results>a { grid-template-columns:40px minmax(0,1fr) auto; }
+.machine-results>a>.part-thumbnail { grid-column:1; grid-row:1/4; width:40px; height:40px; display:grid; place-items:center; border-radius:8px; overflow:hidden; background:#e9f0f3; color:var(--navy-2); }
+.machine-results>a>strong,.machine-results>a>span,.machine-results>a>small { grid-column:2; min-width:0; overflow-wrap:anywhere; }
+.machine-results>a>svg { grid-column:3; grid-row:1/4; }
+.machine-results .part-thumbnail>svg { grid-column:auto; grid-row:auto; }
