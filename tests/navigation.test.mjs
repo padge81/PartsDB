@@ -13,18 +13,18 @@ test('secondary navigation marks only its exact destination or supported alias',
  assert.equal(activeModuleLink('/workshop/logs','/workshop/logs'),true);
  assert.equal(activeModuleLink('/requests/123','/requests'),true);
 });
-test('each module has an overview and every module action has a route',async()=>{
+test('every module entry and action has a route',async()=>{
  const {existsSync}=await import('node:fs');
  for(const itemModule of modules){
-  assert.equal(moduleLinks[itemModule.id][0].title,'Overview');
   assert.ok(existsSync('app'+itemModule.href+'/page.tsx'),itemModule.href);
   for(const item of moduleLinks[itemModule.id])assert.ok(existsSync('app'+item.href+'/page.tsx'),item.href);
  }
 });
 
-test('Parts opens search directly while Overview stays available separately',()=>{
+test('Parts opens search directly and has no Overview option',()=>{
  assert.equal(modules.find(item=>item.id==='parts').href,'/parts/search');
- assert.equal(moduleLinks.parts.find(item=>item.title==='Overview').href,'/parts/overview');
+ assert.equal(moduleLinks.parts.some(item=>item.title==='Overview'||item.href==='/parts/overview'),false);
+ assert.equal(moduleLinks.parts[0].href,'/parts/search');
  assert.equal(activeModule('/parts/overview'),'parts');
  assert.equal(activeModuleLink('/parts/search','/parts/overview'),false);
 });
