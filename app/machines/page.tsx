@@ -1,2 +1,2 @@
-import {ModuleLanding} from '../../components/module-landing';
-export default function Page(){return <ModuleLanding module="machines"/>;}
+import {redirect} from 'next/navigation';
+export default function Page(){redirect('/machines/search');}

@@ -9,9 +9,13 @@ export type PartThumbnailImage={id:string;storage_path:string;caption:string|nul
 export function PartThumbnail({images,description}:{images?:PartThumbnailImage[];description:string}){
   const first=[...(images??[])].sort((a,b)=>a.sort_order-b.sort_order||a.id.localeCompare(b.id))[0];
   // Reset image loading/preview state whenever the selected image changes.
-  return <Thumbnail key={first?.storage_path??"empty"} photo={first} description={description}/>;
+  return <Thumbnail key={first?.storage_path??"empty"} photo={first} description={description} bucket="part-images"/>;
 }
-function Thumbnail({photo,description}:{photo?:PartThumbnailImage;description:string}){
+export function MachineThumbnail({image,description}:{image?:{storage_path:string;caption:string|null}|null;description:string}){
+  const photo=image?{...image,id:image.storage_path,sort_order:0}:undefined;
+  return <Thumbnail key={image?.storage_path??"empty"} photo={photo} description={description} bucket="machine-images"/>;
+}
+function Thumbnail({photo,description,bucket}:{photo?:PartThumbnailImage;description:string;bucket:"part-images"|"machine-images"}){
   const anchor=useRef<HTMLElement>(null);
   const [url,setUrl]=useState(""),[failed,setFailed]=useState(false);
   const [preview,setPreview]=useState<{left:number;top:number}|null>(null);
@@ -22,7 +26,7 @@ function Thumbnail({photo,description}:{photo?:PartThumbnailImage;description:st
     let alive=true,started=false,timer:ReturnType<typeof setInterval>|undefined;
     async function sign(){
       try{
-        const result=await db!.storage.from("part-images").createSignedUrl(path!,3600);
+        const result=await db!.storage.from(bucket).createSignedUrl(path!,3600);
         if(alive&&!result.error&&result.data)setUrl(result.data.signedUrl);
       }catch{/* A missing photo must not prevent searching for parts. */}
     }
@@ -33,7 +37,7 @@ function Thumbnail({photo,description}:{photo?:PartThumbnailImage;description:st
     const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting)){start();observer.disconnect();}},{rootMargin:"160px"});
     if(anchor.current)observer.observe(anchor.current);
     return()=>{alive=false;observer.disconnect();if(timer)clearInterval(timer);};
-  },[path]);
+  },[path,bucket]);
   useEffect(()=>{
     if(!preview)return;
     const close=()=>setPreview(null);
