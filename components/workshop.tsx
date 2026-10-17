@@ -1,5 +1,7 @@
 'use client';
 /* eslint-disable @next/next/no-img-element -- Thumbnails use precompressed private or device-local images. */
+import {RepairGuide} from './repair-guide';
+import {shouldViewRepair} from '../lib/repair-view';
 import { SearchableSelect } from './searchable-select';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { repairStatus } from '../lib/repair-status';
@@ -22,6 +24,7 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
   const [logs,setLogs] = useState<RepairLog[]>([]), [job,setJob] = useState<RepairLog|null>(null);
   const [machines,setMachines] = useState<Choice[]>([]), [parts,setParts] = useState<Choice[]>([]);
   const [partsMachineId,setPartsMachineId]=useState<string|null>(null),[partsLoading,setPartsLoading]=useState(false),[partsError,setPartsError]=useState('');
+  const [guideMode,setGuideMode]=useState(false);
   const [mobileEditor,setMobileEditor]=useState(false);
   const editor=useRef<HTMLElement>(null);
   const [scope,setScope]=useState(reviewMode?'pending':'mine');
@@ -63,7 +66,7 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
       if(preview) { const saved = await loadPreview(); if(alive) { const all = saved.length ? saved : [demoLog()]; setLogs(all); const firstDraft=all.find(r=>r.status==='draft');autosaver.open(firstDraft??null,firstDraft?.revision===0); setMachines([{id:'demo-machine',name:'Example claw machine'},{id:'demo-hockey',name:'Example hockey machine'}]); } }
       else { const result = await loadLive(); if(alive) {setLogs(result.records); const requested=new URLSearchParams(window.location.search).get('log');
         const initial=requested?result.records.find(r=>r.id===requested):result.records.find(r=>reviewMode?r.publication_status==='pending':r.owner_id===profile.id&&r.status==='draft');
-        autosaver.open(initial??null);if(requested){setScope('all');setFilter('all');setMobileEditor(!!initial);if(!initial)setError('This repair is unavailable or you do not have permission to view it.');} setMachines(result.machines);} }
+        autosaver.open(initial??null);setGuideMode(!!initial&&shouldViewRepair(initial,profile.id,reviewMode,new URLSearchParams(window.location.search).get('view')));if(requested){setScope('all');setFilter('all');setMobileEditor(!!initial);if(!initial)setError('This repair is unavailable or you do not have permission to view it.');} setMachines(result.machines);} }
     } catch(e) {if(alive) setError(e instanceof Error ? e.message : 'Could not load workshop.');} finally {if(alive)setLoading(false);}
   })(); return () => {alive = false;}; },[preview,profile.id,reviewMode,recoveryAccount,autosaver]);
   const editorVisible=mobileEditor||Boolean(error||saveInfo.error||saveInfo.backupError);
@@ -105,7 +108,7 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
   function stepUpdate(id:string,patch:Partial<RepairStep>){const current=autosaver.getState().job;if(current)update({steps:current.steps.map(s=>s.id===id?{...s,...patch}:s)});}
   async function select(log:RepairLog){
     if(busy)return;setBusy(true);setError('');
-    try{await autosaver.flush();const current=autosaver.getState().job;autosaver.open(current?.id===log.id?current:log);setActiveStepId(null);setMessage('');setSection('record');setMobileEditor(true);}
+    try{await autosaver.flush();const current=autosaver.getState().job;const selected=current?.id===log.id?current:log;autosaver.open(selected);setGuideMode(shouldViewRepair(selected,profile.id,reviewMode));setActiveStepId(null);setMessage('');setSection('record');setMobileEditor(true);}
     catch(e){setError(e instanceof Error?e.message:'Save failed. Your draft has been kept.');}
     finally{setBusy(false);}
   }
@@ -118,7 +121,7 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
   async function create(){
     if(busy||standby)return;setBusy(true);setError('');
     try{await autosaver.flush();const created=newLog();created.owner_id=profile.id;created.publication_status='private';created.technician=profile.display_name??'';
-      autosaver.open(created,true);setScope('mine');setFilter('draft');setSearch('');setMobileEditor(true);setActiveStepId(null);setSection('record');setMessage('');setView('repairs');
+      autosaver.open(created,true);setGuideMode(false);setScope('mine');setFilter('draft');setSearch('');setMobileEditor(true);setActiveStepId(null);setSection('record');setMessage('');setView('repairs');
     }catch(e){setError(e instanceof Error?e.message:'Save failed. Your draft has been kept.');}
     finally{setBusy(false);}
   }
@@ -142,6 +145,15 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
     }catch(e){setError(e instanceof Error?e.message:'The repair could not be deleted.');}
     finally{setBusy(false);}
   }
+  async function showGuide(){
+    if(!job||busy)return;setBusy(true);setError('');setMessage('');
+    try{
+      if(!readonly)await autosaver.flush();
+      if(autosaver.getState().dirty)throw new Error('Save this repair before viewing the guide.');
+      setActiveStepId(null);setGuideMode(true);setMobileEditor(true);
+    }catch(e){setError(e instanceof Error?e.message:'The guide could not be opened.');}
+    finally{setBusy(false);}
+  }
   async function save(){
     if(!job||readonly)return;setError('');setMessage('');
     try{await autosaver.flush();setMessage(preview?'Saved on this device.':'Saved to Workshop. Available on your other signed-in devices.');}
@@ -154,7 +166,7 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
       await autosaver.flush();
       const source={...draft.log,status:repairStatus(draft.log.status)};
       const recovered=preview?source:await refreshRepairPhotos(source);
-      autosaver.recoverFrom(draft.key,draft.log.id);autosaver.open(recovered,true);await autosaver.backup();
+      autosaver.recoverFrom(draft.key,draft.log.id);autosaver.open(recovered,true);setGuideMode(false);await autosaver.backup();
       setScope('all');setFilter('all');setMobileEditor(true);setSection('record');setView('repairs');setActiveStepId(null);
       setMessage('Device draft restored. Automatic saving will check for changes from other devices.');
     }catch(e){setError(e instanceof Error?e.message:'Recovery could not be opened. The device copy is still available.');}
@@ -208,13 +220,13 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
   const activeStepIndex=job?.steps.findIndex(step=>step.id===activeStepId)??-1;
   const activeStep=job?.steps[activeStepIndex];
   function moveStep(index:number,offset:number){if(!job||busy||readonly||index+offset<0||index+offset>=job.steps.length)return;const next=[...job.steps];[next[index],next[index+offset]]=[next[index+offset],next[index]];update({steps:next});}
-  async function output(kind:'pdf'|'zip'){
+  async function output(kind:'pdf'|'zip',pdfMode=exportMode){
     if(!job||busy)return;setBusy(true);setError('');
     try{
       const saved=readonly?job:await autosaver.flush();
       if(!saved)throw new Error('No repair selected.');
       if(readonly&&dirty)throw new Error('This repair cannot be saved in the current mode. Restore editing or download the device recovery copy.');
-      if(kind==='pdf')await exportRepairPdf(saved,exportMode,preview);else await exportRepairArchive([saved]);
+      if(kind==='pdf')await exportRepairPdf(saved,pdfMode,preview);else await exportRepairArchive([saved]);
       setMessage(kind==='pdf'?'Saved repair PDF downloaded.':'Saved repair ZIP downloaded.');
     }catch(e){setError((e instanceof Error?e.message:'Export failed.')+' Export did not complete. Your on-screen draft is retained.');}
     finally{setBusy(false);}
@@ -229,8 +241,8 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
     <section ref={editor} tabIndex={-1} className="wk-editor" aria-label="Repair editor">
       <button className="button secondary wk-back-to-library" disabled={busy||loading} onClick={()=>void showLibrary()}>← Back to repair list</button>
       {(error||saveInfo.error||saveInfo.backupError)&&<div className="wk-alert" role="alert">{error||saveInfo.error}{saveInfo.backupError&&<p>{saveInfo.backupError}</p>}{dirty&&<p>Keep this page open until saved. You can retry with Save now.</p>}{dirty&&job&&<button className="button secondary" disabled={busy} onClick={()=>void recoveryExport({key:'',account:recoveryAccount,session:'',savedAt:new Date().toISOString(),log:job})}>Download unsaved recovery ZIP</button>}</div>}{message&&<div className="wk-message" role="status">{message}</div>}
-      {!job?<div className="wk-empty"><h2>Your next repair starts here</h2><p>Create a log, take photos and build a guide as you work.</p><button className="button primary" disabled={loading||busy||standby} onClick={create}>New repair</button></div>:<>
-        <div className="wk-editor-top"><div><span className={`wk-status ${job.status}`}>{job.status.replace('_',' ')}</span><span className="wk-save-state">{saveStatus}</span><h2>{job.title}</h2></div><div className="wk-ref-actions"><button className="button primary" disabled={busy||readonly||saveInfo.saving} onClick={()=>void save()}>{saveInfo.saving?'Saving…':'Save now'}</button>{canDelete&&<button type="button" className="button danger" disabled={busy||standby} onClick={()=>void deleteJob()}>Delete repair</button>}</div></div>
+      {!job?<div className="wk-empty"><h2>Your next repair starts here</h2><p>Create a log, take photos and build a guide as you work.</p><button className="button primary" disabled={loading||busy||standby} onClick={create}>New repair</button></div>:guideMode?<RepairGuide key={job.id} job={job} canEdit={!readonly} busy={busy} preview={preview} onEdit={()=>{setGuideMode(false);setSection('record');}} onExport={()=>void output('pdf','guide')}/>:<>
+        <div className="wk-editor-top"><div><span className={`wk-status ${job.status}`}>{job.status.replace('_',' ')}</span><span className="wk-save-state">{saveStatus}</span><h2>{job.title}</h2></div><div className="wk-ref-actions"><button className="button secondary" disabled={busy||saveInfo.saving} onClick={()=>void showGuide()}>View guide</button><button className="button primary" disabled={busy||readonly||saveInfo.saving} onClick={()=>void save()}>{saveInfo.saving?'Saving…':'Save now'}</button>{canDelete&&<button type="button" className="button danger" disabled={busy||standby} onClick={()=>void deleteJob()}>Delete repair</button>}</div></div>
         {readonly&&<p className="wk-alert">{standby?'This server is in standby. Viewing and export remain available.':'Viewing only. Submitted and approved repairs can only be edited by an administrator.'}</p>}
         {!preview&&<RepairPublication key={job.id} job={job} owner={owner} admin={admin} busy={busy} standby={standby} dirty={dirty} onAction={(action,notes)=>void publicationAction(action,notes)}/>}
         {job.machine_id&&!preview&&<p className="wk-machine-link"><a href={`/machines/${job.machine_id}`}>Open linked machine →</a></p>}
@@ -248,6 +260,6 @@ function WorkshopEditor({preview = false,profile,siteMode,reviewMode=false}: {pr
         {section==='finish'&&<div className="wk-export"><div><p className="wk-eyebrow">TAKE IT TO THE BENCH</p><h3>A clear, printable record</h3><p>A4 layout, numbered photos and page numbers. Your repair is saved automatically before export.</p></div><div className="wk-export-actions"><label className="wk-label">PDF format<select disabled={busy} value={exportMode} onChange={e=>setExportMode(e.target.value as 'report'|'guide')}><option value="report">Repair report</option><option value="guide">Workshop guide</option></select></label><button disabled={busy} className="button primary" onClick={()=>void output('pdf')}>Download PDF</button><button disabled={busy} className="button secondary" onClick={()=>void output('zip')}>Export job ZIP</button><p className="wk-small">ZIP keeps the unmarked photos and editable annotations for future migration.</p></div></div>}
       </>}
     </section></div></div>
-    {activeStep&&job&&<RepairStepDialog step={activeStep} index={activeStepIndex} count={job.steps.length} busy={busy} readonly={readonly} dirty={dirty} saveStatus={saveStatus} error={error||saveInfo.error||saveInfo.backupError} message={message} onChange={patch=>stepUpdate(activeStep.id,patch)} onNavigate={index=>{flushStep();setActiveStepId(job.steps[index].id);}} onClose={()=>{flushStep();setActiveStepId(null);}} onSave={()=>void save()} onAdd={addTextStep} onMove={offset=>moveStep(activeStepIndex,offset)} onPhoto={file=>void setStepPhoto(activeStep.id,file)}/>}
+    {!guideMode&&activeStep&&job&&<RepairStepDialog step={activeStep} index={activeStepIndex} count={job.steps.length} busy={busy} readonly={readonly} dirty={dirty} saveStatus={saveStatus} error={error||saveInfo.error||saveInfo.backupError} message={message} onChange={patch=>stepUpdate(activeStep.id,patch)} onNavigate={index=>{flushStep();setActiveStepId(job.steps[index].id);}} onClose={()=>{flushStep();setActiveStepId(null);}} onSave={()=>void save()} onAdd={addTextStep} onMove={offset=>moveStep(activeStepIndex,offset)} onPhoto={file=>void setStepPhoto(activeStep.id,file)}/>}
   </main>;
 }
