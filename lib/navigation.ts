@@ -1,11 +1,11 @@
 export type ModuleId='parts'|'machines'|'workshop';
 export const modules=[
- {id:'parts',title:'Parts',description:'Find parts, check compatibility and prepare an order.',href:'/parts'},
+ {id:'parts',title:'Parts',description:'Find parts, check compatibility and prepare an order.',href:'/parts/search'},
  {id:'machines',title:'Machines',description:'Find a machine, its compatible parts and shared repair guides.',href:'/machines'},
  {id:'workshop',title:'Workshop',description:'Record repairs, build photo guides and keep bench references.',href:'/workshop'},
 ] as const;
 export const moduleLinks:Record<ModuleId,{title:string;href:string}[]>={
- parts:[{title:'Overview',href:'/parts'},{title:'Search parts',href:'/parts/search'},{title:'Add part',href:'/parts/new'},{title:'My requests',href:'/requests'},{title:'Parts list / BOM',href:'/bom'}],
+ parts:[{title:'Overview',href:'/parts/overview'},{title:'Search parts',href:'/parts/search'},{title:'Add part',href:'/parts/new'},{title:'My requests',href:'/requests'},{title:'Parts list / BOM',href:'/bom'}],
  machines:[{title:'Overview',href:'/machines'},{title:'Search machines',href:'/machines/search'}],
  workshop:[{title:'Overview',href:'/workshop'},{title:'Repair logs',href:'/workshop/logs'},{title:'Bench references',href:'/workshop/references'}],
 };

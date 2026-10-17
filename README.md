@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.24.4` |
+| Application | `0.25.0` |
 | Database | `0.13.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -38,6 +38,13 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.25.0` / database `0.13.0` — 17 October 2026
+
+- Home's Parts card and the main Parts tab now open Search parts directly. Existing /parts links redirect to search; the optional big-button overview remains under /parts/overview through the Overview tab.
+- Kept the main navigation and module option bar together in a sticky header so both remain available while scrolling, including wrapped phone layouts.
+- Updated navigation regression coverage, application revision and release log. No database migration or dependency changes.
+
 
 ### `0.24.4` / database `0.13.0` — 17 October 2026
 
