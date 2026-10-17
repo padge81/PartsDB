@@ -16,7 +16,15 @@ test('secondary navigation marks only its exact destination or supported alias',
 test('each module has an overview and every module action has a route',async()=>{
  const {existsSync}=await import('node:fs');
  for(const itemModule of modules){
-  assert.equal(moduleLinks[itemModule.id][0].href,itemModule.href);
+  assert.equal(moduleLinks[itemModule.id][0].title,'Overview');
+  assert.ok(existsSync('app'+itemModule.href+'/page.tsx'),itemModule.href);
   for(const item of moduleLinks[itemModule.id])assert.ok(existsSync('app'+item.href+'/page.tsx'),item.href);
  }
+});
+
+test('Parts opens search directly while Overview stays available separately',()=>{
+ assert.equal(modules.find(item=>item.id==='parts').href,'/parts/search');
+ assert.equal(moduleLinks.parts.find(item=>item.title==='Overview').href,'/parts/overview');
+ assert.equal(activeModule('/parts/overview'),'parts');
+ assert.equal(activeModuleLink('/parts/search','/parts/overview'),false);
 });

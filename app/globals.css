@@ -265,3 +265,7 @@ a.hub-card:hover { border-color:#c6a58d; box-shadow:0 8px 24px #102b3f0d; }
 .bom-part-copy { grid-template-columns:40px minmax(0,1fr); align-items:center; column-gap:12px; }
 .bom-part-text { min-width:0; display:grid; gap:4px; }
 .bom-part-copy .part-thumbnail { width:40px; height:40px; display:grid; place-items:center; border-radius:8px; overflow:hidden; background:#e9f0f3; color:var(--navy-2); }
+
+/* Keep primary and module navigation together, including their wrapped mobile heights. */
+.app-navigation { position:sticky; top:0; z-index:20; flex:none; background:#fff; box-shadow:0 2px 8px #1832440a; }
+.app-navigation .topbar { position:relative; top:auto; z-index:auto; }

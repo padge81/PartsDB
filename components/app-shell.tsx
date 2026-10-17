@@ -90,6 +90,7 @@ export function AppShell({ children, requireAdmin = false }: {
 
   return (
     <div className="app-frame">
+      <div className="app-navigation">
       <header className="topbar module-topbar">
         <a className="brand" href="/home" aria-label="PartsDB home"><span className="brand-mark"><BoxIcon/></span><span>PartsDB</span></a>
         <nav aria-label="Main navigation">
@@ -102,6 +103,7 @@ export function AppShell({ children, requireAdmin = false }: {
         </div>
       </header>
       {selectedModule&&<nav className="module-subnav" aria-label={selectedModule+' navigation'}>{moduleLinks[selectedModule].map(item=><a key={item.href} href={item.href} className={activeModuleLink(pathname,item.href)?'active':''} aria-current={activeModuleLink(pathname,item.href)?'page':undefined}>{item.title}{item.href==='/bom'&&<span className="nav-count">{bomCart.reduce((total,item)=>total+item.quantity,0)}</span>}</a>)}</nav>}
+      </div>
       {!isSupabaseConfigured && <div className="preview-banner">Interface preview · connect the Supabase browser key to use live data</div>}
       {siteMode === "standby" && <div className="site-mode-banner standby"><strong>Standby — read only</strong><span>Database and image changes are disabled on this server.</span>{profile.role === "admin" && <button type="button" onClick={() => void enableMaintenance()}>Enable maintenance</button>}</div>}
       {siteMode === "maintenance" && <div className="site-mode-banner maintenance"><strong>Maintenance — editing enabled</strong><span>Return this server to standby after restoring or testing.</span>{profile.role === "admin" && <button type="button" onClick={() => void changeSiteMode("standby")}>Return to standby</button>}</div>}
