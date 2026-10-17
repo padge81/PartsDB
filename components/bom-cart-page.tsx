@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { PartThumbnail, type PartThumbnailImage } from "./part-thumbnail";
 import { AppShell } from "./app-shell";
 import { BoxIcon, CopyIcon } from "./icons";
 import { clearBomCart, removeFromBom, updateBomItem, useBomCart } from "../lib/bom-cart";
 import { getSupabaseBrowserClient } from "../lib/supabase";
 import { useSupplyTypes } from "../lib/use-supply-types";
 
-type PartInfo = { id: string; description: string; manufacturer_part_number: string | null; supply_type: string };
+type PartInfo = { part_images?: PartThumbnailImage[]; id: string; description: string; manufacturer_part_number: string | null; supply_type: string };
 type SupplierInfo = { part_id: string; supplier_part_number: string | null; supplier?: { name: string } | null };
 type MachineInfo = { part_id: string; machine?: { name: string | null; model: string | null; manufacturer?: { name: string } | null } | null };
 
@@ -42,7 +43,7 @@ export function BomCartPage() {
   useEffect(() => {
     const supabase = getSupabaseBrowserClient(), requestedIds = partIdsKey ? partIdsKey.split(",") : []; if (!supabase || !requestedIds.length) return;
     Promise.all([
-      supabase.from("parts").select("id,description,manufacturer_part_number,supply_type").in("id", requestedIds),
+      supabase.from("parts").select("id,description,manufacturer_part_number,supply_type,part_images(id,storage_path,caption,sort_order)").in("id", requestedIds),
       supabase.from("part_suppliers").select("part_id,supplier_part_number,supplier:companies(name)").in("part_id", requestedIds).eq("preference_rank", 1).eq("is_active", true),
       supabase.from("part_machines").select("part_id,machine:machines(name,model,manufacturer:companies(name))").in("part_id", requestedIds),
     ]).then(([partResult, supplierResult, machineResult]) => { setParts((partResult.data ?? []) as PartInfo[]); setSuppliers((supplierResult.data ?? []) as unknown as SupplierInfo[]); setMachines((machineResult.data ?? []) as unknown as MachineInfo[]); setLoadedKey(partIdsKey); });
@@ -62,8 +63,11 @@ export function BomCartPage() {
       <div className="bom-head"><span>Part</span><span>Preferred supplier</span><span>Quantity</span><span>Notes</span><span></span></div>
       {cart.map((item) => { const part = parts.find((row) => row.id === item.partId), supplier = suppliers.find((row) => row.part_id === item.partId); return <article className="bom-row" key={item.partId}>
         <div className="bom-part-copy">
+          <PartThumbnail images={part?.part_images} description={part?.description ?? "Part"}/>
+          <div className="bom-part-text">
           <div className="value-with-copy"><a href={`/parts/${item.partId}`}><strong>{part?.description ?? (loading ? "Loading part…" : "Unavailable part")}</strong></a>{part?.description && <BomCopyButton value={part.description} label="Copy part description"/>}</div>
           <div className="value-with-copy"><a href={`/parts/${item.partId}`}><small>{part?.manufacturer_part_number || "No manufacturer part number"}</small></a>{part?.manufacturer_part_number && <BomCopyButton value={part.manufacturer_part_number} label="Copy manufacturer part number"/>}</div>
+          </div>
         </div>
         <span><strong>{supplier?.supplier?.name ?? "—"}</strong><small>{supplier?.supplier_part_number ?? "No supplier part number"}</small></span>
         <label>Quantity<input type="number" min="1" step="1" value={item.quantity} onChange={(event) => updateBomItem(item.partId, { quantity: Number(event.target.value) || 1 })}/></label>
