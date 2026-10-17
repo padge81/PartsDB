@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.26.0` |
+| Application | `0.26.1` |
 | Database | `0.13.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -38,6 +38,14 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.26.1` / database `0.13.0` — 17 October 2026
+
+- Added an X logs link to each machine search card, counting approved shared repairs for that machine. Zero-count links open the empty repair section; failed lookups show Logs unavailable rather than a false zero.
+- The link jumps to the machine's Approved repair logs section after asynchronous page loading, accounting for the sticky navigation height.
+- Paged approved-repair queries in search and machine details so counts and lists include results beyond the first 1,000 records. Private and pending logs remain excluded.
+- Updated revision and release log. No database migration or dependency changes.
+
 
 ### `0.26.0` / database `0.13.0` — 17 October 2026
 
