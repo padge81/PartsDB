@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.27.0` |
+| Application | `0.27.1` |
 | Database | `0.13.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -38,6 +38,12 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.27.1` / database `0.13.0` — 18 October 2026
+
+- Replaced the machine-profile compatible-parts list with a linked part count. Opens Parts search with that machine selected, including ordering-group compatibility.
+- Machine links reset unrelated saved search filters and scroll position; zero-part machines retain their filter rather than showing unrelated parts. Failed counts show an error instead of a misleading zero.
+- No database migration or dependency changes.
 
 ### `0.27.0` / database `0.13.0` — 17 October 2026
 

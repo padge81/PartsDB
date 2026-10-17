@@ -54,6 +54,7 @@ export function PartsDashboard({mode='parts'}:{mode?:'parts'|'machines'}) {
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [searchRestored, setSearchRestored] = useState(false);
   const scrollRestored = useRef(false);
+  const linkedMachine = useRef("");
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -61,10 +62,17 @@ export function PartsDashboard({mode='parts'}:{mode?:'parts'|'machines'}) {
         const saved = JSON.parse(window.sessionStorage.getItem(searchKey) ?? "null") as SavedSearch | null;
         if (saved) { setQuery(saved.query ?? ""); setManufacturerId(saved.manufacturerId ?? ""); setMachineId(saved.machineId ?? ""); setSupplyType(saved.supplyType ?? ""); setCategoryId(saved.categoryId ?? ""); setMachineQuery(saved.machineQuery ?? ""); setMachineCompanyId(saved.machineCompanyId ?? ""); setMachineCategoryId(saved.machineCategoryId ?? ""); }
       } catch { window.sessionStorage.removeItem(searchKey); }
+      const requestedMachine = mode === "parts" ? new URLSearchParams(window.location.search).get("machine") : null;
+      if (requestedMachine) {
+        linkedMachine.current = requestedMachine;
+        setQuery(""); setManufacturerId(""); setMachineId(requestedMachine); setSupplyType(""); setCategoryId("");
+        scrollRestored.current = true;
+        window.scrollTo({top:0});
+      }
       setSearchRestored(true);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [searchKey]);
+  }, [searchKey, mode]);
 
   useEffect(() => {
     if (!searchRestored) return;
@@ -142,7 +150,7 @@ export function PartsDashboard({mode='parts'}:{mode?:'parts'|'machines'}) {
     if (loading || error) return;
     const timer = window.setTimeout(() => {
       if (manufacturerId && !manufacturerIdsWithParts.has(manufacturerId)) setManufacturerId("");
-      if (machineId && !machineIdsWithParts.has(machineId)) setMachineId("");
+      if (machineId && machineId !== linkedMachine.current && !machineIdsWithParts.has(machineId)) setMachineId("");
     }, 0);
     return () => window.clearTimeout(timer);
   }, [loading, error, manufacturerId, machineId, manufacturerIdsWithParts, machineIdsWithParts]);
