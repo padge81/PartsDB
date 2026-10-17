@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.24.3` |
+| Application | `0.24.4` |
 | Database | `0.13.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -38,6 +38,13 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.24.4` / database `0.13.0` — 17 October 2026
+
+- Added the existing 40 px part-photo thumbnail and desktop hover/keyboard preview to BOM rows, using the first image in display order.
+- Preserved stacked description/part-number typography, separate copy controls, supplier divider and existing BOM actions. Missing photos retain the box icon.
+- Reused signed-link loading and image-error fallback from parts search. CSV format, database and dependencies are unchanged.
+
 
 ### `0.24.3` / database `0.13.0` — 17 October 2026
 
