@@ -33,7 +33,7 @@ export function RepairGuide({job,canEdit,busy,preview,onEdit,onExport}:{job:Repa
       </div>:<>
         {step.title&&<h4 className="guide-step-title">{step.title}</h4>}
         {step.instruction&&<p className="guide-instruction">{step.instruction}</p>}
-        {step.imageUrl?<RepairPhoto key={step.id} step={step} disabled viewOnly onChange={()=>{}}/>:step.image_path?<p className="wk-alert">This step's photo is unavailable. Reload the guide to try again.</p>:null}
+        {step.imageUrl?<RepairPhoto key={step.id} step={step} disabled viewOnly onChange={()=>{}}/>:step.image_path?<p className="wk-alert">This step’s photo is unavailable. Reload the guide to try again.</p>:null}
         <nav className="guide-step-nav" aria-label="Guide step navigation">
           <button className="button secondary" disabled={busy} onClick={()=>go(index-1)}>{index===0?'← Overview':'← Previous'}</button>
           {index<job.steps.length-1?<button className="button primary" disabled={busy} onClick={()=>go(index+1)}>Next →</button>:<span className="guide-last-step">Last step</span>}
