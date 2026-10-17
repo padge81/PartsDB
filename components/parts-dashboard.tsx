@@ -1,5 +1,6 @@
 "use client";
 
+import {CopyValueButton} from "./copy-value-button";
 import {PartThumbnail,type PartThumbnailImage} from "./part-thumbnail";
 import {loadCatalogueCompatibility} from '../lib/catalogue-compatibility';
 import {readAllRows} from '../lib/machine-compatibility';
@@ -174,12 +175,15 @@ export function PartsDashboard({mode='parts'}:{mode?:'parts'|'machines'}) {
 
       <section className="results-section">
         <div className="results-meta"><div><h2>Approved parts</h2><span>{hasPartLookup ? `${visible.length} results` : `${parts.length} available`}</span></div><label>Sort<select><option>Most relevant</option><option>Description A–Z</option></select></label></div>
-        <div className="parts-table" aria-live="polite">
-          <div className="table-head"><span>Part</span><span>Compatible machines</span><span>Part number</span><span>Supply</span><span></span></div>
-          {loading ? <div className="empty-row">Loading approved parts…</div> : error ? <div className="empty-row">Parts could not be loaded: {error}</div> : hasPartLookup ? visible.map((part) => { const linkedMachines = compatibleMachinesByPart.get(part.id) ?? []; return <div className="bom-part-result" key={part.id}><a className="part-row" href={`/parts/${part.id}`} onClick={rememberScroll}>
-            <span className="part-title"><PartThumbnail images={part.part_images} description={part.description}/><span><strong>{part.description}</strong><small>{part.manufacturer_part_number ?? "No part number"}</small></span></span>
-            <span className="machine-summary"><strong>{linkedMachines.length} {linkedMachines.length === 1 ? "machine" : "machines"}</strong><small>{linkedMachines.length ? <>{linkedMachines.slice(0, 2).map((machine) => machine.name).join(" · ")}{linkedMachines.length > 2 ? ` · +${linkedMachines.length - 2} more` : ""}</> : "No machines linked"}</small></span><span className="mono">{part.manufacturer_part_number ?? "—"}</span><span><em className={`supply ${part.supply_type}`}>{supplyTypes.find((item) => item.code === part.supply_type)?.name ?? part.supply_type}</em></span><span className="row-arrow"><ArrowIcon/></span>
-          </a><AddToBomButton partId={part.id} compact/></div>; }) : <div className="empty-row lookup-prompt"><strong>{parts.length} approved parts available to look up.</strong><span>Enter a search or select a filter to view matching parts.</span></div>}
+        <div className="parts-table search-parts-table" aria-live="polite">
+          <div className="search-parts-head"><span>Part</span><span>Compatible machines</span><span>Part number</span><span>Supply</span><span></span></div>
+          {loading ? <div className="empty-row">Loading approved parts…</div> : error ? <div className="empty-row">Parts could not be loaded: {error}</div> : hasPartLookup ? visible.map((part) => { const linkedMachines = compatibleMachinesByPart.get(part.id) ?? []; return <div className="search-part-row" key={part.id}>
+            <div className="search-part-description"><PartThumbnail images={part.part_images} description={part.description}/><div className="value-with-copy"><a href={`/parts/${part.id}`} onClick={rememberScroll}><strong>{part.description}</strong></a><CopyValueButton value={part.description} label="Copy part description"/></div></div>
+            <div className="machine-summary"><strong>{linkedMachines.length} {linkedMachines.length===1?"machine":"machines"}</strong><small>{linkedMachines.length?<>{linkedMachines.slice(0,2).map(machine=>machine.name).join(" · ")}{linkedMachines.length>2?` · +${linkedMachines.length-2} more`:""}</>:"No machines linked"}</small></div>
+            <div className="search-part-number"><span className="search-mobile-label">Part number</span><div className="value-with-copy"><span className="mono">{part.manufacturer_part_number||"—"}</span>{part.manufacturer_part_number&&<CopyValueButton value={part.manufacturer_part_number} label="Copy manufacturer part number"/>}</div></div>
+            <div className="search-part-supply"><em className={`supply ${part.supply_type}`}>{supplyTypes.find(item=>item.code===part.supply_type)?.name??part.supply_type}</em></div>
+            <div className="search-part-actions"><a href={`/parts/${part.id}`} onClick={rememberScroll} aria-label={`Open ${part.description}`}><ArrowIcon/></a><AddToBomButton partId={part.id} compact/></div>
+          </div>; }) : <div className="empty-row lookup-prompt"><strong>{parts.length} approved parts available to look up.</strong><span>Enter a search or select a filter to view matching parts.</span></div>}
           {!loading && !error && hasPartLookup && visible.length === 0 && <div className="empty-row">No approved parts match the selected search and filters.</div>}
         </div>
       </section>
