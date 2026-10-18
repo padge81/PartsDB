@@ -28,10 +28,12 @@ export function LoginScreen() {
     }
     setBusy(true);
     setMessage("");
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setBusy(false);
-    if (error) setMessage(error.message);
-    else router.push("/home");
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) setMessage(error.message);
+      else router.push("/home");
+    } catch { setMessage("Could not connect. Please check your connection and try again."); }
+    finally { setBusy(false); }
   }
 
   return (

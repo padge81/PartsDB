@@ -7,7 +7,7 @@ import Image from "next/image";
 import { AppShell, type Profile } from "./app-shell";
 import { PlusIcon } from "./icons";
 import { getSupabaseBrowserClient } from "../lib/supabase";
-import { formatBytes, prepareImage, type PreparedImage } from "../lib/image-compression";
+import { formatBytes, prepareImages, type PreparedImage } from "../lib/image-compression";
 import { useSupplyTypes } from "../lib/use-supply-types";
 import { CategoryCheckboxes } from "./category-checkboxes";
 import { OrderingGroupSelector } from "./ordering-group-selector";
@@ -70,7 +70,7 @@ export function PartRequestForm() {
     const selected = Array.from(event.target.files ?? []); event.target.value = ""; if (!selected.length) return;
     if (files.length + selected.length > 8) { setMessage("A maximum of 8 images can be added to one request."); return; }
     setProcessingImages(true); setMessage("");
-    try { const prepared = await Promise.all(selected.map(prepareImage)); previewUrls.current.push(...prepared.map((image) => image.previewUrl)); setFiles((current) => [...current, ...prepared]); }
+    try { const prepared = await prepareImages(selected); previewUrls.current.push(...prepared.map((image) => image.previewUrl)); setFiles((current) => [...current, ...prepared]); }
     catch (error) { setMessage(error instanceof Error ? error.message : "One or more images could not be processed."); }
     setProcessingImages(false);
   }
@@ -80,6 +80,7 @@ export function PartRequestForm() {
   function selectMachine(id: string) {
     setMachineId(id);
     const machine = machines.find((item) => item.id === id);
+    if (!machine) { setMachineName(""); setMachineModel(""); }
     if (machine) { setMachineManufacturerId(machine.manufacturer?.id ?? ""); setMachineManufacturer(machine.manufacturer?.name ?? ""); setMachineName(machine.name); setMachineModel(machine.model ?? ""); }
   }
 
@@ -138,7 +139,7 @@ export function PartRequestForm() {
       <section className="form-card"><div className="detail-card-heading"><h2>Machine compatibility</h2></div><div className="form-grid">
         <label>Machine Manufacturer<SearchableSelect searchLabel="manufacturers" value={machineManufacturerId} onChange={(e) => selectMachineManufacturer(e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</SearchableSelect></label>
         <label>Machine Name<MachineSearchSelect machines={machines} selectedId={machineId} manufacturerId={machineManufacturerId} onSelect={selectMachine}/><small>Start typing a machine name; its manufacturer will be selected automatically.</small></label>
-      </div><div className="additional-machines"><div className="detail-card-heading"><h3>Additional compatible machines</h3><button type="button" className="button secondary compact" onClick={() => setAdditionalMachines((current) => [...current, { manufacturer_id: "", machine_id: "" }])}>+ Add machine</button></div>{additionalMachines.length ? <div className="machine-link-list">{additionalMachines.map((row, index) => <div className="machine-link-row" key={index}><label>Machine Manufacturer<SearchableSelect searchLabel="manufacturers" value={row.manufacturer_id} onChange={(e) => updateAdditionalMachine(index, "manufacturer_id", e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((manufacturer) => <option key={manufacturer.id} value={manufacturer.id}>{manufacturer.name}</option>)}</SearchableSelect></label><label>Machine Name<SearchableSelect searchLabel="manufacturers" value={row.machine_id} onChange={(e) => updateAdditionalMachine(index, "machine_id", e.target.value)} disabled={!row.manufacturer_id}><option value="">Select machine</option>{machines.filter((machine) => machine.id !== machineId && machine.manufacturer?.id === row.manufacturer_id).map((machine) => <option key={machine.id} value={machine.id}>{machine.name ?? machine.model}</option>)}</SearchableSelect></label><button type="button" className="icon-remove" aria-label="Remove compatible machine" onClick={() => setAdditionalMachines((current) => current.filter((_, rowIndex) => rowIndex !== index))}>×</button></div>)}</div> : <p className="empty-detail">No additional machines added.</p>}</div></section>
+      </div><div className="additional-machines"><div className="detail-card-heading"><h3>Additional compatible machines</h3><button type="button" className="button secondary compact" onClick={() => setAdditionalMachines((current) => [...current, { manufacturer_id: "", machine_id: "" }])}>+ Add machine</button></div>{additionalMachines.length ? <div className="machine-link-list">{additionalMachines.map((row, index) => <div className="machine-link-row" key={index}><label>Machine Manufacturer<SearchableSelect searchLabel="manufacturers" value={row.manufacturer_id} onChange={(e) => updateAdditionalMachine(index, "manufacturer_id", e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((manufacturer) => <option key={manufacturer.id} value={manufacturer.id}>{manufacturer.name}</option>)}</SearchableSelect></label><label>Machine Name<SearchableSelect searchLabel="machines" value={row.machine_id} onChange={(e) => updateAdditionalMachine(index, "machine_id", e.target.value)} disabled={!row.manufacturer_id}><option value="">Select machine</option>{machines.filter((machine) => machine.id !== machineId && machine.manufacturer?.id === row.manufacturer_id).map((machine) => <option key={machine.id} value={machine.id}>{machine.name ?? machine.model}</option>)}</SearchableSelect></label><button type="button" className="icon-remove" aria-label="Remove compatible machine" onClick={() => setAdditionalMachines((current) => current.filter((_, rowIndex) => rowIndex !== index))}>×</button></div>)}</div> : <p className="empty-detail">No additional machines added.</p>}</div></section>
       <section className="form-card"><div className="detail-card-heading"><h2>Part information</h2><span>Required fields marked *</span></div><div className="form-grid">
         <label className="span-2">Part Description *<input required value={partDescription} onChange={(e) => setPartDescription(e.target.value)} /></label>
         <label>Part manufacturer<SearchableSelect searchLabel="manufacturers" value={partManufacturer} onChange={(e) => updatePartManufacturer(e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}</SearchableSelect></label>

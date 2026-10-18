@@ -62,7 +62,7 @@ async function makeTemplate() {
     Companies: [["Company Name", "Manufacturer", "Supplier", "Distributor", "Default Supplier", "Supply Type", "Website URL", "Ordering Information", "Notes"], ["Example Company", "Yes", "Yes", "No", "Example Company", "Unknown", "", "", ""]],
     Machines: [["Machine Name", "Machine Model", "Manufacturer"], ["Example Machine", "Optional model", "Example Manufacturer"]],
   });
-  const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const blob = new Blob([new Uint8Array(buffer)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   const url = URL.createObjectURL(blob); const anchor = document.createElement("a");
   anchor.href = url; anchor.download = "PartsDB-reference-import-template.xlsx"; anchor.click(); URL.revokeObjectURL(url);
 }

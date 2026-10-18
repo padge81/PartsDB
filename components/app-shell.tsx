@@ -37,7 +37,9 @@ export function AppShell({ children, requireAdmin = false }: {
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
+    let alive=true;
     supabase.auth.getUser().then(async ({ data, error: authError }) => {
+      if (!alive) return;
       if (authError || !data.user) {
         router.replace("/");
         return;
@@ -46,6 +48,7 @@ export function AppShell({ children, requireAdmin = false }: {
         supabase.from("profiles").select("id, display_name, role, is_active").eq("id", data.user.id).single(),
         supabase.from("system_metadata").select("key,value").in("key", ["database_revision", "site_mode"]),
       ]);
+      if (!alive) return;
       const metadataMap = Object.fromEntries((metadata ?? []).map((row) => [row.key, row.value]));
       setDatabaseRevision(metadataMap.database_revision ?? "unavailable");
       setSiteMode(["live", "standby", "maintenance"].includes(metadataMap.site_mode) ? metadataMap.site_mode as SiteMode : "standby");
@@ -53,7 +56,8 @@ export function AppShell({ children, requireAdmin = false }: {
       else if (!profileData.is_active) setError("This PartsDB account is inactive.");
       else setProfile(profileData as Profile);
       setLoading(false);
-    });
+    }).catch(()=>{if(alive){setError("Could not connect to PartsDB. Please reload or sign in again.");setLoading(false);}});
+    return()=>{alive=false;};
   }, [router]);
 
   async function changeSiteMode(mode: SiteMode) {

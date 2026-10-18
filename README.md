@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.27.1` |
+| Application | `0.28.0` |
 | Database | `0.13.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -24,6 +24,8 @@ The application footer displays both revisions so a frontend/database mismatch i
 
 ### Later expansion
 
+- Follow the prioritised [frontend review](docs/frontend-review-2026-10-18.md): atomic catalogue writes/upload retries, server-side search, lazy Workshop media and authenticated browser coverage.
+
 - Add machine manuals and service notes after machine search/details are stable.
 - Add controlled machine change requests with title, notes and compressed images.
 - Keep machine documents, notes, requests and images separate from part-request records.
@@ -38,6 +40,17 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.28.0` / database `0.13.0` — 18 October 2026
+
+- Reviewed frontend structure and recorded findings, validation and prioritised follow-ups in [Frontend review](docs/frontend-review-2026-10-18.md).
+- Indexed catalogue search, removed cross-module data loading, paged growing lookup lists, and added working sort controls and Ctrl/Cmd+K search focus.
+- Consolidated copy buttons and machine selection; fixed stale machine names on clearing selection. Added native photo dialog keyboard/focus behaviour and reduced-motion support.
+- Added BOM lookup failure/retry handling and export protection, stale-response guards, connection-error feedback and missing admin mutation error checks.
+- Process photo batches sequentially with failure cleanup; batch Workshop signed-photo requests. Compression settings and stored image formats are unchanged.
+- Added frontend TypeScript checking to CI, fixed existing type errors, and added search/sort/image cleanup regression coverage.
+- No schema, dependency or permission changes. Larger transactional-save, server-search and component-splitting work is recorded in the review.
+
 
 ### `0.27.1` / database `0.13.0` — 18 October 2026
 

@@ -49,6 +49,8 @@ export function MachineManager() {
     void load();
   }, [load]);
 
+  useEffect(()=>()=>{if(newImage)URL.revokeObjectURL(newImage.previewUrl);},[newImage]);
+
   const filteredMachines = useMemo(() => {
     const term = search.trim().toLocaleLowerCase();
     return machines.filter((machine) => !term || [machine.name, machine.model ?? "", machine.manufacturer?.name ?? "", machine.category?.name ?? ""].some((value) => value.toLocaleLowerCase().includes(term)));

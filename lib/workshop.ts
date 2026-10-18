@@ -1,3 +1,4 @@
+import {readAllRows} from './machine-compatibility';
 import {repairStatus,type RepairStatus} from './repair-status';
 import { getSupabaseBrowserClient } from './supabase';
 
@@ -34,18 +35,25 @@ export async function savePreview(log: RepairLog): Promise<RepairLog> {
 export async function loadLive() {
   const db = getSupabaseBrowserClient(); if (!db) throw new Error('Database is not configured.');
   const [logs, machines] = await Promise.all([
-    db.from('repair_logs').select('*,repair_log_parts(part_id,quantity,part:parts(description,manufacturer_part_number))').order('updated_at', { ascending: false }),
-    db.from('machines').select('id,name').eq('is_active', true).order('name').limit(1000),
+    readAllRows((from,to)=>db.from('repair_logs').select('*,repair_log_parts(part_id,quantity,part:parts(description,manufacturer_part_number))').order('updated_at', { ascending: false }).order('id').range(from,to)),
+    readAllRows((from,to)=>db.from('machines').select('id,name').eq('is_active', true).order('name').order('id').range(from,to)),
   ]);
   if (logs.error) throw new Error('Workshop storage is not ready: ' + logs.error.message);
   if (machines.error) throw new Error('The parts or machine catalogue could not be loaded.');
+  const paths = [...new Set<string>(logs.data.flatMap(row => (row.steps ?? []).map((step: RepairStep) => step.image_path)).filter(Boolean))];
+  const photoUrls = new Map<string, string>();
+  for (let offset = 0; offset < paths.length; offset += 100) {
+    const batch = paths.slice(offset, offset + 100);
+    const signed = await db.storage.from('repair-images').createSignedUrls(batch, 3600);
+    if (signed.error || signed.data?.length !== batch.length || signed.data.some(photo => !photo.signedUrl))
+      throw new Error('Repair photos could not be loaded. Please retry.');
+    signed.data.forEach((photo, index) => photoUrls.set(batch[index], photo.signedUrl));
+  }
   const records: RepairLog[] = [];
   for (const row of logs.data ?? []) {
     const steps: RepairStep[] = [];
     for (const step of row.steps ?? []) {
-      let imageUrl = '';
-      if (step.image_path) { const signed = await db.storage.from('repair-images').createSignedUrl(step.image_path, 3600); if (signed.error) throw new Error('A repair photo could not be loaded. Please retry.'); imageUrl = signed.data.signedUrl; }
-      steps.push({ ...step, imageUrl });
+      steps.push({ ...step, imageUrl: photoUrls.get(step.image_path) ?? '' });
     }
     records.push({ ...row, status:repairStatus(row.status), steps, parts: (row.repair_log_parts ?? []).map((p: { part_id: string; quantity: number; part: { description: string; manufacturer_part_number: string } }) => ({ part_id: p.part_id, quantity: p.quantity, description: p.part?.description ?? 'Unavailable part', number: p.part?.manufacturer_part_number ?? '' })) });
   }
