@@ -32,10 +32,11 @@ async function ensureCompany(supabase: SupabaseClient, name: string, role: "manu
   let id = existing.data?.id as string | undefined;
   if (!id) {
     const created = await supabase.from("companies").insert({ name }).select("id").single();
-    fail(created.error, `Could not create ${name}`); id = created.data.id;
+    fail(created.error, `Could not create ${name}`); if (!created.data?.id) throw new Error(`No ID returned for ${name}`); id = String(created.data.id);
   }
   const roleResult = await supabase.from("company_roles").upsert({ company_id: id, role }, { onConflict: "company_id,role" });
   fail(roleResult.error, `Could not assign the ${role} role to ${name}`);
+  if (!id) throw new Error(`No ID returned for ${name}`);
   return id;
 }
 
@@ -59,6 +60,7 @@ export async function approvePartRequest(supabase: SupabaseClient, request: Appr
   if (request.part_manufacturer) manufacturerId = await ensureCompany(supabase, request.part_manufacturer, "manufacturer");
   const createdPart = await supabase.from("parts").insert({ description: request.part_description, manufacturer_id: manufacturerId, manufacturer_part_number: request.manufacturer_part_number || null, notes: request.notes || null, supply_type: request.supply_type, status: "active", created_by: profileId, updated_by: profileId }).select("id").single();
   fail(createdPart.error, "Could not create the part");
+  if (!createdPart.data?.id) throw new Error("No ID returned for the created part");
   const partId = createdPart.data.id as string;
 
   if (request.category_ids?.length) {
@@ -98,7 +100,7 @@ export async function approvePartRequest(supabase: SupabaseClient, request: Appr
     let resolvedMachineId = mainMachineId;
     if (!resolvedMachineId) {
       const created = await supabase.from("machines").insert({ manufacturer_id: machineManufacturerId, name: request.machine_name, model: request.machine_model || null }).select("id").single();
-      fail(created.error, "Part created, but the machine could not be created"); resolvedMachineId = created.data.id;
+      fail(created.error, "Part created, but the machine could not be created"); if (!created.data?.id) throw new Error("No ID returned for the created machine"); resolvedMachineId = created.data.id;
     }
     const link = await supabase.from("part_machines").upsert({ part_id: partId, machine_id: resolvedMachineId }, { onConflict: "part_id,machine_id" });
     fail(link.error, "Part created, but the machine could not be linked");

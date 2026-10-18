@@ -283,3 +283,11 @@ a.hub-card:hover { border-color:#c6a58d; box-shadow:0 8px 24px #102b3f0d; }
 .machine-log-count:hover { text-decoration:underline; }
 .machine-log-count:focus-visible { outline:2px solid var(--orange); outline-offset:-3px; }
 .machine-repair-section { scroll-margin-top:160px; }
+
+/* Native modal keeps photo focus and Escape behaviour consistent with step editing. */
+dialog.image-lightbox { width:100vw; max-width:none; height:100dvh; max-height:none; margin:0; border:0; }
+dialog.image-lightbox:not([open]) { display:none; }
+dialog.image-lightbox::backdrop { background:rgba(5,17,26,.9); }
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after { scroll-behavior:auto !important; transition-duration:0.01ms !important; animation-duration:0.01ms !important; animation-iteration-count:1 !important; }
+}

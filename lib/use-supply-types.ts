@@ -11,15 +11,15 @@ const fallbackSupplyTypes: SupplyTypeOption[] = [
   { code: "dfl", name: "DFL" },
 ];
 
-export function useSupplyTypes() {
+export function useSupplyTypes(enabled = true) {
   const [supplyTypes, setSupplyTypes] = useState<SupplyTypeOption[]>(fallbackSupplyTypes);
 
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient(); if (!supabase) return;
+    const supabase = getSupabaseBrowserClient(); if (!supabase || !enabled) return;
     supabase.from("supply_types").select("code,name").eq("is_active", true).order("name").then(({ data }) => {
       if (data?.length) setSupplyTypes(data as SupplyTypeOption[]);
     });
-  }, []);
+  }, [enabled]);
 
   return supplyTypes;
 }
