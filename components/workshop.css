@@ -93,3 +93,11 @@
  .guide-header .button,.guide-step-nav .button { min-height:44px; }
  .guide-step-nav { position:sticky; bottom:0; background:#fff; z-index:2; }
 }
+
+details.wk-questions { margin-bottom:20px; }
+details.wk-questions>summary { cursor:pointer; font-weight:650; }
+details.wk-questions[open]>summary { margin-bottom:16px; }
+@media(max-width:700px) {
+  .wk-editor-top { flex-wrap:wrap; }
+  .wk-editor-top>.wk-ref-actions { width:100%; }
+}

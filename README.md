@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.28.0` |
+| Application | `0.28.1` |
 | Database | `0.13.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -40,6 +40,17 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.28.1` / database `0.13.0` — 21 October 2026
+
+- Simplified repair PDF export to one Download PDF action using the established Workshop guide layout; removed the report/guide selector and unused report renderer.
+- Added Download PDF to the editor header, renamed Finish & export to Export & notes, and collapsed the final questions into optional disclosures. Draft export does not require final notes; Completed validation is unchanged.
+- Omit entirely blank steps from PDFs without deleting them from the saved log; keep photo-only/text-only steps and number exported steps continuously. Omit empty fields/sections and retain recorded fault, tools, parts, testing and outcome.
+- Moved record/revision/export metadata to the footer to free photo space. Preserved portrait text beside photos, landscape text above photos, small centred captions and measured two/three-step pagination.
+- Refresh live photo links before PDF/ZIP export; missing saved photos fail PDF export visibly instead of being silently dropped.
+- Added sparse-log, recorded-content, blank-step and missing-photo regression cases; rendered and visually checked mixed-orientation and final-notes PDF samples.
+- No database migration or dependency changes. ZIP remains a separate portable archive with all saved steps.
+
 
 ### `0.28.0` / database `0.13.0` — 18 October 2026
 

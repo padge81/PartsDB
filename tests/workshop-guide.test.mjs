@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { jsPDF } from 'jspdf';
-import { appendGuideSteps } from '../lib/workshop-guide.ts';
+import { appendGuideSteps, createWorkshopGuide } from '../lib/workshop-guide.ts';
 
 function fixture() {
   const doc=new jsPDF({unit:'mm',format:'a4'}), texts=[], images=[];
@@ -49,8 +49,36 @@ test('long instructions continue across pages without clipping or losing the fin
   assert.ok(texts.every(t=>t.y<=272));assert.equal(images.length,1);
   assert.ok(doc.output().startsWith('%PDF'));
 });
-test('text-only steps need no image loading and blank instructions stay blank',async()=>{
+test('text-only steps need no image loading and completely empty steps are skipped',async()=>{
   const {doc,texts,images}=fixture();
-  await appendGuideSteps(doc,[{...step(1),imageUrl:undefined,title:''}],async()=>{throw new Error('unexpected image load');},22);
-  assert.equal(images.length,0);assert.deepEqual(texts.map(t=>t.text),['Step 1']);
+  await appendGuideSteps(doc,[{...step(1),imageUrl:undefined,title:'Text-only action',instruction:''},{...step(2),imageUrl:undefined,title:'',instruction:'  '}],async()=>{throw new Error('unexpected image load');},22);
+  assert.equal(images.length,0);assert.deepEqual(texts.map(t=>t.text),['Step 1 - Text-only action']);
+});
+
+const log=(extra={})=>({
+ id:'fixture-record',title:'Fixture repair',machine_id:null,machine_name:'',technician:'',job_date:'',
+ fault:'',tools:'',tests:'',outcome:'',status:'draft',revision:3,updated_at:'',parts:[],steps:[],...extra,
+});
+test('sparse draft exports without unfinished questions, placeholder sections or blank steps',async()=>{
+ const doc=await createWorkshopGuide(log({steps:[{...step(1),imageUrl:undefined,title:'  ',instruction:''}]}),false,portrait);
+ const pdf=doc.output();
+ for(const absent of ['Not recorded','Testing and verification','Outcome / outstanding work','Tools and preparation','Parts used','Machine:','Technician:','Step 1'])assert.ok(!pdf.includes(absent),absent);
+ assert.ok(pdf.includes('DRAFT - NOT A VERIFIED PROCEDURE'));
+ assert.equal(doc.getNumberOfPages(),1);
+});
+test('entered fault, preparation, parts, test and outcome are retained in the single guide',async()=>{
+ const doc=await createWorkshopGuide(log({fault:'FAULT_MARKER',tools:'TOOLS_MARKER',tests:'TEST_MARKER',outcome:'OUTCOME_MARKER',parts:[{quantity:2,description:'PART_MARKER',number:'ABC-123'}]}),false,portrait);
+ for(const marker of ['FAULT_MARKER','TOOLS_MARKER','TEST_MARKER','OUTCOME_MARKER','PART_MARKER','ABC-123'])assert.ok(doc.output().includes(marker),marker);
+});
+test('photo-only steps survive and empty gaps are renumbered only in the PDF',async()=>{
+ const {doc,texts,images}=fixture();
+ const steps=[{...step(1),title:'',instruction:''},{...step(2),imageUrl:undefined,title:' ',instruction:''},{...step(3),title:'',instruction:''}];
+ await appendGuideSteps(doc,steps,portrait,22);
+ assert.equal(images.length,2);
+ assert.deepEqual(texts.filter(t=>t.text.endsWith(' - Photo')).map(t=>t.text),['Step 1 - Photo','Step 2 - Photo']);
+ assert.equal(steps.length,3);
+});
+test('missing saved photo fails export instead of silently producing an incomplete guide',async()=>{
+ const {doc}=fixture();
+ await assert.rejects(appendGuideSteps(doc,[{...step(1),imageUrl:undefined,image_path:'saved/photo.webp'}],portrait,22),/photo is unavailable/);
 });

@@ -1,5 +1,5 @@
-import type { jsPDF } from 'jspdf';
-import type { RepairStep } from './workshop';
+import { jsPDF } from 'jspdf';
+import type { RepairLog, RepairStep } from './workshop';
 
 type Photo = { data: string; width: number; height: number };
 type Prepared = { number: number; title: string[]; body: string[]; photo?: Photo; portrait: boolean; minimum: number };
@@ -9,6 +9,7 @@ const titleLine = 5, bodyLine = 4.5;
 
 /** Measured rows keep photos, captions and ordinary step text on the same page. */
 export async function appendGuideSteps(doc: jsPDF, steps: RepairStep[], loadPhoto: (step: RepairStep) => Promise<Photo>, startY: number) {
+  steps = steps.filter(step => step.title.trim() || step.instruction.trim() || step.image_path || step.imageUrl);
   let y = startY, index = 0;
   const pending: Prepared[] = [];
   const newPage = () => { doc.addPage(); y = top; };
@@ -18,6 +19,7 @@ export async function appendGuideSteps(doc: jsPDF, steps: RepairStep[], loadPhot
     return doc.splitTextToSize(clean(value), w);
   }
   async function prepare(step: RepairStep, number: number): Promise<Prepared> {
+    if (step.image_path && !step.imageUrl) throw new Error('A step photo is unavailable. Reload the repair and try again.');
     const photo = step.imageUrl ? await loadPhoto(step) : undefined;
     const portrait = !!photo && photo.height > photo.width;
     const textWidth = portrait ? 94 : width;
@@ -71,4 +73,51 @@ export async function appendGuideSteps(doc: jsPDF, steps: RepairStep[], loadPhot
     if (pending.length || index < steps.length) newPage();
   }
   return y;
+}
+
+/** One printable guide, built from the content actually recorded. Empty fields are omitted. */
+export async function createWorkshopGuide(log: RepairLog, preview: boolean, loadPhoto: (step: RepairStep) => Promise<Photo>) {
+  const doc = new jsPDF({unit:'mm',format:'a4'});
+  let y = top;
+  const nextPage = () => { doc.addPage(); y = top; };
+  function text(value: string, size = 11, bold = false) {
+    if (!value.trim()) return;
+    doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);doc.setTextColor(23,39,53);
+    const lines: string[] = doc.splitTextToSize(clean(value),width);
+    for (const line of lines) {
+      if (y + size*.45 > bottom) nextPage();
+      doc.text(line,left,y); y += size*.45+1;
+    }
+    y += 3;
+  }
+  function section(title: string, value: string) {
+    if (!value.trim()) return;
+    if (y > bottom-25) nextPage();
+    text(title,12,true);text(value.trim());y+=3;
+  }
+  text('Workshop guide',10,true);
+  text(log.title,17,true);
+  text(`${preview?'DEMONSTRATION / ':''}${log.status==='completed'?'COMPLETED JOB - verify suitability before reuse':'DRAFT - NOT A VERIFIED PROCEDURE'}`,9,true);
+  const metadata = [
+    log.machine_name.trim() && 'Machine: '+log.machine_name.trim(),
+    [log.job_date && 'Date: '+log.job_date,log.technician.trim() && 'Technician: '+log.technician.trim()].filter(Boolean).join(' | '),
+  ].filter(Boolean).join('\n');
+  text(metadata,9);
+  section('Fault / task',log.fault);
+  section('Tools and preparation',log.tools);
+  if (log.parts.length) section('Parts used',log.parts.map(part=>`${part.quantity} x ${part.description}${part.number?' | '+part.number:''}`).join('\n'));
+  y = await appendGuideSteps(doc,log.steps,loadPhoto,y);
+  section('Testing and verification',log.tests);
+  section('Outcome / outstanding work',log.outcome);
+  const total=doc.getNumberOfPages();
+  for (let page=1;page<=total;page++) {
+    doc.setPage(page);doc.setDrawColor(210,218,224);doc.line(left,279,192,279);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(85,100,112);
+    const state=preview?'Preview':log.publication_status==='approved'?'Approved repair record':'Private repair record';
+    doc.text('PartsDB Workshop | '+state,left,284);
+    doc.text(`${page} / ${total}`,192,284,{align:'right'});
+    doc.setFontSize(7);
+    doc.text(clean(`Record: ${log.id} | Revision: ${log.revision} | Exported: ${new Date().toLocaleDateString('en-AU')}`),left,290);
+  }
+  return doc;
 }
