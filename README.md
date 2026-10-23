@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.28.1` |
+| Application | `0.28.2` |
 | Database | `0.13.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -40,6 +40,13 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.28.2` / database `0.13.0` — 23 October 2026
+
+- Added explicit validation for placeholder manufacturer part numbers such as “unknown”, with red field highlighting and instructions to leave unavailable numbers blank.
+- Duplicate approval errors now name the conflicting part number and match count, highlight exact matches in red and provide specific individual and bulk-review messages.
+- Kept description and machine similarity protection active when no manufacturer part number is available.
+
 
 ### `0.28.1` / database `0.13.0` — 21 October 2026
 
