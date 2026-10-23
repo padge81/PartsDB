@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getPlaceholderPartNumberMessage, isExactPartNumberMatch } from "./part-number-validation";
 
 export type ApprovalSupplier = { supplier_id?: string; supplier_name?: string; supplier_part_number?: string; ordering_information?: string; notes?: string; preference_rank?: number };
 export type ApprovalRequest = {
@@ -8,7 +9,7 @@ export type ApprovalRequest = {
   supplier_information?: ApprovalSupplier[] | null; notes?: string | null; review_notes?: string | null;
 };
 type RequestImage = { storage_path: string; kind: string | null; sort_order: number };
-type SimilarPart = { score: number };
+type SimilarPart = { score: number; number_match?: string | null };
 
 export class ApprovalSkipError extends Error {}
 
@@ -45,15 +46,22 @@ export async function approvePartRequest(supabase: SupabaseClient, request: Appr
   if (!request.part_description?.trim()) throw new ApprovalSkipError("Part description is required.");
   if (!request.supply_type) throw new ApprovalSkipError("Supply type is required.");
 
+  const partNumber = request.manufacturer_part_number?.trim() ?? "";
+  const placeholderPartNumberMessage = getPlaceholderPartNumberMessage(partNumber);
+  if (placeholderPartNumberMessage) throw new ApprovalSkipError(placeholderPartNumberMessage);
+
   const mainMachineId = await findMachineId(supabase, request.machine_manufacturer, request.machine_name);
   const machineIds = [...new Set([mainMachineId, ...(request.machine_ids ?? [])].filter(Boolean))] as string[];
   const duplicates = await supabase.rpc("find_similar_parts", {
-    candidate_number: request.manufacturer_part_number || "", candidate_description: request.part_description,
+    candidate_number: partNumber, candidate_description: request.part_description,
     candidate_machine_ids: machineIds, result_limit: 8,
   });
   fail(duplicates.error, "Could not run the duplicate check");
-  if (!allowDuplicateOverride && ((duplicates.data ?? []) as SimilarPart[]).some((part) => part.score >= .78)) {
-    throw new ApprovalSkipError("Possible duplicate requires individual review.");
+  const blockingDuplicates = ((duplicates.data ?? []) as SimilarPart[]).filter((part) => part.score >= .78);
+  if (!allowDuplicateOverride && blockingDuplicates.length) {
+    const exactNumberMatches = blockingDuplicates.filter((part) => isExactPartNumberMatch(part.number_match));
+    if (exactNumberMatches.length && partNumber) throw new ApprovalSkipError(`Manufacturer part number “${partNumber}” matches ${exactNumberMatches.length} existing part${exactNumberMatches.length === 1 ? "" : "s"}; open this request for individual review.`);
+    throw new ApprovalSkipError("A high-confidence description or machine match requires individual review.");
   }
 
   let manufacturerId: string | null = null;

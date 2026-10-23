@@ -294,3 +294,19 @@ test("standby mode is visible and blocks editing in the frontend and database", 
   assert.match(migration, /standby_storage_update/);
   assert.match(migration, /database_revision', '0\.8\.0'/);
 });
+
+
+test("approval identifies placeholder and exact duplicate part numbers", async () => {
+  const [editor, approval, validation] = await Promise.all([
+    readFile(new URL("../components/admin-request-editor.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/approve-part-request.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/part-number-validation.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(validation, /"unknown"/);
+  assert.match(validation, /Leave this field blank when the number is unavailable/);
+  assert.match(editor, /id="manufacturer-part-number"/);
+  assert.match(editor, /className="field-error-text"/);
+  assert.match(editor, /className="form-message error-message"/);
+  assert.match(editor, /exact-number-match/);
+  assert.match(approval, /Manufacturer part number.*matches/);
+});
