@@ -6,8 +6,8 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.28.2` |
-| Database | `0.13.0` |
+| Application | `0.28.3` |
+| Database | `0.13.1` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
 
@@ -40,6 +40,13 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.28.3` / database `0.13.1` — 27 October 2026
+
+- Repair logs can now be marked Completed without a completion date, testing notes or outcome notes.
+- Testing and outcome fields remain available as optional notes and continue to be included when entered.
+- Removed the matching browser and database completion restrictions, clarified the Workshop status help text and added regression coverage.
+
 
 ### `0.28.2` / database `0.13.0` — 23 October 2026
 
