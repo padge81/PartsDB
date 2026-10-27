@@ -310,3 +310,16 @@ test("approval identifies placeholder and exact duplicate part numbers", async (
   assert.match(editor, /exact-number-match/);
   assert.match(approval, /Manufacturer part number.*matches/);
 });
+
+
+test("completed repair logs accept blank optional notes", async () => {
+  const [workshop, editor, migration] = await Promise.all([
+    readFile(new URL("../lib/workshop.ts", import.meta.url), "utf8"),
+    readFile(new URL("../components/workshop.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20261027100000_optional_repair_completion_notes.sql", import.meta.url), "utf8"),
+  ]);
+  assert.doesNotMatch(workshop, /log\.status === 'completed'.*outcome.*tests/);
+  assert.match(editor, /Testing and outcome details are optional/);
+  assert.match(migration, /drop constraint/);
+  assert.match(migration, /database_revision','0\.13\.1'/);
+});

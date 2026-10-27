@@ -11,7 +11,6 @@ export type Choice = { id: string; name: string; number?: string };
 export const newLog = (): RepairLog => ({ id: crypto.randomUUID(), title: 'Untitled repair', machine_id: null, machine_name: '', technician: '', job_date: new Date().toLocaleDateString('en-CA'), fault: '', outcome: '', tests: '', tools: '', status: 'draft', revision: 0, updated_at: new Date().toISOString(), steps: [], parts: [] });
 export function checkLog(log: RepairLog) {
   if (!log.title.trim()) throw new Error('Give this repair a title.');
-  if (log.status === 'completed' && (!log.outcome.trim() || !log.tests.trim())) throw new Error('Record the outcome and final test before marking this job completed.');
   if (log.parts.some(p => !Number.isFinite(p.quantity) || p.quantity <= 0)) throw new Error('Part quantities must be greater than zero.');
 }
 export function prompts(log: RepairLog) {
