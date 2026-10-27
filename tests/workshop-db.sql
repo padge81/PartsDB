@@ -15,10 +15,11 @@ do $$ begin
  exception when raise_exception then
    if sqlerrm not like 'This repair changed%' then raise; end if;
  end;
- begin
-   perform public.save_repair_log('{"id":"bb000000-0000-4000-8000-000000000001","title":"Invalid completion","job_date":"2026-10-05","status":"completed","steps":[],"parts":[]}'::jsonb,1);
-   raise exception 'Incomplete job marked complete';
- exception when check_violation then null; end;
+ perform public.save_repair_log('{"id":"bb000000-0000-4000-8000-000000000099","title":"Notes-only completed repair","job_date":"2026-10-05","status":"completed","steps":[],"parts":[]}'::jsonb,0);
+ if not exists(select 1 from public.repair_logs where id='bb000000-0000-4000-8000-000000000099' and status='completed' and tests='' and outcome='') then
+   raise exception 'Completed repair still requires optional notes';
+ end if;
+ perform public.delete_repair_log('bb000000-0000-4000-8000-000000000099',1);
  begin
    perform public.save_repair_log('{"id":"bb000000-0000-4000-8000-000000000001","title":"Broken FK update","job_date":"2026-10-05","status":"draft","steps":[],"parts":[{"part_id":"cc000000-0000-4000-8000-000000000001","quantity":1}]}'::jsonb,1);
    raise exception 'Invalid part reference accepted';
