@@ -64,7 +64,7 @@ export function CircumferenceCalculator(){
      {(Object.keys(fieldLabels) as CircleField[]).map(field=><label key={field} className={source===field&&values[field]?'source-field':''}><span>{fieldLabels[field]}{source===field&&values[field]&&<small>Entered value</small>}</span><div className="measurement-input"><input type="number" inputMode="decimal" min="0" step="any" value={values[field]} onChange={event=>edit(field,event.target.value)} placeholder="0" aria-invalid={Boolean(error&&source===field)} aria-describedby={error&&source===field?'circle-error':undefined}/><span>{unit}</span></div></label>)}
      {error&&<p id="circle-error" className="calculator-error" role="alert">{error}</p>}
     </div>
-    <div className="circle-visual" aria-hidden="true"><div className="circle-shape"><span className="radius-line">R</span><span className="diameter-line">D</span></div><p>C = 2πR = πD</p></div>
+    <div className="circle-visual" aria-hidden="true"><div className="circle-diagram"><div className="circle-shape"><span className="radius-line">R</span></div><span className="diameter-extension left"/><span className="diameter-extension right"/><div className="diameter-dimension"><span>D</span></div></div><p>C = 2πR = πD</p></div>
    </div>
    <div className="calculator-note" aria-live="polite"><strong>{values[source]&&!error?fieldLabels[source]+' is driving this calculation':'Enter any one measurement'}</strong><span>Results display to three decimal places while calculations retain full precision.</span></div>
   </section>
