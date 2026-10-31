@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.29.0` |
+| Application | `0.29.1` |
 | Database | `0.13.1` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -40,6 +40,13 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.29.1` / database `0.13.1` — 31 October 2026
+
+- Moved the circumference diagram’s diameter measurement outside the circle.
+- Added dotted extension lines from the circle edges and a double-ended external dimension line, while retaining the internal radius indicator.
+- Added diagram regression coverage. No database migration or dependency changes.
+
 
 ### `0.29.0` / database `0.13.1` — 31 October 2026
 
