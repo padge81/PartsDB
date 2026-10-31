@@ -28,3 +28,17 @@ test('display formatting keeps three useful decimal places',()=>{
  assert.equal(formatMeasurement(Math.PI),'3.142');
  assert.equal(formatMeasurement(10),'10');
 });
+
+
+test('diameter is shown as an external dimension',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const [component,css]=await Promise.all([
+  readFile(new URL('../components/circumference-calculator.tsx',import.meta.url),'utf8'),
+  readFile(new URL('../app/globals.css',import.meta.url),'utf8'),
+ ]);
+ assert.match(component,/diameter-extension left/);
+ assert.match(component,/diameter-extension right/);
+ assert.match(component,/diameter-dimension/);
+ assert.doesNotMatch(component,/diameter-line/);
+ assert.match(css,/\.diameter-dimension/);
+});
