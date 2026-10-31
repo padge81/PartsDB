@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.28.3` |
+| Application | `0.29.0` |
 | Database | `0.13.1` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -40,6 +40,14 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.29.0` / database `0.13.1` — 31 October 2026
+
+- Added a top-level Calculators module designed to accommodate additional workshop tools.
+- Added a circumference calculator with editable radius, diameter and circumference fields; changing any field recalculates the other two.
+- Added millimetre, centimetre, metre and inch conversion, three-decimal display formatting, input validation, clearing and responsive phone/desktop layouts.
+- Added unit, calculation and navigation regression coverage. No database migration or dependency changes.
+
 
 ### `0.28.3` / database `0.13.1` — 27 October 2026
 
