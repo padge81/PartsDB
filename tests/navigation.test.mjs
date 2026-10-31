@@ -5,6 +5,7 @@ test('detail pages and existing bookmarks stay in their owning module',()=>{
  for(const path of ['/parts','/parts/search','/parts/new','/parts/123','/dashboard','/requests','/requests/123','/bom'])assert.equal(activeModule(path),'parts',path);
  for(const path of ['/machines','/machines/search','/machines/123'])assert.equal(activeModule(path),'machines',path);
  for(const path of ['/workshop','/workshop/logs','/workshop/references','/workshop/preview'])assert.equal(activeModule(path),'workshop',path);
+ for(const path of ['/calculators','/calculators/circumference'])assert.equal(activeModule(path),'calculators',path);
  for(const path of ['/home','/admin','/admin/workshop','/admin/machines','/parts-other'])assert.equal(activeModule(path),null,path);
 });
 test('secondary navigation marks only its exact destination or supported alias',()=>{
