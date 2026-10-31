@@ -24,5 +24,5 @@ export function convertMeasurement(value: number, from: CircleUnit, to: CircleUn
 }
 
 export function formatMeasurement(value: number, decimals = 3) {
-  return value.toFixed(decimals).replace(/\.0+$|(?<=\.[0-9]*?)0+$/g, '').replace(/\.$/, '');
+  return value.toFixed(decimals).replace(/\\.?0+$/, '');
 }
