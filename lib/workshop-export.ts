@@ -2,6 +2,7 @@ import { drawRepairArrow } from './repair-annotations';
 import { createWorkshopGuide } from './workshop-guide';
 import { strToU8, zipSync } from 'fflate';
 import type { RepairLog, RepairStep } from './workshop';
+import { repairPdfFilename } from './workshop-filename';
 
 async function photoCanvas(step: RepairStep) {
   const response = await fetch(step.imageUrl!); if (!response.ok) throw new Error('Could not load a photo for export. Reload the log and try again.');
@@ -19,12 +20,6 @@ async function photoCanvas(step: RepairStep) {
   return canvas;
 }
 function download(blob: Blob, name: string) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 30000); }
-const filenamePart = (value: string, maximum: number) => value.trim().replace(/[^a-zA-Z0-9_-]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,maximum);
-export function repairPdfFilename(log: RepairLog) {
-  const machine = filenamePart(log.machine_name,50);
-  const title = filenamePart(log.title,70) || 'repair-log';
-  return `${machine ? machine + '_' : ''}${title}-guide.pdf`;
-}
 export async function exportRepairPdf(log: RepairLog, preview: boolean) {
   const doc = await createWorkshopGuide(log,preview,async step=>{
     const canvas=await photoCanvas(step);
