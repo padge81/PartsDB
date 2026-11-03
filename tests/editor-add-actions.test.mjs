@@ -11,7 +11,9 @@ test('company and machine editors provide complete add workflows',async()=>{
  assert.match(company,/from\("companies"\)\.insert/);
  assert.match(company,/ref=\{nameInput\}/);
  assert.match(company,/siteMode === "standby"/);
- assert.match(company,/const supplyType = "unknown"/);
+ assert.match(company,/item\.code === "unknown"/);
+ assert.match(company,/supplyTypes\.find\(\(item\) => item\.is_active\)/);
+ assert.doesNotMatch(company,/!supplyTypes\.some\(\(item\) => item\.code === "unknown"\)/);
  assert.match(company,/if \(wasCreating\) setCreating\(false\)/);
  assert.match(machine,/>Add Machine</);
  assert.match(machine,/from\("machines"\)\.insert/);
