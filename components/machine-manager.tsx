@@ -80,10 +80,12 @@ export function MachineManager() {
     event.preventDefault(); if (!editing) return; setSaving(true); setMessage("");
     const supabase = getSupabaseBrowserClient(); if (!supabase) return;
     const values = { name: editing.name.trim(), model: editing.model?.trim() || null, manufacturer_id: editing.manufacturer_id, category_id: editing.category_id || null, notes: editing.notes?.trim() || null, is_active: editing.is_active };
-    const saved = creating
+    const wasCreating = creating;
+    const saved = wasCreating
       ? await supabase.from("machines").insert({ id: editing.id, ...values })
       : await supabase.from("machines").update(values).eq("id", editing.id);
     if (saved.error) { setMessage(saved.error.message); setSaving(false); return; }
+    if (wasCreating) setCreating(false);
     const existing = images[editing.id];
     if ((removeImage || newImage) && existing) {
       const deleted = await supabase.from("machine_images").delete().eq("id", existing.id);
@@ -95,9 +97,12 @@ export function MachineManager() {
       const uploaded = await supabase.storage.from("machine-images").upload(path, newImage.file, { contentType: "image/webp" });
       if (uploaded.error) { setMessage(uploaded.error.message); setSaving(false); return; }
       const linked = await supabase.from("machine_images").insert({ machine_id: editing.id, storage_path: path });
-      if (linked.error) { setMessage(linked.error.message); setSaving(false); return; }
+      if (linked.error) {
+        await supabase.storage.from("machine-images").remove([path]);
+        setMessage(linked.error.message); setSaving(false); return;
+      }
     }
-    const wasCreating = creating; setNewImage(null); setRemoveImage(false); await load(editing.id); setSaving(false); setMessage(wasCreating ? "Machine added." : "Machine updated.");
+    setNewImage(null); setRemoveImage(false); await load(editing.id); setSaving(false); setMessage(wasCreating ? "Machine added." : "Machine updated.");
   }
 
   return <AppShell requireAdmin>{(_profile, siteMode) => <main className="workspace form-workspace"><a className="back-link" href="/admin/reference-data">← Back to reference data</a><section className="workspace-heading"><div><p className="eyebrow accent">Database administration</p><h1>Machine editor</h1><p>Search for a machine, then edit its identity, category, notes, status and image.</p></div><div className="heading-actions"><span className="admin-badge"><ShieldIcon/>Administrator</span><button type="button" className="button primary" disabled={siteMode === "standby" || saving || !companies.length} onClick={addMachine}><PlusIcon/>Add Machine</button></div></section>{message && <p className="form-message success-message">{message}</p>}
