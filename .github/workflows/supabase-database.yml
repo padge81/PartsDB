@@ -7,6 +7,7 @@ on:
       - "supabase/migrations/**"
       - "supabase/config.toml"
       - "tests/workshop-db.sql"
+      - "tests/catalogue-db.sql"
       - ".github/workflows/supabase-database.yml"
   push:
     branches: [main]
@@ -14,6 +15,7 @@ on:
       - "supabase/migrations/**"
       - "supabase/config.toml"
       - "tests/workshop-db.sql"
+      - "tests/catalogue-db.sql"
       - ".github/workflows/supabase-database.yml"
   workflow_dispatch:
 
@@ -51,6 +53,9 @@ jobs:
 
       - name: Verify workshop privacy and atomic saves
         run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres --set ON_ERROR_STOP=1 --file tests/workshop-db.sql
+
+      - name: Verify catalogue defaults and atomic company saves
+        run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres --set ON_ERROR_STOP=1 --file tests/catalogue-db.sql
 
       - name: Remove disposable database
         if: always()
