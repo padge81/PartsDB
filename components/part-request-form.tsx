@@ -1,5 +1,6 @@
 "use client";
 
+import {createPartRequestSubmission} from "../lib/catalogue-uploads";
 import { SearchableSelect } from './searchable-select';
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -49,6 +50,7 @@ export function PartRequestForm() {
   const [processingImages, setProcessingImages] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const submission = useRef<ReturnType<typeof createPartRequestSubmission> | null>(null);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -112,31 +114,26 @@ export function PartRequestForm() {
   }
 
   async function submit(event: FormEvent, profile: Profile) {
-    event.preventDefault(); setSaving(true); setMessage("");
+    event.preventDefault(); if (saving || processingImages) return;
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
+    setSaving(true); setMessage("");
+    try {
+    submission.current ??= createPartRequestSubmission(supabase, profile.id);
     const selectedSupplyType = supplyTypes.some((item) => item.code === supplyType) ? supplyType : supplyTypes[0]?.code ?? supplyType;
     const supplierInformation = supplierRows.filter((row) => row.supplier_id).map((row, index) => ({ ...row, preference_rank: index + 1, supplier_name: suppliers.find((supplier) => supplier.id === row.supplier_id)?.name ?? "" }));
-    const { data: request, error } = await supabase.from("part_requests").insert({ requested_by: profile.id, status: "draft", machine_manufacturer: machineManufacturer || null, machine_name: machineName || null, machine_model: machineModel || null, machine_ids: additionalMachines.map((row) => row.machine_id).filter(Boolean), part_description: partDescription, part_manufacturer: partManufacturer || null, manufacturer_part_number: manufacturerPartNumber || null, supplier_information: supplierInformation, supply_type: selectedSupplyType, category_ids: categoryIds, commonly_ordered_part_ids: relatedIds, notes: notes || null }).select("id").single();
-    if (error || !request) { setMessage(error?.message ?? "The request could not be created."); setSaving(false); return; }
-
-    for (const [index, prepared] of files.entries()) {
-      const file = prepared.file;
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-      const path = `${profile.id}/${request.id}/${index}-${safeName}`;
-      const upload = await supabase.storage.from("request-images").upload(path, file);
-      if (!upload.error) await supabase.from("request_images").insert({ request_id: request.id, storage_path: path, uploaded_by: profile.id, kind: "other", sort_order: index });
-    }
-    const submitted = await supabase.from("part_requests").update({ status: "pending", submitted_at: new Date().toISOString() }).eq("id", request.id);
-    if (submitted.error) { setMessage(submitted.error.message); setSaving(false); return; }
+    await submission.current.submit({ machine_manufacturer: machineManufacturer || null, machine_name: machineName || null, machine_model: machineModel || null, machine_ids: additionalMachines.map((row) => row.machine_id).filter(Boolean), part_description: partDescription, part_manufacturer: partManufacturer || null, manufacturer_part_number: manufacturerPartNumber || null, supplier_information: supplierInformation, supply_type: selectedSupplyType, category_ids: categoryIds, commonly_ordered_part_ids: relatedIds, notes: notes || null }, files.map(image => image.file));
     router.push("/requests");
+    } catch (error) {
+      setMessage((error instanceof Error ? error.message : "The request could not be submitted.") + " Keep this page open and retry. Any saved draft and photos will be reused.");
+    } finally { setSaving(false); }
   }
 
   return <AppShell>{(profile) => <main className="workspace form-workspace">
     <a className="back-link" href="/dashboard">← Back to parts search</a>
     <section className="workspace-heading"><div><p className="eyebrow accent">New database request</p><h1>Add part</h1><p>Provide the available ordering and machine information for administrator review.</p></div></section>
     <form className="record-form" onSubmit={(event) => submit(event, profile)}>
-      <section className="form-card"><div className="detail-card-heading"><h2>Machine compatibility</h2></div><div className="form-grid">
+      <fieldset className="editor-fields" disabled={saving}><section className="form-card"><div className="detail-card-heading"><h2>Machine compatibility</h2></div><div className="form-grid">
         <label>Machine Manufacturer<SearchableSelect searchLabel="manufacturers" value={machineManufacturerId} onChange={(e) => selectMachineManufacturer(e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</SearchableSelect></label>
         <label>Machine Name<MachineSearchSelect machines={machines} selectedId={machineId} manufacturerId={machineManufacturerId} onSelect={selectMachine}/><small>Start typing a machine name; its manufacturer will be selected automatically.</small></label>
       </div><div className="additional-machines"><div className="detail-card-heading"><h3>Additional compatible machines</h3><button type="button" className="button secondary compact" onClick={() => setAdditionalMachines((current) => [...current, { manufacturer_id: "", machine_id: "" }])}>+ Add machine</button></div>{additionalMachines.length ? <div className="machine-link-list">{additionalMachines.map((row, index) => <div className="machine-link-row" key={index}><label>Machine Manufacturer<SearchableSelect searchLabel="manufacturers" value={row.manufacturer_id} onChange={(e) => updateAdditionalMachine(index, "manufacturer_id", e.target.value)}><option value="">Select manufacturer</option>{manufacturers.map((manufacturer) => <option key={manufacturer.id} value={manufacturer.id}>{manufacturer.name}</option>)}</SearchableSelect></label><label>Machine Name<SearchableSelect searchLabel="machines" value={row.machine_id} onChange={(e) => updateAdditionalMachine(index, "machine_id", e.target.value)} disabled={!row.manufacturer_id}><option value="">Select machine</option>{machines.filter((machine) => machine.id !== machineId && machine.manufacturer?.id === row.manufacturer_id).map((machine) => <option key={machine.id} value={machine.id}>{machine.name ?? machine.model}</option>)}</SearchableSelect></label><button type="button" className="icon-remove" aria-label="Remove compatible machine" onClick={() => setAdditionalMachines((current) => current.filter((_, rowIndex) => rowIndex !== index))}>×</button></div>)}</div> : <p className="empty-detail">No additional machines added.</p>}</div></section>
@@ -154,7 +151,7 @@ export function PartRequestForm() {
         <label className="span-2 image-picker">Part images<input type="file" accept="image/jpeg,image/png,image/webp,.jxl,image/jxl" multiple onChange={selectImages} disabled={processingImages}/><small>{processingImages ? "Compressing images…" : "Images are resized to 1600 px and compressed to WebP before upload. Maximum 8."}</small></label>
         {files.length > 0 && <div className="upload-preview-grid span-2">{files.map((image, index) => <article key={image.previewUrl}><Image unoptimized width={360} height={270} src={image.previewUrl} alt={`Selected part image ${index + 1}`}/><div><strong>{image.file.name}</strong><small>{formatBytes(image.originalBytes)} → {formatBytes(image.compressedBytes)}</small></div><button type="button" onClick={() => removeImage(index)} aria-label={`Remove ${image.file.name}`}>×</button></article>)}</div>}
       </div></section>
-      {message && <p className="form-message">{message}</p>}
+      </fieldset>{message && <p className="form-message" role="alert">{message}</p>}
       <div className="form-actions"><a className="button secondary" href="/dashboard">Cancel</a><button className="button primary" disabled={saving || processingImages}><PlusIcon/>{saving ? "Submitting…" : "Submit add request"}</button></div>
     </form>
   </main>}</AppShell>;

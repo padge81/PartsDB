@@ -1,22 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
+import {hasUnknownSupplyType, portableSupplyTypes} from '../lib/supply-type-default.ts';
 
-test('company and machine editors provide complete add workflows',async()=>{
- const [company,machine]=await Promise.all([
-  readFile(new URL('../components/company-editor.tsx',import.meta.url),'utf8'),
-  readFile(new URL('../components/machine-manager.tsx',import.meta.url),'utf8'),
- ]);
- assert.match(company,/>Add Company</);
- assert.match(company,/from\("companies"\)\.insert/);
- assert.match(company,/ref=\{nameInput\}/);
- assert.match(company,/siteMode === "standby"/);
- assert.match(company,/const supplyType = "unknown"/);
- assert.match(company,/if \(wasCreating\) setCreating\(false\)/);
- assert.match(machine,/>Add Machine</);
- assert.match(machine,/from\("machines"\)\.insert/);
- assert.match(machine,/ref=\{nameInput\}/);
- assert.match(machine,/siteMode === "standby"/);
- assert.match(machine,/if \(wasCreating\) setCreating\(false\)/);
- assert.match(machine,/remove\(\[path\]\)/);
+test('a renamed active built-in default remains valid',()=>{
+ assert.ok(hasUnknownSupplyType([{code:'unknown',name:'Not yet known',is_active:true}]));
+ assert.ok(!hasUnknownSupplyType([{code:'other',name:'Unknown',is_active:true}]));
+ assert.ok(!hasUnknownSupplyType([{code:'unknown',is_active:false}]));
+ assert.ok(!hasUnknownSupplyType([]));
+});
+test('old backups map Unknown to the receiving ID and reactivate it',()=>{
+ const rows=[{id:'source-default',code:'unknown',name:'Not known',is_active:false},{id:'custom',code:'local',name:'Local',is_active:true}];
+ assert.deepEqual(portableSupplyTypes(rows,'destination-default'),[{...rows[0],id:'destination-default',is_active:true},rows[1]]);
+ assert.equal(rows[0].is_active,false);
+ assert.deepEqual(portableSupplyTypes([],'destination-default'),[]);
+});
+test('conflicting backup IDs fail before destructive restore begins',()=>{
+ assert.throws(()=>portableSupplyTypes([{id:'destination-default',code:'custom'}],'destination-default'),/No data was cleared/);
 });

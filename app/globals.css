@@ -135,6 +135,8 @@ button,a { -webkit-tap-highlight-color:transparent; }
 .admin-management { scroll-margin-top:86px; }.admin-management>.site-mode-control.compact { margin:14px 0 0; }
 @media (max-width:560px) { .topbar-mode { width:20px; height:20px; justify-content:center; padding:0; border:0; font-size:0; }.topbar-mode>span { width:8px; height:8px; } }
 
+.editor-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: contents; }
+
 /* Module navigation and landing pages */
 .module-topbar { grid-template-columns:auto 1fr auto; gap:24px; height:68px; }
 .module-topbar nav { justify-content:center; }

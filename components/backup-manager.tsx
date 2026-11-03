@@ -4,7 +4,8 @@ import { useState, type ChangeEvent } from "react";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { AppShell, type ChangeSiteMode, type SiteMode } from "./app-shell";
 import { getSupabaseBrowserClient } from "../lib/supabase";
-import { APP_REVISION } from "../lib/version";
+import { APP_REVISION, DATABASE_REVISION } from "../lib/version";
+import {portableSupplyTypes} from "../lib/supply-type-default";
 
 type BackupTable = { name: string; deleteColumn: string };
 type Row = Record<string, unknown>;
@@ -33,7 +34,6 @@ const allowedBuckets = new Set(["machine-images", "part-images", "request-images
 const imageTables = new Set(imageTableNames);
 const dataTables = importOrder.filter((table) => !imageTables.has(table.name));
 const deleteOrder = [...importOrder].reverse();
-const DATABASE_REVISION = "0.7.0";
 const MAX_ARCHIVE_BYTES = 1024 * 1024 * 1024;
 const userColumns: Record<string, string[]> = {
   parts: ["created_by", "updated_by"], part_requests: ["requested_by", "reviewed_by"],
@@ -179,6 +179,9 @@ export function BackupManager() {
     try {
       const { data: authData, error: authError } = await supabase.auth.getUser();
       if (authError || !authData.user) throw new Error("Could not identify the restoring administrator.");
+      const defaultType = await supabase.from("supply_types").select("id").eq("code", "unknown").eq("is_active", true).single();
+      if (defaultType.error || !defaultType.data) throw new Error("The built-in Unknown supply type is unavailable. Apply the latest database update before importing. No data was cleared.");
+      const importedSupplyTypes = portableSupplyTypes(backup.database.tables.supply_types ?? [], defaultType.data.id);
       const referencedUsers = new Set<string>();
       for (const [tableName, columns] of Object.entries(userColumns)) for (const row of backup.database.tables[tableName] ?? []) for (const column of columns) if (typeof row[column] === "string") referencedUsers.add(row[column] as string);
       const existingUsers = new Set<string>();
@@ -211,7 +214,9 @@ export function BackupManager() {
         const { error: unlinkError } = await supabase.from("companies").update({ default_supplier_id: null }).not("default_supplier_id", "is", null);
         if (unlinkError) throw new Error(`Restore stopped while clearing company supplier links: ${unlinkError.message}`);
         for (const table of deleteOrder) {
-          const { error } = await supabase.from(table.name).delete().not(table.deleteColumn, "is", null);
+          let deletion = supabase.from(table.name).delete().not(table.deleteColumn, "is", null);
+          if (table.name === "supply_types") deletion = deletion.neq("code", "unknown");
+          const { error } = await deletion;
           if (error) throw new Error(`Restore stopped while clearing ${table.name}: ${error.message}`);
         }
       }
@@ -219,7 +224,7 @@ export function BackupManager() {
       let imported = 0; let uploaded = 0;
       const companySupplierLinks = (backup.database.tables.companies ?? []).flatMap((row) => typeof row.id === "string" && typeof row.default_supplier_id === "string" ? [{ companyId: row.id, supplierId: row.default_supplier_id }] : []);
       for (const table of dataTables) {
-        const rows = portableRows(table.name, backup.database.tables[table.name] ?? []);
+        const rows = portableRows(table.name, table.name === "supply_types" ? importedSupplyTypes : backup.database.tables[table.name] ?? []);
         for (let index = 0; index < rows.length; index += 200) {
           const chunk = rows.slice(index, index + 200).map((row) => table.name === "companies" ? { ...row, default_supplier_id: null } : row);
           const { error } = await supabase.from(table.name).upsert(chunk); if (error) throw new Error(`Import stopped at ${table.name}: ${error.message}`); imported += chunk.length;

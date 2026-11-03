@@ -6,8 +6,8 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.29.2` |
-| Database | `0.13.1` |
+| Application | `0.30.0` |
+| Database | `0.14.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
 
@@ -24,7 +24,7 @@ The application footer displays both revisions so a frontend/database mismatch i
 
 ### Later expansion
 
-- Follow the prioritised [frontend review](docs/frontend-review-2026-10-18.md): atomic catalogue writes/upload retries, server-side search, lazy Workshop media and authenticated browser coverage.
+- Follow the remaining [frontend review](docs/frontend-review-2026-10-18.md) work: transactional part approval/editing, server-side search, lazy Workshop media and broader authenticated browser coverage. Company saves, machine-photo replacement and on-page part-upload retries are covered by 0.30.0.
 
 - Add machine manuals and service notes after machine search/details are stable.
 - Add controlled machine change requests with title, notes and compressed images.
@@ -40,6 +40,17 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.30.0` / database `0.14.0` — 4 November 2026
+
+- Ensure every installation has an active built-in Unknown supply type, independent of optional development seed data. Database triggers prevent deletion, deactivation, code changes and truncation; administrators can still rename its display label.
+- Explain Unknown's protected status in Reference Data. Company editor reports missing defaults and lookup errors with a retry action instead of silently disabling creation for missing reference data.
+- Save company identity and roles in one administrator-only, standby-aware transaction. Repeated saves reuse the record ID and reconcile roles safely; both company creation screens use this operation.
+- Explicitly grant authenticated access to later-created catalogue tables on clean installations, retaining their administrator-only mutation and standby row policies.
+- Upload and link replacement machine photos before removing old objects. Failed or uncertain links retain uploaded objects for safe recovery rather than risking broken saved photo links.
+- Stop part submissions on photo failures, retain the same saved draft and reuse acknowledged uploads when retrying on the open form. Disable editing during saves. Unlinked Storage objects may remain after failures or removed draft photos; automatic orphan cleanup is outside this release.
+- Preserve Unknown during portable catalogue restore and map an archive's default row to the destination ID, reactivating older archived defaults. Archives that omit Unknown retain the installed default. ZIP format remains version 4; existing catalogue/Workshop scope and write-mode safeguards remain in place.
+- Add database and upload/retry regression coverage. No runtime dependency changes. Apply the database migration before deploying this frontend.
 
 ### `0.29.2` / database `0.13.1` — 3 November 2026
 
