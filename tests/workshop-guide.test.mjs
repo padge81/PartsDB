@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { jsPDF } from 'jspdf';
 import { appendGuideSteps, createWorkshopGuide } from '../lib/workshop-guide.ts';
-import { repairPdfFilename } from '../lib/workshop-export.ts';
+import { repairPdfFilename } from '../lib/workshop-filename.ts';
 
 function fixture() {
   const doc=new jsPDF({unit:'mm',format:'a4'}), texts=[], images=[];
