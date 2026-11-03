@@ -19,13 +19,18 @@ async function photoCanvas(step: RepairStep) {
   return canvas;
 }
 function download(blob: Blob, name: string) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 30000); }
-const filename = (log: RepairLog) => log.title.replace(/[^a-zA-Z0-9_-]/g,'-').slice(0,70) || 'repair-log';
+const filenamePart = (value: string, maximum: number) => value.trim().replace(/[^a-zA-Z0-9_-]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,maximum);
+export function repairPdfFilename(log: RepairLog) {
+  const machine = filenamePart(log.machine_name,50);
+  const title = filenamePart(log.title,70) || 'repair-log';
+  return `${machine ? machine + '_' : ''}${title}-guide.pdf`;
+}
 export async function exportRepairPdf(log: RepairLog, preview: boolean) {
   const doc = await createWorkshopGuide(log,preview,async step=>{
     const canvas=await photoCanvas(step);
     return {data:canvas.toDataURL('image/jpeg',.9),width:canvas.width,height:canvas.height};
   });
-  doc.save(`${filename(log)}-guide.pdf`);
+  doc.save(repairPdfFilename(log));
 }
 export async function exportRepairArchive(logs: RepairLog[]) {
   const entries: Record<string,Uint8Array> = {}; let bytes = 0;
