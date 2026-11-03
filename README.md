@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.29.1` |
+| Application | `0.29.2` |
 | Database | `0.13.1` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -40,6 +40,13 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.29.2` / database `0.13.1` — 3 November 2026
+
+- Repair PDF filenames now begin with the sanitised machine name, followed by an underscore and the repair title; records without a machine retain the existing title-based fallback.
+- Added Add Company and Add Machine actions to their full editors. Each opens a blank record, focuses the name field and saves through the existing database relationships and image workflow.
+- Creation actions and saves remain unavailable in standby mode. Added filename and editor-action regression coverage; no database migration or dependency changes.
+
 
 ### `0.29.1` / database `0.13.1` — 31 October 2026
 

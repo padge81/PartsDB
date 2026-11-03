@@ -1,9 +1,9 @@
 "use client";
 
 import { SearchableSelect } from './searchable-select';
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { AppShell } from "./app-shell";
-import { ShieldIcon } from "./icons";
+import { PlusIcon, ShieldIcon } from "./icons";
 import { getSupabaseBrowserClient } from "../lib/supabase";
 
 type CompanyRole = "manufacturer" | "supplier" | "distributor";
@@ -34,6 +34,8 @@ export function CompanyEditor() {
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const nameInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async (keepSelectedId = "") => {
     const supabase = getSupabaseBrowserClient(); if (!supabase) return;
@@ -51,7 +53,7 @@ export function CompanyEditor() {
     const loaded = (companyResult.data ?? []).map((company) => ({ ...company, roles: roles.get(company.id) ?? [] })) as Company[];
     setCompanies(loaded); setSupplyTypes((supplyTypeResult.data ?? []) as SupplyType[]);
     const selected = loaded.find((company) => company.id === keepSelectedId);
-    if (selected) { setSelectedId(selected.id); setDraft({ ...selected, roles: [...selected.roles] }); }
+    if (selected) { setSelectedId(selected.id); setDraft({ ...selected, roles: [...selected.roles] }); setCreating(false); }
   }, []);
 
   useEffect(() => {
@@ -68,7 +70,18 @@ export function CompanyEditor() {
 
   function selectCompany(id: string) {
     const company = companies.find((item) => item.id === id) ?? null;
-    setSelectedId(id); setDraft(company ? { ...company, roles: [...company.roles] } : null); setMessage("");
+    setSelectedId(id); setDraft(company ? { ...company, roles: [...company.roles] } : null); setCreating(false); setMessage("");
+  }
+
+  function addCompany() {
+    const supplyType = "unknown";
+    setSelectedId(""); setSearch(""); setCreating(true); setMessage("");
+    setDraft({ id: crypto.randomUUID(), name: "", notes: null, website_url: null, ordering_information: null, supply_type: supplyType, default_supplier_id: null, is_active: true, roles: ["manufacturer"] });
+    window.requestAnimationFrame(() => nameInput.current?.focus());
+  }
+
+  function cancelNewCompany() {
+    setDraft(null); setSelectedId(""); setCreating(false); setMessage("");
   }
 
   function toggleRole(role: CompanyRole, checked: boolean) {
@@ -81,12 +94,17 @@ export function CompanyEditor() {
     const supabase = getSupabaseBrowserClient(); if (!supabase) return;
     setSaving(true); setMessage("");
     const current = companies.find((company) => company.id === draft.id);
-    const updated = await supabase.from("companies").update({
+    const wasCreating = creating;
+    const values = {
       name: draft.name.trim(), notes: draft.notes?.trim() || null, website_url: draft.website_url?.trim() || null,
       ordering_information: draft.ordering_information?.trim() || null, supply_type: draft.supply_type,
       default_supplier_id: draft.roles.includes("manufacturer") ? draft.default_supplier_id || null : null, is_active: draft.is_active,
-    }).eq("id", draft.id);
-    if (updated.error) { setMessage(updated.error.message); setSaving(false); return; }
+    };
+    const saved = creating
+      ? await supabase.from("companies").insert({ id: draft.id, ...values })
+      : await supabase.from("companies").update(values).eq("id", draft.id);
+    if (saved.error) { setMessage(saved.error.message); setSaving(false); return; }
+    if (wasCreating) setCreating(false);
     const addedRoles = draft.roles.filter((role) => !current?.roles.includes(role));
     const removedRoles = (current?.roles ?? []).filter((role) => !draft.roles.includes(role));
     if (addedRoles.length) {
@@ -97,11 +115,11 @@ export function CompanyEditor() {
       const removed = await supabase.from("company_roles").delete().eq("company_id", draft.id).in("role", removedRoles);
       if (removed.error) { setMessage(removed.error.message); setSaving(false); return; }
     }
-    await load(draft.id); setSaving(false); setMessage("Company updated.");
+    await load(draft.id); setSaving(false); setMessage(wasCreating ? "Company added." : "Company updated.");
   }
 
-  return <AppShell requireAdmin>{(_profile, siteMode) => <main className="workspace form-workspace"><a className="back-link" href="/admin/reference-data">← Back to reference data</a><section className="workspace-heading"><div><p className="eyebrow accent">Database administration</p><h1>Company editor</h1><p>Search for a company, then edit its identity, roles and ordering details.</p></div><span className="admin-badge"><ShieldIcon/>Administrator</span></section>{message && <p className="form-message success-message">{message}</p>}
+  return <AppShell requireAdmin>{(_profile, siteMode) => <main className="workspace form-workspace"><a className="back-link" href="/admin/reference-data">← Back to reference data</a><section className="workspace-heading"><div><p className="eyebrow accent">Database administration</p><h1>Company editor</h1><p>Search for a company, then edit its identity, roles and ordering details.</p></div><div className="heading-actions"><span className="admin-badge"><ShieldIcon/>Administrator</span><button type="button" className="button primary" disabled={siteMode === "standby" || saving || !supplyTypes.some((item) => item.code === "unknown")} onClick={addCompany}><PlusIcon/>Add Company</button></div></section>{message && <p className="form-message success-message">{message}</p>}
     <section className="form-card company-picker"><div className="detail-card-heading"><h2>Select company</h2><span>{filteredCompanies.length} matches</span></div><div className="form-grid"><label className="span-2">Search companies<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by company, role or website"/></label><label className="span-2">Company<select size={Math.min(Math.max(filteredCompanies.length, 3), 9)} value={selectedId} onChange={(event) => selectCompany(event.target.value)}>{filteredCompanies.map((company) => <option key={company.id} value={company.id}>{company.name} · {company.roles.join(" / ") || "No role"}{company.is_active ? "" : " · Inactive"}</option>)}</select></label></div></section>
-    {draft ? <form className="record-form company-edit-form" onSubmit={save}><section className="form-card"><div className="detail-card-heading"><h2>Company information</h2><span>{draft.is_active ? "Active" : "Inactive"}</span></div><div className="form-grid"><label className="span-2">Company name<input required value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })}/></label><fieldset className="category-checkbox-field"><legend>Company roles</legend><div className="category-checkbox-grid">{companyRoles.map((role) => <label key={role.value}><input type="checkbox" checked={draft.roles.includes(role.value)} onChange={(event) => toggleRole(role.value, event.target.checked)}/><span>{role.label}</span></label>)}</div></fieldset><label>Supply type<SearchableSelect searchLabel="supply types" value={draft.supply_type} disabled={!draft.roles.some((role) => role === "supplier" || role === "distributor")} onChange={(event) => setDraft({ ...draft, supply_type: event.target.value })}>{supplyTypes.map((type) => <option key={type.code} value={type.code}>{type.name}{type.is_active ? "" : " (inactive)"}</option>)}</SearchableSelect></label><label>Default supplier<SearchableSelect searchLabel="suppliers" value={draft.default_supplier_id ?? ""} disabled={!draft.roles.includes("manufacturer")} onChange={(event) => setDraft({ ...draft, default_supplier_id: event.target.value || null })}><option value="">No default supplier</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</SearchableSelect></label><label className="span-2">Website URL<input type="url" value={draft.website_url ?? ""} onChange={(event) => setDraft({ ...draft, website_url: event.target.value })} placeholder="https://example.com"/></label><label className="span-2">Ordering information<textarea rows={4} value={draft.ordering_information ?? ""} onChange={(event) => setDraft({ ...draft, ordering_information: event.target.value })}/></label><label className="span-2">Notes<textarea rows={5} value={draft.notes ?? ""} onChange={(event) => setDraft({ ...draft, notes: event.target.value })}/></label><label>Status<select value={draft.is_active ? "active" : "inactive"} onChange={(event) => setDraft({ ...draft, is_active: event.target.value === "active" })}><option value="active">Active</option><option value="inactive">Inactive</option></select></label></div></section><div className="form-actions"><button type="button" className="button secondary" onClick={() => selectCompany(draft.id)}>Discard changes</button><button className="button primary" disabled={saving || siteMode === "standby"}>{siteMode === "standby" ? "Standby read-only" : saving ? "Saving…" : "Save company"}</button></div></form> : <section className="detail-state company-empty"><p>Select a company above to open the full editor.</p></section>}
+    {draft ? <form className="record-form company-edit-form" onSubmit={save}><section className="form-card"><div className="detail-card-heading"><h2>Company information</h2><span>{draft.is_active ? "Active" : "Inactive"}</span></div><div className="form-grid"><label className="span-2">Company name<input ref={nameInput} required value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })}/></label><fieldset className="category-checkbox-field"><legend>Company roles</legend><div className="category-checkbox-grid">{companyRoles.map((role) => <label key={role.value}><input type="checkbox" checked={draft.roles.includes(role.value)} onChange={(event) => toggleRole(role.value, event.target.checked)}/><span>{role.label}</span></label>)}</div></fieldset><label>Supply type<SearchableSelect searchLabel="supply types" value={draft.supply_type} disabled={!draft.roles.some((role) => role === "supplier" || role === "distributor")} onChange={(event) => setDraft({ ...draft, supply_type: event.target.value })}>{supplyTypes.map((type) => <option key={type.code} value={type.code}>{type.name}{type.is_active ? "" : " (inactive)"}</option>)}</SearchableSelect></label><label>Default supplier<SearchableSelect searchLabel="suppliers" value={draft.default_supplier_id ?? ""} disabled={!draft.roles.includes("manufacturer")} onChange={(event) => setDraft({ ...draft, default_supplier_id: event.target.value || null })}><option value="">No default supplier</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</SearchableSelect></label><label className="span-2">Website URL<input type="url" value={draft.website_url ?? ""} onChange={(event) => setDraft({ ...draft, website_url: event.target.value })} placeholder="https://example.com"/></label><label className="span-2">Ordering information<textarea rows={4} value={draft.ordering_information ?? ""} onChange={(event) => setDraft({ ...draft, ordering_information: event.target.value })}/></label><label className="span-2">Notes<textarea rows={5} value={draft.notes ?? ""} onChange={(event) => setDraft({ ...draft, notes: event.target.value })}/></label><label>Status<select value={draft.is_active ? "active" : "inactive"} onChange={(event) => setDraft({ ...draft, is_active: event.target.value === "active" })}><option value="active">Active</option><option value="inactive">Inactive</option></select></label></div></section><div className="form-actions"><button type="button" className="button secondary" onClick={() => creating ? cancelNewCompany() : selectCompany(draft.id)}>{creating ? "Cancel new company" : "Discard changes"}</button><button className="button primary" disabled={saving || siteMode === "standby"}>{siteMode === "standby" ? "Standby read-only" : saving ? "Saving…" : creating ? "Add company" : "Save company"}</button></div></form> : <section className="detail-state company-empty"><p>Select a company above to open the full editor.</p></section>}
   </main>}</AppShell>;
 }

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { jsPDF } from 'jspdf';
 import { appendGuideSteps, createWorkshopGuide } from '../lib/workshop-guide.ts';
+import { repairPdfFilename } from '../lib/workshop-filename.ts';
 
 function fixture() {
   const doc=new jsPDF({unit:'mm',format:'a4'}), texts=[], images=[];
@@ -81,4 +82,11 @@ test('photo-only steps survive and empty gaps are renumbered only in the PDF',as
 test('missing saved photo fails export instead of silently producing an incomplete guide',async()=>{
  const {doc}=fixture();
  await assert.rejects(appendGuideSteps(doc,[{...step(1),imageUrl:undefined,image_path:'saved/photo.webp'}],portrait,22),/photo is unavailable/);
+});
+
+
+test('repair PDF filename starts with the machine name',()=>{
+ assert.equal(repairPdfFilename(log({machine_name:'Mario Kart DX',title:'Steering repair'})),'Mario-Kart-DX_Steering-repair-guide.pdf');
+ assert.equal(repairPdfFilename(log({machine_name:'',title:'General repair'})),'General-repair-guide.pdf');
+ assert.equal(repairPdfFilename(log({machine_name:'  Pump / Game  ',title:'  Motor: check  '})),'Pump-Game_Motor-check-guide.pdf');
 });
