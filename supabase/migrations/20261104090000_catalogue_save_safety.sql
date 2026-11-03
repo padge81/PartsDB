@@ -1,5 +1,15 @@
 begin;
 
+-- The initial schema granted existing tables only. These later-created or
+-- recreated catalogue tables need explicit privileges on clean installations.
+-- Their existing RLS policies still restrict mutations to active admins and
+-- enforce standby. Do not grant default privileges to future tables.
+grant select, insert, update, delete on
+  public.supply_types, public.companies, public.company_roles,
+  public.machine_categories, public.machine_images, public.part_machines,
+  public.part_order_groups, public.part_order_group_members
+to authenticated;
+
 -- Production must not depend on the optional, fictional development seed.
 -- Preserve an existing display name and ID, and avoid taking another type's name.
 do $$

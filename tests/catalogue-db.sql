@@ -59,6 +59,12 @@ update public.system_metadata set value='standby' where key='site_mode';
 set local role authenticated;
 do $$ begin
  begin
+  perform public.replace_and_deactivate_supply_type('unknown',null);
+  raise exception 'Standby reference mutation accepted';
+ exception when raise_exception then if sqlerrm <> 'Standby is read only' then raise; end if; end;
+ update public.supply_types set name='Standby mutation' where code='unknown';
+ if found then raise exception 'Standby direct update accepted'; end if;
+ begin
   perform public.save_company('{"id":"ee000000-0000-4000-8000-000000000010","name":"Blocked","roles":["supplier"]}');
   raise exception 'Standby save accepted';
  exception when raise_exception then if sqlerrm <> 'Standby is read only' then raise; end if; end;
@@ -68,6 +74,19 @@ update public.system_metadata set value='live' where key='site_mode';
 select set_config('request.jwt.claim.sub','ee000000-0000-4000-8000-000000000002',true);
 set local role authenticated;
 do $$ begin
+ -- Explicit grants allow reads, but do not bypass administrator RLS rules.
+ perform 1 from public.supply_types;
+ perform 1 from public.companies;
+ perform 1 from public.company_roles;
+ perform 1 from public.machine_categories;
+ perform 1 from public.machine_images;
+ perform 1 from public.part_machines;
+ perform 1 from public.part_order_groups;
+ perform 1 from public.part_order_group_members;
+ begin
+  insert into public.supply_types(code,name) values('forbidden-test','Forbidden test');
+  raise exception 'Non-admin reference insert accepted';
+ exception when insufficient_privilege then null; end;
  begin
   perform public.save_company('{"id":"ee000000-0000-4000-8000-000000000010","name":"Blocked","roles":["supplier"]}');
   raise exception 'Non-admin save accepted';
