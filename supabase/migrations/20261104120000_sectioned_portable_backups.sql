@@ -26,7 +26,7 @@ returns table(ordinal integer, table_name text, section text, key_columns text[]
  (17,'repair_logs','repairs',array['id']),(18,'repair_log_parts','repairs',array['repair_log_id','part_id']),
  (19,'bench_references','bench',array['id']);
 $$;
-revoke all on function public.backup_table_definitions() from public;
+revoke all on function public.backup_table_definitions() from public, anon, authenticated;
 
 create function public.backup_section_closure(selected text[])
 returns text[] language plpgsql immutable set search_path='' as $$
@@ -38,19 +38,20 @@ begin
  if 'machines'=any(result) then result:=result||array['reference']; end if;
  return array(select s from unnest(allowed) s where s=any(result));
 end $$;
-revoke all on function public.backup_section_closure(text[]) from public;
+revoke all on function public.backup_section_closure(text[]) from public, anon, authenticated;
 
 create function public.backup_collect_tables(selected text[])
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare result jsonb:='{}'; definition record; rows jsonb;
 begin
+ if not public.is_admin() then raise exception 'Administrator access required'; end if;
  for definition in select * from public.backup_table_definitions() where section=any(selected) order by ordinal loop
   execute format('select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text),''[]''::jsonb) from public.%I t',definition.table_name) into rows;
   result:=result||jsonb_build_object(definition.table_name,rows);
  end loop;
  return result;
 end $$;
-revoke all on function public.backup_collect_tables(text[]) from public;
+revoke all on function public.backup_collect_tables(text[]) from public, anon, authenticated;
 
 create function public.backup_file_references(tables jsonb)
 returns table(bucket text,path text,record_id uuid,owner_id uuid) language sql immutable set search_path='' as $$
@@ -63,7 +64,7 @@ returns table(bucket text,path text,record_id uuid,owner_id uuid) language sql i
   union all select 'reference-documents',s->>'path',(r->>'id')::uuid,(r->>'owner_id')::uuid from jsonb_array_elements(coalesce(tables->'bench_references','[]')) r cross join lateral jsonb_array_elements(r->'documents') s
  ) f where coalesce(path,'')<>'';
 $$;
-revoke all on function public.backup_file_references(jsonb) from public;
+revoke all on function public.backup_file_references(jsonb) from public, anon, authenticated;
 
 create function public.backup_file_access(object_bucket text,object_name text,write_access boolean default false)
 returns boolean language sql stable security definer set search_path='' as $$
@@ -74,7 +75,7 @@ returns boolean language sql stable security definer set search_path='' as $$
    and case when j.kind='restore' then f->>'target_path' else f->>'path' end=object_name
  );
 $$;
-revoke all on function public.backup_file_access(text,text,boolean) from public;
+revoke all on function public.backup_file_access(text,text,boolean) from public, anon, authenticated;
 grant execute on function public.backup_file_access(text,text,boolean) to authenticated;
 create policy backup_session_files_read on storage.objects for select to authenticated using(public.backup_file_access(bucket_id,name,false));
 create policy backup_session_files_insert on storage.objects for insert to authenticated with check(public.backup_file_access(bucket_id,name,true));
@@ -101,7 +102,7 @@ begin
  return jsonb_build_object('job_id',job,'sections',selected,'tables',tables,'files',files,
   'database_revision',(select value from public.system_metadata where key='database_revision'));
 end $$;
-revoke all on function public.prepare_backup_export(text[]) from public;
+revoke all on function public.prepare_backup_export(text[]) from public, anon, authenticated;
 grant execute on function public.prepare_backup_export(text[]) to authenticated;
 
 create function public.close_backup_job(job_id uuid)
@@ -110,7 +111,7 @@ begin
  if not public.is_admin() then raise exception 'Administrator access required'; end if;
  delete from public.backup_jobs where id=job_id and actor_id=auth.uid();
 end $$;
-revoke all on function public.close_backup_job(uuid) from public;
+revoke all on function public.close_backup_job(uuid) from public, anon, authenticated;
 grant execute on function public.close_backup_job(uuid) to authenticated;
 
 create function public.prepare_backup_restore(document jsonb,selected_sections text[],file_inventory jsonb,restore_mode text default 'merge',confirmation text default '')
@@ -197,7 +198,7 @@ begin
  values(job,auth.uid(),'restore',selected,files,jsonb_build_object('tables',tables,'supplier_links',supplier_links),target_state,restore_mode);
  return jsonb_build_object('job_id',job,'sections',selected,'files',files,'mode',restore_mode,'expires_at',now()+interval '1 hour');
 end $$;
-revoke all on function public.prepare_backup_restore(jsonb,text[],jsonb,text,text) from public;
+revoke all on function public.prepare_backup_restore(jsonb,text[],jsonb,text,text) from public, anon, authenticated;
 grant execute on function public.prepare_backup_restore(jsonb,text[],jsonb,text,text) to authenticated;
 
 create function public.apply_backup_restore(job_id uuid)
@@ -285,7 +286,7 @@ begin
  insert into public.audit_log(table_name,record_id,operation,actor_id,new_values) values('backup',job.id::text,'UPDATE',auth.uid(),job.result);
  return job.result;
 end $$;
-revoke all on function public.apply_backup_restore(uuid) from public;
+revoke all on function public.apply_backup_restore(uuid) from public, anon, authenticated;
 grant execute on function public.apply_backup_restore(uuid) to authenticated;
 
 create function public.cancel_backup_restore(job_id uuid)
@@ -299,7 +300,7 @@ begin
  update public.backup_jobs set result='{"cancelled":true}',document=null,expires_at=now()+interval '15 minutes' where id=job.id;
  return jsonb_build_object('files',job.files,'committed',false);
 end $$;
-revoke all on function public.cancel_backup_restore(uuid) from public;
+revoke all on function public.cancel_backup_restore(uuid) from public, anon, authenticated;
 grant execute on function public.cancel_backup_restore(uuid) to authenticated;
 
 insert into public.system_metadata(key,value,updated_at) values('database_revision','0.15.0',now())
