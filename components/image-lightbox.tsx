@@ -1,5 +1,5 @@
 "use client";
-import Image from "next/image";
+import Image from "./stored-image";
 import {useEffect,useRef} from "react";
 
 export function ImageLightbox({src,alt,caption,onClose}:{src:string;alt:string;caption:string;onClose:()=>void}) {
@@ -20,6 +20,6 @@ export function ImageLightbox({src,alt,caption,onClose}:{src:string;alt:string;c
     onCancel={event=>{event.preventDefault();onClose();}}
     onClick={event=>{if(event.target===event.currentTarget)onClose();}}>
     <button autoFocus className="lightbox-close" type="button" onClick={onClose} aria-label="Close image">×</button>
-    <div><Image unoptimized width={1400} height={1400} src={src} alt={alt}/><p>{caption}</p></div>
+    <div><Image loading="eager" width={1400} height={1400} src={src} alt={alt}/><p>{caption}</p></div>
   </dialog>;
 }
