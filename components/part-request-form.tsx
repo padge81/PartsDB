@@ -4,7 +4,7 @@ import {createPartRequestSubmission} from "../lib/catalogue-uploads";
 import { SearchableSelect } from './searchable-select';
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import Image from "./stored-image";
 import { AppShell, type Profile } from "./app-shell";
 import { PlusIcon } from "./icons";
 import { getSupabaseBrowserClient } from "../lib/supabase";
@@ -149,7 +149,7 @@ export function PartRequestForm() {
         <div className="span-2"><h3>Consider ordering with</h3><OrderingGroupSelector parts={orderingParts} selectedIds={relatedIds} machineIds={[machineId, ...additionalMachines.map((row) => row.machine_id)]} onChange={setRelatedIds}/></div>
         <label className="span-2">Notes<textarea rows={5} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
         <label className="span-2 image-picker">Part images<input type="file" accept="image/jpeg,image/png,image/webp,.jxl,image/jxl" multiple onChange={selectImages} disabled={processingImages}/><small>{processingImages ? "Compressing images…" : "Images are resized to 1600 px and compressed to WebP before upload. Maximum 8."}</small></label>
-        {files.length > 0 && <div className="upload-preview-grid span-2">{files.map((image, index) => <article key={image.previewUrl}><Image unoptimized width={360} height={270} src={image.previewUrl} alt={`Selected part image ${index + 1}`}/><div><strong>{image.file.name}</strong><small>{formatBytes(image.originalBytes)} → {formatBytes(image.compressedBytes)}</small></div><button type="button" onClick={() => removeImage(index)} aria-label={`Remove ${image.file.name}`}>×</button></article>)}</div>}
+        {files.length > 0 && <div className="upload-preview-grid span-2">{files.map((image, index) => <article key={image.previewUrl}><Image width={360} height={270} src={image.previewUrl} alt={`Selected part image ${index + 1}`}/><div><strong>{image.file.name}</strong><small>{formatBytes(image.originalBytes)} → {formatBytes(image.compressedBytes)}</small></div><button type="button" onClick={() => removeImage(index)} aria-label={`Remove ${image.file.name}`}>×</button></article>)}</div>}
       </div></section>
       </fieldset>{message && <p className="form-message" role="alert">{message}</p>}
       <div className="form-actions"><a className="button secondary" href="/dashboard">Cancel</a><button className="button primary" disabled={saving || processingImages}><PlusIcon/>{saving ? "Submitting…" : "Submit add request"}</button></div>

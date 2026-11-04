@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.31.2` |
+| Application | `0.31.3` |
 | Database | `0.15.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -40,6 +40,12 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.31.3` / database `0.15.0` — 4 November 2026
+
+- Fixed cropping that remained in 0.31.2: the image compatibility layer applied inline cover styling and square CDN sizing to signed Storage images, overriding the page styles despite the unoptimized flag.
+- Part and machine thumbnails, galleries, upload/review previews and enlarged viewers now share a native stored-image component that preserves the original signed URL and lets the whole-image layout control sizing.
+- Reproduced the failure with the real image runtime and a tall Storage image, then checked the actual enlarged viewer and preview components on desktop and phone layouts. No database or dependency changes.
 
 ### `0.31.2` / database `0.15.0` — 4 November 2026
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
+import Image from "./stored-image";
 import { AppShell } from "./app-shell";
 import {ImageLightbox} from "./image-lightbox";
 import {CopyValueButton} from "./copy-value-button";
@@ -113,7 +113,7 @@ export function PartDetails({ partId }: { partId: string }) {
         </div>
 
         <aside className="detail-side">
-          <section className="detail-card"><div className="detail-card-heading"><h2>Images</h2><span>{images.length}</span></div>{images.length ? <div className="image-grid">{images.map((image) => image.signedUrl ? <figure key={image.id}><button type="button" onClick={() => setSelectedImage(image)} aria-label={`Open ${image.caption ?? image.kind} image`}><Image unoptimized width={420} height={420} src={image.signedUrl} alt={image.caption ?? `${image.kind} view of ${part.description}`}/></button><figcaption>{image.caption ?? image.kind}</figcaption></figure> : null)}</div> : <div className="image-placeholder"><BoxIcon/><p>No part images uploaded</p></div>}</section>
+          <section className="detail-card"><div className="detail-card-heading"><h2>Images</h2><span>{images.length}</span></div>{images.length ? <div className="image-grid">{images.map((image) => image.signedUrl ? <figure key={image.id}><button type="button" onClick={() => setSelectedImage(image)} aria-label={`Open ${image.caption ?? image.kind} image`}><Image width={420} height={420} src={image.signedUrl} alt={image.caption ?? `${image.kind} view of ${part.description}`}/></button><figcaption>{image.caption ?? image.kind}</figcaption></figure> : null)}</div> : <div className="image-placeholder"><BoxIcon/><p>No part images uploaded</p></div>}</section>
           <section className="detail-card"><div className="detail-card-heading"><h2>Consider ordering with</h2></div>{related.length ? <div className="related-list">{related.map((item) => <article className="related-item" key={item.id}><a href={`/parts/${item.id}`}><span><strong>{item.description}</strong><small>{item.manufacturer_part_number ?? "No part number"}</small></span><ArrowIcon/></a><AddToBomButton partId={item.id} compact/></article>)}</div> : <p className="empty-detail">No related parts have been added.</p>}</section>
         </aside>
       </div>

@@ -1,5 +1,5 @@
 "use client";
-import Image from "next/image";
+import Image from "./stored-image";
 import {createPortal} from "react-dom";
 import {useEffect,useRef,useState} from "react";
 import {BoxIcon} from "./icons";
@@ -55,7 +55,7 @@ function Thumbnail({photo,description,bucket}:{photo?:PartThumbnailImage;descrip
     aria-label={available?`Preview photo of ${description}`:undefined}
     onMouseEnter={()=>{if(window.matchMedia("(hover: hover) and (pointer: fine)").matches)show();}}
     onMouseLeave={()=>setPreview(null)} onFocus={show} onBlur={()=>setPreview(null)}>
-    {available?<Image unoptimized src={url} width={40} height={40} alt={photo?.caption||description} onError={()=>{setFailed(true);setPreview(null);}}/>:<BoxIcon/>}
-    {preview&&available&&createPortal(<div className="part-thumbnail-preview" style={preview} aria-hidden="true"><Image unoptimized src={url} width={240} height={240} alt=""/></div>,document.body)}
+    {available?<Image src={url} width={40} height={40} alt={photo?.caption||description} onError={()=>{setFailed(true);setPreview(null);}}/>:<BoxIcon/>}
+    {preview&&available&&createPortal(<div className="part-thumbnail-preview" style={preview} aria-hidden="true"><Image src={url} width={240} height={240} alt=""/></div>,document.body)}
   </i>;
 }
