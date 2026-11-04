@@ -72,7 +72,7 @@
 .guide-toolbar .wk-ref-actions { flex-wrap:wrap; }
 .guide-document { max-width:850px; margin:24px auto; background:#fff; border:1px solid #dce3e8; box-shadow:0 2px 12px #173e580a; }
 .guide-header { padding:28px 32px 20px; border-bottom:1px solid #dce3e8; }
-.guide-header h2 { margin:8px 0; font-size:28px; line-height:1.25; overflow-wrap:anywhere; }
+.guide-header h1,.guide-header h2 { margin:8px 0; font-size:28px; line-height:1.25; overflow-wrap:anywhere; }
 .guide-record-status { font-size:12px; color:#61717e; line-height:1.6; }
 .guide-metadata { display:grid; gap:8px; margin:18px 0 0; font-size:14px; }
 .guide-metadata>div { display:flex; flex-wrap:wrap; gap:6px; }.guide-metadata dt { font-weight:700; }.guide-metadata dd { margin:0; overflow-wrap:anywhere; }
@@ -89,7 +89,7 @@
 .wk-reader-review { background:#fff; border-top:1px solid #dce3e8; }.wk-reader-review>summary { cursor:pointer; padding:18px 24px; font-weight:650; }
 @media(max-width:700px) {
  .guide-toolbar { padding:14px; }.guide-toolbar .button { min-height:44px; }
- .guide-document { margin:12px 8px; }.guide-header { padding:20px 16px; }.guide-content { padding:20px 16px; }.guide-footer { padding:14px 16px; }.guide-header h2 { font-size:24px; }
+ .guide-document { margin:12px 8px; }.guide-header { padding:20px 16px; }.guide-content { padding:20px 16px; }.guide-footer { padding:14px 16px; }.guide-header h1,.guide-header h2 { font-size:24px; }
  .guide-step.portrait .guide-step-layout { grid-template-columns:1fr; }.guide-step.portrait figure,.guide-step.portrait .guide-step-copy { grid-column:auto; grid-row:auto; }
 }
 
@@ -118,3 +118,8 @@ details.wk-questions[open]>summary { margin-bottom:16px; }
 @media(max-width:700px) { .update-versions { grid-template-columns:1fr; }.repair-update-review,.wk-update-draft { padding:18px 14px; } }
 
 .repair-update-review .wk-alert { margin:16px 0; }.repair-update-review .wk-alert .button { margin-top:10px; }
+
+.guide-reader-page { width:100%; max-width:1040px; margin:0 auto; padding:24px 20px 40px; }
+.guide-reader-page>.back-link { display:inline-block; margin-bottom:16px; }
+.guide-reader-page>.repair-guide { overflow:hidden; border:1px solid #dce3e8; border-radius:12px; }
+@media(max-width:700px) { .guide-reader-page { padding:16px 8px 28px; } }

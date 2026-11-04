@@ -20,9 +20,10 @@ const standbyBlockedPaths = [
   /^\/admin\/bulk-import(?:\/|$)/,
 ];
 
-export function AppShell({ children, requireAdmin = false }: {
+export function AppShell({ children, requireAdmin = false, readingMode = false }: {
   children: (profile: Profile, siteMode: SiteMode, changeSiteMode: ChangeSiteMode) => ReactNode;
   requireAdmin?: boolean;
+  readingMode?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -93,20 +94,20 @@ export function AppShell({ children, requireAdmin = false }: {
   const blockedByStandby = siteMode === "standby" && standbyBlockedPaths.some((pattern) => pattern.test(pathname));
 
   return (
-    <div className="app-frame">
+    <div className={readingMode?"app-frame guide-reading-frame":"app-frame"}>
       <div className="app-navigation">
       <header className="topbar module-topbar">
         <a className="brand" href="/home" aria-label="PartsDB home"><span className="brand-mark"><BoxIcon/></span><span>PartsDB</span></a>
-        <nav aria-label="Main navigation">
+        {!readingMode&&<nav aria-label="Main navigation">
           <a href="/home" className={pathname==='/home'?'active':''} aria-current={pathname==='/home'?'page':undefined}>Home</a>
           {modules.map(item=><a key={item.id} href={item.href} className={selectedModule===item.id?'active':''} aria-current={selectedModule===item.id?'location':undefined}>{item.title}</a>)}
-        </nav>
+        </nav>}
         <div className="account">
-          {profile.role==='admin'&&<a className={'admin-nav-link'+(pathname.startsWith('/admin')?' active':'')} href="/admin" aria-current={pathname.startsWith('/admin')?'location':undefined}><ShieldIcon/>Admin</a>}
+          {!readingMode&&profile.role==='admin'&&<a className={'admin-nav-link'+(pathname.startsWith('/admin')?' active':'')} href="/admin" aria-current={pathname.startsWith('/admin')?'location':undefined}><ShieldIcon/>Admin</a>}
           <details className="account-menu"><summary aria-label="Account menu"><span className="avatar">{initials}</span></summary><div><strong>{profile.display_name??'PartsDB user'}</strong><small>{profile.role==='admin'?'Administrator':'Standard user'}</small>{profile.role==='admin'&&<a href="/admin#database-management">Server mode: {siteMode}</a>}<button onClick={signOut}><LogOutIcon/>Sign out</button></div></details>
         </div>
       </header>
-      {selectedModule&&<nav className="module-subnav" aria-label={selectedModule+' navigation'}>{moduleLinks[selectedModule].map(item=><a key={item.href} href={item.href} className={activeModuleLink(pathname,item.href)?'active':''} aria-current={activeModuleLink(pathname,item.href)?'page':undefined}>{item.title}{item.href==='/bom'&&<span className="nav-count">{bomCart.reduce((total,item)=>total+item.quantity,0)}</span>}</a>)}</nav>}
+      {!readingMode&&selectedModule&&<nav className="module-subnav" aria-label={selectedModule+' navigation'}>{moduleLinks[selectedModule].map(item=><a key={item.href} href={item.href} className={activeModuleLink(pathname,item.href)?'active':''} aria-current={activeModuleLink(pathname,item.href)?'page':undefined}>{item.title}{item.href==='/bom'&&<span className="nav-count">{bomCart.reduce((total,item)=>total+item.quantity,0)}</span>}</a>)}</nav>}
       </div>
       {!isSupabaseConfigured && <div className="preview-banner">Interface preview · connect the Supabase browser key to use live data</div>}
       {siteMode === "standby" && <div className="site-mode-banner standby"><strong>Standby — read only</strong><span>Database and image changes are disabled on this server.</span>{profile.role === "admin" && <button type="button" onClick={() => void enableMaintenance()}>Enable maintenance</button>}</div>}

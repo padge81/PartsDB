@@ -1,6 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {shouldViewRepair,repairGuideSteps} from '../lib/repair-view.ts';
+import {shouldViewRepair,repairGuideSteps,canEditRepair,repairGuideHref} from '../lib/repair-view.ts';
+test('focused guide links encode record identifiers',()=>{
+ assert.equal(repairGuideHref('guide/one?edit=true'),'/workshop/guides/guide%2Fone%3Fedit%3Dtrue');
+});
+test('explicit editor navigation respects ownership and publication permissions',()=>{
+ for(const publication_status of ['private','returned','pending','approved']){
+  const log={status:'completed',owner_id:'creator',publication_status};
+  assert.equal(canEditRepair(log,'creator'),['private','returned'].includes(publication_status));
+  assert.equal(canEditRepair(log,'other'),false);
+  assert.equal(canEditRepair(log,'admin',true),['pending','returned'].includes(publication_status));
+  assert.equal(shouldViewRepair(log,'creator','edit',canEditRepair(log,'creator')), !['private','returned'].includes(publication_status));
+ }
+});
 test('own drafts stay in the editor; completed and approved records open as guides',()=>{
  assert.equal(shouldViewRepair({status:'draft',owner_id:'me',publication_status:'private'},'me'),false);
  assert.equal(shouldViewRepair({status:'completed',owner_id:'me',publication_status:'private',update_of:'published'},'me'),false);

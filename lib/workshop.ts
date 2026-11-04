@@ -41,7 +41,13 @@ export async function loadLive() {
   ]);
   if (logs.error) throw new Error('Workshop storage is not ready: ' + logs.error.message);
   if (machines.error) throw new Error('The parts or machine catalogue could not be loaded.');
-  const paths = [...new Set<string>(logs.data.flatMap(row => [...(row.steps ?? []),...(row.update_baseline?.steps??[])].map((step: RepairStep) => step.image_path)).filter(Boolean))];
+  const records=await hydrateRepairRows(logs.data as unknown as StoredRepair[]);
+  return {records,machines:(machines.data??[]) as Choice[]};
+}
+type StoredRepair = RepairLog & {repair_log_parts?:Array<{part_id:string;quantity:number;part:{description:string;manufacturer_part_number:string}|null}>};
+async function hydrateRepairRows(rows:StoredRepair[]){
+  const db=getSupabaseBrowserClient();if(!db)throw new Error('Database is not configured.');
+  const paths = [...new Set<string>(rows.flatMap(row => [...(row.steps ?? []),...(row.update_baseline?.steps??[])].map((step: RepairStep) => step.image_path)).filter(Boolean))];
   const photoUrls = new Map<string, string>();
   for (let offset = 0; offset < paths.length; offset += 100) {
     const batch = paths.slice(offset, offset + 100);
@@ -51,15 +57,22 @@ export async function loadLive() {
     signed.data.forEach((photo, index) => photoUrls.set(batch[index], photo.signedUrl));
   }
   const records: RepairLog[] = [];
-  for (const row of logs.data ?? []) {
+  for (const row of rows) {
     const steps: RepairStep[] = [];
     for (const step of row.steps ?? []) {
       steps.push({ ...step, imageUrl: photoUrls.get(step.image_path) ?? '' });
     }
-    records.push({ ...row, update_baseline:row.update_baseline?{...row.update_baseline,steps:row.update_baseline.steps.map((step:RepairStep)=>({...step,imageUrl:photoUrls.get(step.image_path)??''}))}:null, status:repairStatus(row.status), steps, parts: (row.repair_log_parts ?? []).map((p: { part_id: string; quantity: number; part: { description: string; manufacturer_part_number: string } }) => ({ part_id: p.part_id, quantity: p.quantity, description: p.part?.description ?? 'Unavailable part', number: p.part?.manufacturer_part_number ?? '' })) });
+    records.push({ ...row, update_baseline:row.update_baseline?{...row.update_baseline,steps:row.update_baseline.steps.map((step:RepairStep)=>({...step,imageUrl:photoUrls.get(step.image_path)??''}))}:null, status:repairStatus(row.status), steps, parts: (row.repair_log_parts ?? []).map(p => ({ part_id: p.part_id, quantity: p.quantity, description: p.part?.description ?? 'Unavailable part', number: p.part?.manufacturer_part_number ?? '' })) });
   }
-  return { records, machines: (machines.data ?? []) as Choice[] };
+  return records;
 }
+export async function loadRepairGuide(id:string):Promise<RepairLog>{
+  const db=getSupabaseBrowserClient();if(!db)throw new Error('Database is not configured.');
+  const {data,error}=await db.from('repair_logs').select('*,author:profiles!repair_logs_owner_id_fkey(display_name),repair_log_parts(part_id,quantity,part:parts(description,manufacturer_part_number))').eq('id',id).single();
+  if(error||!data)throw new Error('This guide is unavailable or you do not have permission to view it.');
+  return (await hydrateRepairRows([data as unknown as StoredRepair]))[0];
+}
+
 export async function saveLive(log: RepairLog) {
   checkLog(log); const db = getSupabaseBrowserClient(); if (!db) throw new Error('Database is not configured.');
   const document = {id:log.id,title:log.title,machine_id:log.machine_id,machine_name:log.machine_name,technician:log.technician,job_date:log.job_date,fault:log.fault,tools:log.tools,tests:log.tests,outcome:log.outcome,status:repairStatus(log.status),steps:cleanRepairSteps(log.steps),parts:log.parts.map(({part_id,quantity})=>({part_id,quantity})),change_summary:log.change_summary??''};

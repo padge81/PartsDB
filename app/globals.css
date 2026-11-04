@@ -362,3 +362,5 @@ dialog.image-lightbox::backdrop { background:rgba(5,17,26,.9); }
  .measurement-input input { font-size:23px; }
  .calculator-note { align-items:flex-start; flex-direction:column; gap:5px; padding:14px 18px; }
 }
+
+.guide-reading-frame .topbar { grid-template-columns:1fr auto; }.guide-reading-frame .topbar .brand span:last-child { display:inline; }
