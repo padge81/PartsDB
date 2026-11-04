@@ -6,8 +6,8 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.30.0` |
-| Database | `0.14.0` |
+| Application | `0.31.0` |
+| Database | `0.15.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
 
@@ -40,6 +40,16 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.31.0` / database `0.15.0` — 4 November 2026
+
+- Added six backup section checkboxes and Select all. Linked catalogue sections are included automatically; photos and documents follow their section.
+- Calculate record/file counts and estimated transfer size from a consistent database snapshot and Storage metadata before downloading media. Unknown file sizes are identified; prepared ZIPs show their exact byte size before a separate Download action.
+- Added portable ZIP v5 with explicit section scope, complete file inventory, SHA-256 checksums and archive validation. All selected Workshop records, including private repairs, bench references, photos and PDF datasheets, can be backed up by an active administrator. Authentication accounts, passwords, system audit history and server mode are excluded.
+- Added expiring administrator backup sessions whose file permissions cover exact selected paths without changing ordinary Workshop visibility. All database rows are included without the REST page limit.
+- Restore selected sections by merging records; unrelated records and unselected sections remain. Full replacement requires all six sections and explicit RESTORE confirmation. Files stage at new paths before an atomic database transaction; existing files are retained. Concurrent edits stop restore rather than overwrite newer changes. Uploads and uncertain acknowledgements can be retried.
+- Preserve matching profile ownership and remap missing source users to the restoring administrator; imported starter editions from missing owners become standalone references. Keep Unknown protected and server mode outside archives. Maintenance imports return to standby. ZIP v4 catalogue backups remain readable as merge-only imports.
+- Added backup/archive/browser and SQL privacy, scope, retry and transactional-restore checks. See [Backup guide](docs/portable-backups.md) for scope and limits. Apply the database migration before deploying this frontend. No runtime dependency changes.
 
 ### `0.30.0` / database `0.14.0` — 4 November 2026
 
