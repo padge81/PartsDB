@@ -142,8 +142,10 @@ begin;
 insert into auth.users(id,email) values
  ('aa000000-0000-4000-8000-000000000011','approval-owner@example.invalid'),
  ('aa000000-0000-4000-8000-000000000012','approval-reader@example.invalid'),
- ('aa000000-0000-4000-8000-000000000013','approval-admin@example.invalid');
+ ('aa000000-0000-4000-8000-000000000013','approval-admin@example.invalid'),
+ ('aa000000-0000-4000-8000-000000000014','approval-admin-two@example.invalid');
 update public.profiles set role='admin' where id='aa000000-0000-4000-8000-000000000013';
+update public.profiles set role='admin' where id='aa000000-0000-4000-8000-000000000014';
 update public.system_metadata set value='live' where key='site_mode';
 insert into storage.objects(bucket_id,name) values
  ('repair-images','aa000000-0000-4000-8000-000000000011/bb000000-0000-4000-8000-000000000011/shared.webp'),
@@ -240,7 +242,15 @@ select set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000013'
 set local role authenticated;
 do $$ declare doc jsonb; begin
  select to_jsonb(l)||'{"parts":[]}'::jsonb into doc from public.repair_logs l where id='bb000000-0000-4000-8000-000000000011';
- perform public.save_repair_log(doc||'{"steps":[{"id":"two","title":"Admin photo","image_path":"aa000000-0000-4000-8000-000000000013/bb000000-0000-4000-8000-000000000011/admin.webp","annotations":[]}]}'::jsonb,6);
+ begin perform public.save_repair_log(doc,6);raise exception 'Admin directly edited approved repair';
+ exception when raise_exception then if sqlerrm not like 'This repair is read only%' then raise; end if; end;
+ doc:=public.begin_repair_update('bb000000-0000-4000-8000-000000000011',6);
+ insert into storage.objects(bucket_id,name) values('repair-images',auth.uid()::text||'/'||(doc->>'id')||'/admin.webp');
+ doc:=public.save_repair_log(doc||jsonb_build_object('parts','[]'::jsonb,'change_summary','Replace the step photograph','steps',jsonb_build_array(jsonb_build_object('id','two','title','Admin photo','image_path',auth.uid()::text||'/'||(doc->>'id')||'/admin.webp','annotations','[]'::jsonb))),1);
+ doc:=public.transition_repair_log((doc->>'id')::uuid,2,'submit');
+ perform set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000014',true);
+ perform public.transition_repair_log((doc->>'id')::uuid,3,'approve','Reviewed update');
+ perform set_config('request.jwt.claim.sub','aa000000-0000-4000-8000-000000000013',true);
  if (select owner_id from public.repair_logs where id='bb000000-0000-4000-8000-000000000011')<>'aa000000-0000-4000-8000-000000000011' then raise exception 'Admin edit changed creator'; end if;
  begin perform public.transition_repair_log('bb000000-0000-4000-8000-000000000011',7,'return',' ');
  raise exception 'Return without note accepted';

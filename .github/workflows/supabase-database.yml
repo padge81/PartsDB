@@ -9,6 +9,7 @@ on:
       - "tests/workshop-db.sql"
       - "tests/catalogue-db.sql"
       - "tests/backups-db.sql"
+      - "tests/repair-updates-db.sql"
       - ".github/workflows/supabase-database.yml"
   push:
     branches: [main]
@@ -18,6 +19,7 @@ on:
       - "tests/workshop-db.sql"
       - "tests/catalogue-db.sql"
       - "tests/backups-db.sql"
+      - "tests/repair-updates-db.sql"
       - ".github/workflows/supabase-database.yml"
   workflow_dispatch:
 
@@ -61,6 +63,9 @@ jobs:
 
       - name: Verify sectioned backups, private files and transactional restore
         run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres --set ON_ERROR_STOP=1 --file tests/backups-db.sql
+
+      - name: Verify public repair update proposals and approval isolation
+        run: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres --set ON_ERROR_STOP=1 --file tests/repair-updates-db.sql
 
       - name: Remove disposable database
         if: always()
