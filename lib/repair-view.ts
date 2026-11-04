@@ -1,9 +1,7 @@
 type ViewableRepair={status:string;publication_status?:string;owner_id?:string;update_of?:string|null};
-export function shouldViewRepair(log:ViewableRepair,viewerId:string,requestedView:string|null=null,canEdit=false){
-  if(requestedView==='guide')return true;
-  if(requestedView==='edit'&&canEdit)return false;
-  if(log.update_of&&log.publication_status==='private'&&log.owner_id===viewerId)return false;
-  return ['pending','approved','returned'].includes(log.publication_status??'private')||log.status==='completed'||!!(log.owner_id&&log.owner_id!==viewerId);
+export function shouldViewRepair(log:ViewableRepair,viewerId:string,requestedView:string|null=null,canEdit=canEditRepair(log,viewerId)){
+  // Reading is the default. Existing drafts are edited only through an explicit action.
+  return !(requestedView==='edit'&&canEdit);
 }
 
 export function canEditRepair(log:ViewableRepair,viewerId:string,admin=false){

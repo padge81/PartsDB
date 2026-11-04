@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.34.0` |
+| Application | `0.35.0` |
 | Database | `0.16.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -46,6 +46,12 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.35.0` / database `0.16.0` — 5 November 2026
+
+- Workshop starts at the repair overview. Existing repairs, including private drafts, open for reading; Update log explicitly enters the editor. Direct permitted edit links and new repairs still open in editing mode.
+- Done editing waits for saving, keeps the draft without submitting it, returns to viewing in Workshop and unlocks the repair list. Save failures keep the editor open. While editing, repair switching, library filters, New repair and opening another recovery draft are disabled, with handler guards as well as visible controls.
+- Discard update keeps the user in the workshop overview and preserves the published guide. No database migration or changes to existing guides.
 
 ### `0.34.0` / database `0.16.0` — 5 November 2026
 
