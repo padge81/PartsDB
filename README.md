@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.31.0` |
+| Application | `0.31.1` |
 | Database | `0.15.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -40,6 +40,11 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.31.1` / database `0.15.0` — 4 November 2026
+
+- Renamed the machine and company edit buttons to Save changes. Saving stays disabled until saved fields, company roles or the machine image change, and becomes disabled again after reverting or successfully saving. New-record buttons retain their Add wording.
+- Compare the values that will actually be saved, ignoring trimmed whitespace, empty optional fields and company role ordering. No database changes.
 
 ### `0.31.0` / database `0.15.0` — 4 November 2026
 
