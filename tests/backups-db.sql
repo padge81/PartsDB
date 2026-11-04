@@ -139,6 +139,11 @@ reset role;
 select set_config('request.jwt.claim.sub','ff000000-0000-4000-8000-000000000003',true);
 set local role authenticated;
 do $$ begin
+ if has_function_privilege('authenticated','public.backup_collect_tables(text[])','execute') or has_function_privilege('anon','public.backup_collect_tables(text[])','execute') then raise exception 'Internal backup reader is exposed through platform function defaults'; end if;
+ if has_function_privilege('anon','public.prepare_backup_export(text[])','execute') then raise exception 'Anonymous role can execute backup export'; end if;
+ begin
+  perform public.backup_collect_tables(array['bench']);raise exception 'Internal backup reader was callable directly';
+ exception when insufficient_privilege then null; end;
  begin
   perform public.prepare_backup_export(array['bench']);raise exception 'Non-admin backup accepted';
  exception when raise_exception then if sqlerrm<>'Administrator access required' then raise; end if; end;
