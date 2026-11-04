@@ -1,2 +1,8 @@
+import {redirect} from 'next/navigation';
 import {Workshop} from '../../../components/workshop';
-export default function Page(){return <Workshop/>;}
+import {repairGuideHref} from '../../../lib/repair-view';
+export default async function Page({searchParams}:{searchParams:Promise<{log?:string;view?:string}>}){
+ const params=await searchParams;
+ if(params.log&&params.view==='guide')redirect(repairGuideHref(params.log));
+ return <Workshop/>;
+}

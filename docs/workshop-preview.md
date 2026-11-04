@@ -10,6 +10,10 @@ The UI supports camera/gallery capture, text steps, step reordering, circles/arr
 
 PDF exports wait for the current editable record to save successfully, A4 pages, pagination, marked-up photos, parts and verification. Repair reports include fault/outcome history; guides focus on preparation, parts, steps and verification. A completed job is not a certification that the procedure is appropriate for another machine. PDFs use a Latin font; unsupported characters currently become `?`.
 
+## Focused guide reading
+
+`/workshop/guides/[id]` opens an independent reading page with the guide document, PDF download and permitted Update log action. It uses the same authentication and record privacy rules but loads only that repair and its attached photos. Machine/search links open this page, and old `view=guide` notebook links redirect there. Open guide in the notebook saves first; updating sends the reader back to the notebook, with returned/private drafts opening in the editor only when allowed. Administrator approval remains in the notebook review screen.
+
 ## Viewing submitted logs
 
 Submitted, approved and returned logs open in the read-only document viewer, including administrator review. All recorded steps appear together, in the same content order as the PDF. Use **Update log** to enter the same editor used to create a repair when permitted; personal private drafts still open in the editor. Submission switches immediately into viewing. **Submission and review** expands the existing approval, return and withdrawal controls separately from the document.

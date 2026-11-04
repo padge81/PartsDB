@@ -1,7 +1,7 @@
 'use client';
 import {useState,type CSSProperties} from 'react';
 import type {RepairLog,RepairStep} from '../lib/workshop';
-import {repairGuideSteps} from '../lib/repair-view';
+import {repairGuideHref,repairGuideSteps} from '../lib/repair-view';
 import {RepairPhoto} from './repair-photo';
 
 function GuideStep({step,number}:{step:RepairStep;number:number}){
@@ -15,15 +15,16 @@ function GuideStep({step,number}:{step:RepairStep;number:number}){
   </section>;
 }
 
-export function RepairGuide({job,canEdit,busy,preview,onEdit,onExport}:{job:RepairLog;canEdit:boolean;busy:boolean;preview:boolean;onEdit:()=>void;onExport:()=>void}){
+export function RepairGuide({job,canEdit,busy,preview,onEdit,onExport,onOpenGuide,standalone=false}:{job:RepairLog;canEdit:boolean;busy:boolean;preview:boolean;onEdit:()=>void;onExport:()=>void;onOpenGuide?:()=>void;standalone?:boolean}){
   const steps=repairGuideSteps(job.steps);
+  const Title=standalone?'h1':'h2';
   const publication=job.publication_status??'private';
   const labels={private:'Private draft',pending:'Awaiting approval',approved:'Approved repair record',returned:'Changes requested'};
   return <article className="repair-guide" aria-label="Repair log document">
-    <div className="guide-toolbar"><span>Viewing repair log</span><div className="wk-ref-actions"><button className="button secondary" disabled={busy} onClick={onExport}>Download PDF</button>{canEdit&&<button className="button secondary" disabled={busy} onClick={onEdit}>Update log</button>}{job.machine_id&&!preview&&<a className="button secondary" href={`/machines/${job.machine_id}`}>Machine details</a>}</div></div>
+    <div className="guide-toolbar"><span>Viewing repair log</span><div className="wk-ref-actions">{!standalone&&!preview&&(onOpenGuide?<button className="button secondary" disabled={busy} onClick={onOpenGuide}>Open guide</button>:<a className="button secondary" href={repairGuideHref(job.id)}>Open guide</a>)}<button className="button secondary" disabled={busy} onClick={onExport}>Download PDF</button>{canEdit&&<button className="button secondary" disabled={busy} onClick={onEdit}>Update log</button>}{job.machine_id&&!preview&&<a className="button secondary" href={`/machines/${job.machine_id}`}>Machine details</a>}</div></div>
     <div className="guide-document">
       <header className="guide-header">
-        <p className="wk-eyebrow">WORKSHOP GUIDE</p><h2>{job.title}</h2>
+        <p className="wk-eyebrow">WORKSHOP GUIDE</p><Title>{job.title}</Title>
         <p className="guide-record-status">{preview?'Demonstration · ':''}{job.status==='completed'?'Completed job — verify suitability before reuse':'Draft — not a verified procedure'}</p>
         <span className={`wk-status ${publication}`}>{labels[publication]}</span>
         <dl className="guide-metadata">{job.machine_name.trim()&&<div><dt>Machine</dt><dd>{job.machine_name}</dd></div>}{job.job_date&&<div><dt>Date</dt><dd>{job.job_date}</dd></div>}{job.technician.trim()&&<div><dt>Technician</dt><dd>{job.technician}</dd></div>}</dl>
