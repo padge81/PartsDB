@@ -20,7 +20,7 @@ export function RepairGuide({job,canEdit,busy,preview,onEdit,onExport}:{job:Repa
   const publication=job.publication_status??'private';
   const labels={private:'Private draft',pending:'Awaiting approval',approved:'Approved repair record',returned:'Changes requested'};
   return <article className="repair-guide" aria-label="Repair log document">
-    <div className="guide-toolbar"><span>Viewing repair log</span><div className="wk-ref-actions"><button className="button secondary" disabled={busy} onClick={onExport}>Download PDF</button>{canEdit&&<button className="button secondary" disabled={busy} onClick={onEdit}>Edit log</button>}{job.machine_id&&!preview&&<a className="button secondary" href={`/machines/${job.machine_id}`}>Machine details</a>}</div></div>
+    <div className="guide-toolbar"><span>Viewing repair log</span><div className="wk-ref-actions"><button className="button secondary" disabled={busy} onClick={onExport}>Download PDF</button>{canEdit&&<button className="button secondary" disabled={busy} onClick={onEdit}>Update log</button>}{job.machine_id&&!preview&&<a className="button secondary" href={`/machines/${job.machine_id}`}>Machine details</a>}</div></div>
     <div className="guide-document">
       <header className="guide-header">
         <p className="wk-eyebrow">WORKSHOP GUIDE</p><h2>{job.title}</h2>

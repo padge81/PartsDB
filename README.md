@@ -28,6 +28,8 @@ Ideas for consideration only; these are not approved or scheduled for implementa
 
 - **Repair-log photo crop tool:** movable/resizable crop rectangle with Apply, Cancel and Reset crop, usable with a mouse or touch. Preserve the original photo, keep annotations aligned, and carry the crop consistently into saved logs, PDF exports and backups. **Status: undecided; no implementation commitment.**
 
+- **Updates to approved repair logs:** consider a separate update draft while the current approved version stays published. Proposed review screen highlights old/new text, added/removed/reordered steps, replaced photos, changed annotations and parts, with an author summary of the update. Compare against the approved revision and detect intervening changes before approval. **Status: undecided; submission and approval workflow not approved for implementation.**
+
 ### Later expansion
 
 - Follow the remaining [frontend review](docs/frontend-review-2026-10-18.md) work: transactional part approval/editing, server-side search, lazy Workshop media and broader authenticated browser coverage. Company saves, machine-photo replacement and on-page part-upload retries are covered by 0.30.0.
@@ -51,6 +53,7 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 
 - Submitted, approved and returned repair logs open in a document viewer by default, including administrator review. Successful submission immediately switches to viewing; editing is an explicit permitted action.
 - Replaced the one-step reader with a continuous PDF-style document: job metadata, fault, preparation, parts, numbered instructions/photos, testing and outcome. Portrait photos sit beside instructions on desktop and stack on phones. Viewer and PDF share empty-step filtering.
+- Added **Update log** as the explicit entry into the same editor used for creating a repair, under the existing editing permissions. The proposed approval workflow for updates remains undecided.
 - Kept submission/review actions in a separate expandable panel and retained existing permissions, standby protection and PDF export. No database changes.
 
 ### `0.31.3` / database `0.15.0` — 4 November 2026

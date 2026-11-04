@@ -12,7 +12,7 @@ PDF exports wait for the current editable record to save successfully, A4 pages,
 
 ## Viewing submitted logs
 
-Submitted, approved and returned logs open in the read-only document viewer, including administrator review. All recorded steps appear together, in the same content order as the PDF. Use **Edit log** to enter the editor when permitted; personal private drafts still open in the editor. Submission switches immediately into viewing. **Submission and review** expands the existing approval, return and withdrawal controls separately from the document.
+Submitted, approved and returned logs open in the read-only document viewer, including administrator review. All recorded steps appear together, in the same content order as the PDF. Use **Update log** to enter the same editor used to create a repair when permitted; personal private drafts still open in the editor. Submission switches immediately into viewing. **Submission and review** expands the existing approval, return and withdrawal controls separately from the document.
 
 ## Database and storage
 
