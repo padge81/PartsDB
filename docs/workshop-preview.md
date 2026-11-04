@@ -12,6 +12,12 @@ PDF exports wait for the current editable record to save successfully, A4 pages,
 
 ## Focused guide reading
 
+### Guide workflow and existing records (0.34.0)
+
+Guide approval determines the workshop stage. **My work** includes the creator's private and returned records, even older records whose repair progress was marked completed. **My submissions** holds pending reviews. **Approved library** includes every approved guide, including older rows with `status='draft'`. **All my repairs** and **All available repairs** retain access to the wider lists. This is a display/filter change: no migration, automatic deletion, record rewriting, ID replacement or media transfer occurs. Repair progress remains separate and is not inferred from approval.
+
+**Save changes** is disabled when there is nothing to save and after autosave completes. Reverting to the acknowledged content clears pending changes, while edits made during an in-flight save retain revision/conflict protection. New and recovered unsaved drafts still require a confirmed save. **Return to guide** saves and keeps an update proposal; **Discard update** explicitly removes the entire proposal, including saved edits, and returns to the original published guide. Discard requires confirmation, waits for in-flight saves and clears recovery copies. A failed deletion keeps the draft available. Existing approval audit history remains intact.
+
 `/workshop/guides/[id]` opens an independent reading page with the guide document, PDF download and permitted Update log action. It uses the same authentication and record privacy rules but loads only that repair and its attached photos. Machine/search links open this page, and old `view=guide` notebook links redirect there. Open guide in the notebook saves first; updating sends the reader back to the notebook, with returned/private drafts opening in the editor only when allowed. Administrator approval remains in the notebook review screen.
 
 ## Viewing submitted logs

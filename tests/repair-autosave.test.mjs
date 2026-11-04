@@ -3,6 +3,41 @@ import assert from 'node:assert/strict';
 import {createRepairAutosave} from '../lib/repair-autosave.ts';
 
 const job=(id='repair')=>({id,title:'Initial',revision:0,updated_at:'',owner_id:'owner',publication_status:'private',steps:[],parts:[]});
+test('unchanged content and reverted edits need no save and leave no stale device draft',async()=>{
+ let calls=0;const f=fixture(async log=>{calls++;return {...log,revision:2};});
+ f.saver.open({...job(),revision:1});f.saver.edit({title:'Initial'});
+ assert.equal(f.saver.getState().dirty,false);
+ f.saver.edit({title:'Changed'});await f.saver.backup();f.saver.edit({title:'Initial'});
+ assert.equal(f.saver.getState().dirty,false);await f.saver.backup();await f.saver.flush();
+ assert.equal(calls,0);assert.equal(f.local(),null);
+});
+test('reverting while a changed version saves writes the original content back using the new revision',async()=>{
+ const entered=gate(),release=gate(),requests=[];
+ const f=fixture(async log=>{requests.push([log.title,log.revision]);if(requests.length===1){entered.resolve();await release.promise;}return {...log,revision:log.revision+1};});
+ f.saver.open({...job(),revision:1});f.saver.edit({title:'Changed'});const pending=f.saver.flush();await entered.promise;
+ f.saver.edit({title:'Initial'});release.resolve();await pending;
+ assert.deepEqual(requests,[['Changed',1],['Initial',2]]);assert.equal(f.saver.getState().dirty,false);
+});
+test('reverting during a failed in-flight request retains dirty state and recovery',async()=>{
+ const entered=gate(),release=gate();
+ const f=fixture(async()=>{entered.resolve();await release.promise;throw Error('Acknowledgement lost');});
+ f.saver.open({...job(),revision:1});f.saver.edit({title:'Changed'});const pending=f.saver.flush();await entered.promise;
+ f.saver.edit({title:'Initial'});release.resolve();await assert.rejects(pending,/Acknowledgement lost/);
+ assert.equal(f.saver.getState().dirty,true);assert.equal(f.local().title,'Initial');
+});
+test('new unsaved records still need saving even after all edits are reverted',()=>{
+ const f=fixture(async log=>log);f.saver.open(job(),true);f.saver.edit({title:'Changed'});f.saver.edit({title:'Initial'});
+ assert.equal(f.saver.getState().dirty,true);
+});
+test('photo signing and part display metadata are not changes; instructions and quantities are',()=>{
+ const f=fixture(async log=>log),original={...job(),steps:[{id:'step',title:'Photo',instruction:'Do this',image_path:'saved.webp',imageUrl:'old',annotations:[]}],parts:[{part_id:'part',quantity:1,description:'Old label'}]};
+ f.saver.open(original);f.saver.edit({steps:[{...original.steps[0],imageUrl:'new'}],parts:[{...original.parts[0],description:'New label'}]});assert.equal(f.saver.getState().dirty,false);
+ f.saver.edit({parts:[{...original.parts[0],quantity:2}]});assert.equal(f.saver.getState().dirty,true);
+ f.saver.edit({parts:original.parts,steps:[{...original.steps[0],instruction:'Changed'}]});assert.equal(f.saver.getState().dirty,true);
+ f.saver.edit({steps:original.steps});assert.equal(f.saver.getState().dirty,false);
+ const preview={...original,steps:[{...original.steps[0],image_path:'',imageUrl:'data:image/webp;base64,old'}]};
+ f.saver.open(preview);f.saver.edit({steps:[{...preview.steps[0],imageUrl:'data:image/webp;base64,new'}]});assert.equal(f.saver.getState().dirty,true);
+});
 function gate(){let resolve;const promise=new Promise(r=>{resolve=r;});return {promise,resolve};}
 function fixture(persist){
   let local=null;const operations=[],saved=[];

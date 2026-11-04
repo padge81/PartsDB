@@ -98,7 +98,7 @@ export async function createWorkshopGuide(log: RepairLog, preview: boolean, load
   }
   text('Workshop guide',10,true);
   text(log.title,17,true);
-  text(`${preview?'DEMONSTRATION / ':''}${log.status==='completed'?'COMPLETED JOB - verify suitability before reuse':'DRAFT - NOT A VERIFIED PROCEDURE'}`,9,true);
+  text(`${preview?'DEMONSTRATION / ':''}${log.publication_status==='approved'?'PUBLISHED GUIDE - verify suitability before reuse':log.publication_status==='pending'?'AWAITING APPROVAL - NOT YET PUBLISHED':log.publication_status==='returned'?'CHANGES REQUESTED - NOT YET PUBLISHED':log.status==='completed'?'COMPLETED JOB - verify suitability before reuse':'DRAFT - NOT A VERIFIED PROCEDURE'}`,9,true);
   const metadata = [
     log.machine_name.trim() && 'Machine: '+log.machine_name.trim(),
     [log.job_date && 'Date: '+log.job_date,log.technician.trim() && 'Technician: '+log.technician.trim()].filter(Boolean).join(' | '),

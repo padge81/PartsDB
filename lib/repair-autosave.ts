@@ -9,6 +9,10 @@ type Options = {
   onRecoveredSaved?:(key:string,id:string)=>void;
 };
 export function createRepairAutosave(options:Options){
+  // Compare editable content only; refreshed photo URLs and server metadata are not edits.
+  const content=(job:RepairLog)=>JSON.stringify([job.title,job.machine_id,job.machine_name,job.technician,job.job_date,job.fault,job.tools,job.tests,job.outcome,job.status,job.change_summary??'',job.steps.map(s=>[s.id,s.title,s.instruction,s.image_path,s.image_path?undefined:s.imageUrl,s.annotations?.map(m=>[m.kind,m.x,m.y,m.x2,m.y2,m.label??''])]),job.parts.map(p=>[p.part_id,p.quantity])]);
+  let savedContent:string|null=null;
+  const clearBackup=(id:string)=>{backupQueue=backupQueue.catch(()=>{}).then(()=>options.clear(id));return backupQueue;};
   let state:AutosaveState={job:null,dirty:false,saving:false,error:'',backupError:'',deviceSaved:false};
   let removing=false;
   let generation=0,running:Promise<RepairLog|null>|null=null,backupQueue:Promise<void>=Promise.resolve();
@@ -30,13 +34,18 @@ export function createRepairAutosave(options:Options){
   function open(job:RepairLog|null,dirty=false){
     if(removing)throw new Error('Wait for deletion to finish.');
     if(running)throw new Error('Wait for the current save to finish.');
+    savedContent=job&&!dirty?content(job):null;
     generation++;state={job,dirty,saving:false,error:'',backupError:'',deviceSaved:false};emit();
     if(dirty)void backup().catch(()=>{});
   }
   function edit(patch:Partial<RepairLog>){
     if(!state.job||removing)return;
-    generation++;state={...state,job:{...state.job,...patch},dirty:true,error:'',deviceSaved:false};emit();
-    void backup().catch(()=>{});
+    const next={...state.job,...patch};
+    // An in-flight request may commit even if its acknowledgement is lost.
+    const dirty=!!running||savedContent===null||content(next)!==savedContent;
+    generation++;state={...state,job:next,dirty,error:'',deviceSaved:false,backupError:dirty?state.backupError:''};emit();
+    if(dirty)void backup().catch(()=>{});
+    else if(!running)void clearBackup(next.id).catch(()=>{});
   }
   function flush():Promise<RepairLog|null>{
     if(running)return running;
@@ -49,6 +58,7 @@ export function createRepairAutosave(options:Options){
           // Try the device copy first, but still allow cloud saving if device storage is full.
           await backup().catch(()=>{});
           const saved=await options.persist(snapshot);
+          savedContent=content(saved);
           options.onSaved?.(saved);
           if(restoredSource?.id===saved.id){
             const source=restoredSource;restoredSource=null;
@@ -57,11 +67,11 @@ export function createRepairAutosave(options:Options){
           if(generation===version){
             state={...state,job:saved,dirty:false,deviceSaved:false,backupError:''};emit();
             // Queue cleanup ahead of subsequent edits, so a newer backup cannot be deleted.
-            backupQueue=backupQueue.catch(()=>{}).then(()=>options.clear(saved.id));
-            await backupQueue.catch(()=>{});
+            await clearBackup(saved.id).catch(()=>{});
           }else{
-            state={...state,job:{...state.job,revision:saved.revision,updated_at:saved.updated_at,owner_id:saved.owner_id,publication_status:saved.publication_status},deviceSaved:false};emit();
-            await backup().catch(()=>{});
+            const current={...state.job,revision:saved.revision,updated_at:saved.updated_at,owner_id:saved.owner_id,publication_status:saved.publication_status};
+            state={...state,job:current,dirty:content(current)!==savedContent,deviceSaved:false};emit();
+            if(state.dirty)await backup().catch(()=>{});else await clearBackup(saved.id).catch(()=>{});
           }
         }
         return state.job;
