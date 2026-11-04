@@ -20,9 +20,13 @@ Guide approval determines the workshop stage. **My work** includes the creator's
 
 `/workshop/guides/[id]` opens an independent reading page with the guide document, PDF download and permitted Update log action. It uses the same authentication and record privacy rules but loads only that repair and its attached photos. Machine/search links open this page, and old `view=guide` notebook links redirect there. Open guide in the notebook saves first; updating sends the reader back to the notebook, with returned/private drafts opening in the editor only when allowed. Administrator approval remains in the notebook review screen.
 
+## Focused editing (0.35.0)
+
+Workshop starts with the overview and no automatic draft selection. Existing repair selections open in viewing mode, including private drafts. Update log or a permitted explicit edit link starts editing. While editing, the repair list and its filters, New repair and Restore draft are unavailable; selecting another repair requires finishing or discarding first. Done editing waits for saving and keeps the draft without submitting it. A save error or unsaved changes keep the editor open. On phones, Done editing returns to the repair list; on desktop, the current document remains visible beside the unlocked list. The explicit edit query is cleared so refreshing does not reopen the editor. Discarding an update returns to Workshop and retains the original published guide.
+
 ## Viewing submitted logs
 
-Submitted, approved and returned logs open in the read-only document viewer, including administrator review. All recorded steps appear together, in the same content order as the PDF. Use **Update log** to enter the same editor used to create a repair when permitted; personal private drafts still open in the editor. Submission switches immediately into viewing. **Submission and review** expands the existing approval, return and withdrawal controls separately from the document.
+Submitted, approved and returned logs open in the read-only document viewer, including administrator review. All recorded steps appear together, in the same content order as the PDF. Use **Update log** to enter the same editor used to create a repair when permitted; existing personal private drafts also open for viewing until Update log is selected. Submission switches immediately into viewing. **Submission and review** expands the existing approval, return and withdrawal controls separately from the document.
 
 ## Updates to approved repairs
 

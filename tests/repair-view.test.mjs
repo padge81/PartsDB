@@ -32,9 +32,9 @@ test('explicit editor navigation respects ownership and publication permissions'
   assert.equal(shouldViewRepair(log,'creator','edit',canEditRepair(log,'creator')), !['private','returned'].includes(publication_status));
  }
 });
-test('own drafts stay in the editor; completed and approved records open as guides',()=>{
- assert.equal(shouldViewRepair({status:'draft',owner_id:'me',publication_status:'private'},'me'),false);
- assert.equal(shouldViewRepair({status:'completed',owner_id:'me',publication_status:'private',update_of:'published'},'me'),false);
+test('existing repairs, including private drafts, open for viewing until editing is requested',()=>{
+ assert.equal(shouldViewRepair({status:'draft',owner_id:'me',publication_status:'private'},'me'),true);
+ assert.equal(shouldViewRepair({status:'completed',owner_id:'me',publication_status:'private',update_of:'published'},'me'),true);
  assert.equal(shouldViewRepair({status:'completed',owner_id:'me',publication_status:'private'},'me'),true);
  assert.equal(shouldViewRepair({status:'draft',owner_id:'me',publication_status:'approved'},'me'),true);
 });
@@ -48,7 +48,7 @@ test('submitted, returned and approved logs open as documents for creators and a
   assert.equal(shouldViewRepair({status:'draft',owner_id:'me',publication_status},'admin'),true);
  }
  assert.equal(shouldViewRepair({status:'completed',publication_status:'approved'},'admin','guide'),true);
- assert.equal(shouldViewRepair({status:'draft',owner_id:'me',publication_status:'private'},'me'),false);
+ assert.equal(shouldViewRepair({status:'draft',owner_id:'me',publication_status:'private'},'me'),true);
 });
 
 test('document and PDF steps omit empty entries but retain text-only and missing-photo steps',()=>{

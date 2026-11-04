@@ -123,3 +123,8 @@ details.wk-questions[open]>summary { margin-bottom:16px; }
 .guide-reader-page>.back-link { display:inline-block; margin-bottom:16px; }
 .guide-reader-page>.repair-guide { overflow:hidden; border:1px solid #dce3e8; border-radius:12px; }
 @media(max-width:700px) { .guide-reader-page { padding:16px 8px 28px; } }
+
+.wk-library-controls{border:0;padding:0;margin:0;min-width:0}.wk-library-controls:disabled .wk-log{cursor:default;opacity:.6}.wk-edit-lock{margin:0 0 16px;padding:12px;border-radius:8px;background:#fff3e7;color:#774016;font-size:14px;line-height:1.5}
+.wk-library{min-width:0}
+
+.wk-edit-session-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;background:#fff3e7;border-bottom:1px solid #efdbc6}.wk-edit-session-bar p{margin:5px 0 0;color:#61717e;font-size:14px;line-height:1.5}.wk-edit-session-bar>.button{flex-shrink:0}.wk-workspace .wk-back-to-library{display:none}@media(max-width:700px){.wk-edit-session-bar{align-items:flex-start;flex-direction:column;padding:16px 12px}.wk-workspace .wk-back-to-library{display:inline-flex}}
