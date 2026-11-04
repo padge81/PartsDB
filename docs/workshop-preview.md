@@ -10,6 +10,10 @@ The UI supports camera/gallery capture, text steps, step reordering, circles/arr
 
 PDF exports wait for the current editable record to save successfully, A4 pages, pagination, marked-up photos, parts and verification. Repair reports include fault/outcome history; guides focus on preparation, parts, steps and verification. A completed job is not a certification that the procedure is appropriate for another machine. PDFs use a Latin font; unsupported characters currently become `?`.
 
+## Viewing submitted logs
+
+Submitted, approved and returned logs open in the read-only document viewer, including administrator review. All recorded steps appear together, in the same content order as the PDF. Use **Edit log** to enter the editor when permitted; personal private drafts still open in the editor. Submission switches immediately into viewing. **Submission and review** expands the existing approval, return and withdrawal controls separately from the document.
+
 ## Database and storage
 
 `repair_logs` links an optional machine and owns an ordered JSON step document. `repair_log_parts` links catalogue parts with quantities. `bench_references` contains the user's custom text references. Existing catalogue records are reused, not copied.
