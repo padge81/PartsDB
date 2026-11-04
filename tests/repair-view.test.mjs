@@ -1,4 +1,23 @@
 import test from 'node:test';
+import {matchesRepairWorkflow,repairWorkflowLabel} from '../lib/repair-workflow.ts';
+test('legacy approved drafts remain published without changing a single field',()=>{
+ const log={id:'existing',status:'draft',publication_status:'approved',owner_id:'me',steps:[{image_path:'keep-photo'}]};const before=structuredClone(log);
+ assert.equal(repairWorkflowLabel(log),'Published guide');assert.equal(matchesRepairWorkflow(log,'me','work'),false);
+ assert.equal(matchesRepairWorkflow(log,'me','approved'),true);assert.equal(matchesRepairWorkflow(log,'me','mine'),true);assert.deepEqual(log,before);
+});
+test('workflow lists retain old private completed repairs, returned submissions and update drafts',()=>{
+ for(const status of ['draft','completed']){
+  for(const publication_status of ['private','returned','pending','approved']){
+   const log={owner_id:'me',status,publication_status};
+   assert.equal(matchesRepairWorkflow(log,'me','work'),['private','returned'].includes(publication_status));
+   assert.equal(matchesRepairWorkflow(log,'me','submissions'),publication_status==='pending');
+   assert.equal(matchesRepairWorkflow(log,'other','work'),false);
+  }
+ }
+ assert.equal(repairWorkflowLabel({update_of:'published'}),'Update draft');
+ assert.equal(matchesRepairWorkflow({owner_id:'me',update_of:'published'},'me','work','update'),true);
+ assert.equal(matchesRepairWorkflow({owner_id:'me'},'me','work','update'),false);
+});
 import assert from 'node:assert/strict';
 import {shouldViewRepair,repairGuideSteps,canEditRepair,repairGuideHref} from '../lib/repair-view.ts';
 test('focused guide links encode record identifiers',()=>{

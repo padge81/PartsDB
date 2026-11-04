@@ -85,6 +85,12 @@ test('missing saved photo fails export instead of silently producing an incomple
 });
 
 
+test('legacy approved drafts export as published without rewriting repair progress or content',async()=>{
+ const existing=log({status:'draft',publication_status:'approved'}),before=structuredClone(existing);
+ const doc=await createWorkshopGuide(existing,false,portrait);
+ assert.ok(doc.output().includes('PUBLISHED GUIDE'));assert.ok(!doc.output().includes('DRAFT - NOT A VERIFIED PROCEDURE'));
+ assert.deepEqual(existing,before);
+});
 test('repair PDF filename starts with the machine name',()=>{
  assert.equal(repairPdfFilename(log({machine_name:'Mario Kart DX',title:'Steering repair'})),'Mario-Kart-DX_Steering-repair-guide.pdf');
  assert.equal(repairPdfFilename(log({machine_name:'',title:'General repair'})),'General-repair-guide.pdf');

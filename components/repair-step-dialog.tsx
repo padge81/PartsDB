@@ -3,8 +3,8 @@ import { useEffect, useRef, type ChangeEvent } from 'react';
 import { RepairPhoto } from './repair-photo';
 import type { RepairStep } from '../lib/workshop';
 
-export function RepairStepDialog({step,index,count,busy,readonly,dirty,saveStatus,error,message,onChange,onNavigate,onClose,onSave,onAdd,onMove,onPhoto}:{
-  step:RepairStep;index:number;count:number;busy:boolean;readonly:boolean;dirty:boolean;saveStatus:string;error:string;message:string;
+export function RepairStepDialog({step,index,count,busy,saving=false,readonly,dirty,saveStatus,error,message,onChange,onNavigate,onClose,onSave,onAdd,onMove,onPhoto}:{
+  step:RepairStep;index:number;count:number;busy:boolean;saving?:boolean;readonly:boolean;dirty:boolean;saveStatus:string;error:string;message:string;
   onChange:(patch:Partial<RepairStep>)=>void;onNavigate:(index:number)=>void;onClose:()=>void;onSave:()=>void;
   onAdd:()=>void;onMove:(offset:number)=>void;onPhoto:(file:File)=>void;
 }) {
@@ -26,6 +26,6 @@ export function RepairStepDialog({step,index,count,busy,readonly,dirty,saveStatu
         </div>
       </fieldset>
     </div>
-    <footer className="wk-dialog-footer"><div className="wk-dialog-navigation" aria-label="Step navigation"><button type="button" className="button secondary" disabled={busy||index===0} onClick={()=>onNavigate(index-1)}>← Previous</button><span aria-live="polite">{index+1} / {count}</span><button type="button" className={last?'button primary':'button secondary'} disabled={busy||(last&&(readonly||count>=60))} onClick={()=>last?onAdd():onNavigate(index+1)}>{last?'Add step →':'Next →'}</button></div>{last&&count>=60&&<p className="wk-small">This repair has reached the 60-step limit.</p>}<div className="wk-dialog-save"><span className="wk-small">{saveStatus}</span><button type="button" className="button primary" disabled={busy||readonly} onClick={onSave}>{busy?'Working…':dirty?'Save now':'Saved'}</button></div></footer>
+    <footer className="wk-dialog-footer"><div className="wk-dialog-navigation" aria-label="Step navigation"><button type="button" className="button secondary" disabled={busy||index===0} onClick={()=>onNavigate(index-1)}>← Previous</button><span aria-live="polite">{index+1} / {count}</span><button type="button" className={last?'button primary':'button secondary'} disabled={busy||(last&&(readonly||count>=60))} onClick={()=>last?onAdd():onNavigate(index+1)}>{last?'Add step →':'Next →'}</button></div>{last&&count>=60&&<p className="wk-small">This repair has reached the 60-step limit.</p>}<div className="wk-dialog-save"><span className="wk-small">{saveStatus}</span><button type="button" className="button primary" disabled={busy||saving||readonly||!dirty} onClick={onSave}>{saving?'Saving…':busy?'Working…':dirty?'Save changes':'Saved'}</button></div></footer>
   </dialog>;
 }
