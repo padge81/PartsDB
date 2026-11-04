@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import {repairGuideSteps} from './repair-view.ts';
 import type { RepairLog, RepairStep } from './workshop';
 
 type Photo = { data: string; width: number; height: number };
@@ -9,7 +10,7 @@ const titleLine = 5, bodyLine = 4.5;
 
 /** Measured rows keep photos, captions and ordinary step text on the same page. */
 export async function appendGuideSteps(doc: jsPDF, steps: RepairStep[], loadPhoto: (step: RepairStep) => Promise<Photo>, startY: number) {
-  steps = steps.filter(step => step.title.trim() || step.instruction.trim() || step.image_path || step.imageUrl);
+  steps = repairGuideSteps(steps);
   let y = startY, index = 0;
   const pending: Prepared[] = [];
   const newPage = () => { doc.addPage(); y = top; };

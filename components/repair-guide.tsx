@@ -1,48 +1,43 @@
 'use client';
-import {useRef,useState} from 'react';
-import type {RepairLog} from '../lib/workshop';
+import {useState,type CSSProperties} from 'react';
+import type {RepairLog,RepairStep} from '../lib/workshop';
+import {repairGuideSteps} from '../lib/repair-view';
 import {RepairPhoto} from './repair-photo';
 
+function GuideStep({step,number}:{step:RepairStep;number:number}){
+  const [ratio,setRatio]=useState(1);
+  const portrait=ratio<1;
+  return <section className={`guide-step${portrait?' portrait':''}`} aria-label={`Step ${number}`}>
+    <div className="guide-step-layout">
+      <div className="guide-step-copy"><h3>Step {number}{step.title.trim()?` — ${step.title}`:''}</h3>{step.instruction.trim()&&<p className="guide-instruction">{step.instruction}</p>}</div>
+      {step.imageUrl?<figure style={{'--guide-photo-ratio':ratio} as CSSProperties} onLoadCapture={event=>{const image=event.target;if(image instanceof HTMLImageElement)setRatio(image.naturalWidth/image.naturalHeight);}}><RepairPhoto step={step} disabled viewOnly onChange={()=>{}}/><figcaption>Step {number} — Photo</figcaption></figure>:step.image_path?<p className="wk-alert">This step’s photo is unavailable. Reload the log to try again.</p>:null}
+    </div>
+  </section>;
+}
+
 export function RepairGuide({job,canEdit,busy,preview,onEdit,onExport}:{job:RepairLog;canEdit:boolean;busy:boolean;preview:boolean;onEdit:()=>void;onExport:()=>void}){
-  const [index,setIndex]=useState(-1);
-  const heading=useRef<HTMLHeadingElement>(null);
-  const step=job.steps[index];
-  function go(next:number){
-    setIndex(next);
-    window.requestAnimationFrame(()=>{
-      const node=heading.current;if(!node)return;
-      const height=document.querySelector('.app-navigation')?.getBoundingClientRect().height??0;
-      node.style.scrollMarginTop=(height+16)+'px';
-      node.focus({preventScroll:true});node.scrollIntoView({block:'start'});
-    });
-  }
-  return <article className="repair-guide" aria-label="Repair guide">
-    <header className="guide-header">
-      <p className="wk-eyebrow">WORKSHOP GUIDE</p><h2>{job.title}</h2>
-      <p>{job.machine_name||'Machine not recorded'}{job.job_date?' · '+job.job_date:''}</p>
-      {job.publication_status!=='approved'&&<span className="wk-status">{job.status==='draft'?'Draft · not an approved guide':'Not published'}</span>}
-      <div className="wk-ref-actions"><button className="button secondary" disabled={busy} onClick={onExport}>Download PDF</button>{canEdit&&<button className="button secondary" disabled={busy} onClick={onEdit}>Edit log</button>}{job.machine_id&&!preview&&<a className="button secondary" href={`/machines/${job.machine_id}`}>Machine details</a>}</div>
-    </header>
-    <section className="guide-content">
-      <h3 ref={heading} tabIndex={-1}>{step?`Step ${index+1} of ${job.steps.length}`:'Before you start'}</h3>
-      {!step?<div>
-        {job.fault&&<div className="guide-note"><h4>Task / reported fault</h4><p>{job.fault}</p></div>}
-        {job.tools&&<div className="guide-note"><h4>Tools and preparation</h4><p>{job.tools}</p></div>}
-        <p>{job.steps.length} {job.steps.length===1?'step':'steps'} in this guide.</p>
-        {job.steps.length?<button className="button primary" disabled={busy} onClick={()=>go(0)}>Start guide →</button>:<p>No steps have been recorded yet.</p>}
-      </div>:<>
-        {step.title&&<h4 className="guide-step-title">{step.title}</h4>}
-        {step.instruction&&<p className="guide-instruction">{step.instruction}</p>}
-        {step.imageUrl?<RepairPhoto key={step.id} step={step} disabled viewOnly onChange={()=>{}}/>:step.image_path?<p className="wk-alert">This step’s photo is unavailable. Reload the guide to try again.</p>:null}
-        <nav className="guide-step-nav" aria-label="Guide step navigation">
-          <button className="button secondary" disabled={busy} onClick={()=>go(index-1)}>{index===0?'← Overview':'← Previous'}</button>
-          {index<job.steps.length-1?<button className="button primary" disabled={busy} onClick={()=>go(index+1)}>Next →</button>:<span className="guide-last-step">Last step</span>}
-        </nav>
-        {index===job.steps.length-1&&(job.tests||job.outcome)&&<div className="guide-note"><h4>Testing and outcome</h4>{job.tests&&<p><strong>Testing</strong><br/>{job.tests}</p>}{job.outcome&&<p><strong>Outcome</strong><br/>{job.outcome}</p>}</div>}
-      </>}
-      {!!job.steps.length&&<details className="guide-details"><summary>All steps</summary><ol>{job.steps.map((item,i)=><li key={item.id}><button disabled={busy} aria-current={index===i?'step':undefined} onClick={()=>go(i)}>{item.title||`Step ${i+1}`}</button></li>)}</ol></details>}
-      {!!job.parts.length&&<details className="guide-details"><summary>Parts used ({job.parts.length})</summary><ul>{job.parts.map(part=><li key={part.part_id}><strong>{part.quantity} × </strong>{preview?part.description:<a href={`/parts/${part.part_id}`}>{part.description}</a>}{part.number&&<small>{part.number}</small>}</li>)}</ul></details>}
-      {(job.tests||job.outcome)&&<details className="guide-details"><summary>Testing and outcome</summary>{job.tests&&<div className="guide-note"><h4>Testing</h4><p>{job.tests}</p></div>}{job.outcome&&<div className="guide-note"><h4>Outcome</h4><p>{job.outcome}</p></div>}</details>}
-    </section>
+  const steps=repairGuideSteps(job.steps);
+  const publication=job.publication_status??'private';
+  const labels={private:'Private draft',pending:'Awaiting approval',approved:'Approved repair record',returned:'Changes requested'};
+  return <article className="repair-guide" aria-label="Repair log document">
+    <div className="guide-toolbar"><span>Viewing repair log</span><div className="wk-ref-actions"><button className="button secondary" disabled={busy} onClick={onExport}>Download PDF</button>{canEdit&&<button className="button secondary" disabled={busy} onClick={onEdit}>Update log</button>}{job.machine_id&&!preview&&<a className="button secondary" href={`/machines/${job.machine_id}`}>Machine details</a>}</div></div>
+    <div className="guide-document">
+      <header className="guide-header">
+        <p className="wk-eyebrow">WORKSHOP GUIDE</p><h2>{job.title}</h2>
+        <p className="guide-record-status">{preview?'Demonstration · ':''}{job.status==='completed'?'Completed job — verify suitability before reuse':'Draft — not a verified procedure'}</p>
+        <span className={`wk-status ${publication}`}>{labels[publication]}</span>
+        <dl className="guide-metadata">{job.machine_name.trim()&&<div><dt>Machine</dt><dd>{job.machine_name}</dd></div>}{job.job_date&&<div><dt>Date</dt><dd>{job.job_date}</dd></div>}{job.technician.trim()&&<div><dt>Technician</dt><dd>{job.technician}</dd></div>}</dl>
+      </header>
+      <div className="guide-content">
+        {job.fault.trim()&&<section className="guide-note"><h3>Fault / task</h3><p>{job.fault}</p></section>}
+        {job.tools.trim()&&<section className="guide-note"><h3>Tools and preparation</h3><p>{job.tools}</p></section>}
+        {!!job.parts.length&&<section className="guide-note"><h3>Parts used</h3><ul className="guide-parts">{job.parts.map(part=><li key={part.part_id}><strong>{part.quantity} × </strong>{preview?part.description:<a href={`/parts/${part.part_id}`}>{part.description}</a>}{part.number&&<span> · {part.number}</span>}</li>)}</ul></section>}
+        {steps.map((step,index)=><GuideStep key={step.id} step={step} number={index+1}/>)}
+        {!steps.length&&<p className="wk-small">No steps have been recorded yet.</p>}
+        {job.tests.trim()&&<section className="guide-note"><h3>Testing and verification</h3><p>{job.tests}</p></section>}
+        {job.outcome.trim()&&<section className="guide-note"><h3>Outcome / outstanding work</h3><p>{job.outcome}</p></section>}
+      </div>
+      <footer className="guide-footer">PartsDB Workshop · {labels[publication]}<br/>Record: {job.id} · Revision: {job.revision}</footer>
+    </div>
   </article>;
 }

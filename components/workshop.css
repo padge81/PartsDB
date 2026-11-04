@@ -66,32 +66,31 @@
  .wk-back-to-library{display:inline-flex;margin:12px 12px 0;min-height:44px;font-size:13px!important}
 }
 
-.repair-guide { color:#253e50; }
-.guide-header { padding:24px 28px; border-bottom:1px solid #dce3e8; }
+.repair-guide { color:#253e50; background:#edf2f5; }
+.guide-toolbar { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:16px 22px; background:#fff; border-bottom:1px solid #dce3e8; }
+.guide-toolbar>span { font-size:13px; color:#61717e; }
+.guide-toolbar .wk-ref-actions { flex-wrap:wrap; }
+.guide-document { max-width:850px; margin:24px auto; background:#fff; border:1px solid #dce3e8; box-shadow:0 2px 12px #173e580a; }
+.guide-header { padding:28px 32px 20px; border-bottom:1px solid #dce3e8; }
 .guide-header h2 { margin:8px 0; font-size:28px; line-height:1.25; overflow-wrap:anywhere; }
-.guide-header>p:not(.wk-eyebrow) { color:#61717e; line-height:1.5; }
-.guide-header .wk-ref-actions { margin-top:18px; }
-.guide-content { padding:24px 28px; }
-.guide-content h3 { margin:0 0 18px; font-size:19px; color:#61717e; }
-.guide-step-title { font-size:25px; line-height:1.3; margin:0 0 16px; overflow-wrap:anywhere; }
-.guide-note { margin:0 0 20px; }
-.guide-note h4 { margin:0 0 8px; }
-.guide-note p,.guide-instruction { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.7; font-size:17px; }
-.guide-step-nav { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:20px 0; }
-.guide-last-step { color:#61717e; font-size:14px; }
-.guide-details { border-top:1px solid #dce3e8; padding:16px 0; }
-.guide-details summary { cursor:pointer; font-weight:650; min-height:32px; }
-.guide-details li { padding:8px 0; line-height:1.5; }
-.guide-details li small { display:block; color:#61717e; }
-.guide-details a { color:#17628b; text-decoration:underline; }
-.guide-details li button { text-align:left; border:0; padding:8px; border-radius:6px; background:#f0f5f8; color:#173e58; cursor:pointer; }
-.guide-details li button[aria-current] { background:#fff1e8; font-weight:bold; }
-.repair-guide .repair-photo-stage { width:100%; max-width:760px; margin:auto; }
+.guide-record-status { font-size:12px; color:#61717e; line-height:1.6; }
+.guide-metadata { display:grid; gap:8px; margin:18px 0 0; font-size:14px; }
+.guide-metadata>div { display:flex; flex-wrap:wrap; gap:6px; }.guide-metadata dt { font-weight:700; }.guide-metadata dd { margin:0; overflow-wrap:anywhere; }
+.guide-content { padding:24px 32px; }
+.guide-content h3 { margin:0 0 10px; font-size:18px; line-height:1.4; overflow-wrap:anywhere; }
+.guide-note { margin:0 0 26px; }
+.guide-note p,.guide-instruction { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.7; font-size:16px; margin:0; }
+.guide-parts { padding-left:22px; line-height:1.7; overflow-wrap:anywhere; }.guide-parts a { color:#17628b; text-decoration:underline; }.guide-parts span { color:#61717e; }
+.guide-step { padding:22px 0; border-top:1px solid #dce3e8; }.guide-step:last-of-type { margin-bottom:14px; }
+.guide-step-layout { display:grid; gap:16px; min-width:0; }.guide-step-copy { min-width:0; }.guide-step figure { margin:0; min-width:0; }.guide-step figcaption { text-align:center; font-size:12px; color:#61717e; margin-top:8px; }
+.guide-step.portrait .guide-step-layout { grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); align-items:start; }.guide-step.portrait figure { grid-column:1; grid-row:1; }.guide-step.portrait .guide-step-copy { grid-column:2; grid-row:1; }
+.repair-guide .repair-photo-stage { width:100%; max-width:min(760px,calc(360px * var(--guide-photo-ratio,1))); margin:auto; }
+.guide-footer { padding:16px 32px; border-top:1px solid #dce3e8; color:#61717e; font-size:11px; line-height:1.7; overflow-wrap:anywhere; }
+.wk-reader-review { background:#fff; border-top:1px solid #dce3e8; }.wk-reader-review>summary { cursor:pointer; padding:18px 24px; font-weight:650; }
 @media(max-width:700px) {
- .guide-header,.guide-content { padding:18px 14px; }
- .guide-header h2 { font-size:24px; }.guide-step-title { font-size:22px; }
- .guide-header .button,.guide-step-nav .button { min-height:44px; }
- .guide-step-nav { position:sticky; bottom:0; background:#fff; z-index:2; }
+ .guide-toolbar { padding:14px; }.guide-toolbar .button { min-height:44px; }
+ .guide-document { margin:12px 8px; }.guide-header { padding:20px 16px; }.guide-content { padding:20px 16px; }.guide-footer { padding:14px 16px; }.guide-header h2 { font-size:24px; }
+ .guide-step.portrait .guide-step-layout { grid-template-columns:1fr; }.guide-step.portrait figure,.guide-step.portrait .guide-step-copy { grid-column:auto; grid-row:auto; }
 }
 
 details.wk-questions { margin-bottom:20px; }
@@ -101,3 +100,21 @@ details.wk-questions[open]>summary { margin-bottom:16px; }
   .wk-editor-top { flex-wrap:wrap; }
   .wk-editor-top>.wk-ref-actions { width:100%; }
 }
+
+.repair-update-review { padding:24px; border-bottom:1px solid #dce3e8; background:#f8fafb; }
+.repair-update-review h2 { margin:0 0 12px; font-size:24px; }
+.repair-update-review h3 { margin:22px 0 12px; font-size:18px; }
+.repair-update-review h4 { margin:12px 0 8px; }
+.repair-update-review p { line-height:1.6; overflow-wrap:anywhere; }
+.update-summary,.update-versions p { white-space:pre-wrap; }
+.update-versions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.update-versions>section,.update-versions>p { min-width:0; padding:14px; border:1px solid #dce3e8; border-radius:8px; background:#fff; }
+.update-versions h5 { margin:0 0 8px; color:#61717e; font-size:13px; }
+.update-versions .repair-photo-stage { max-width:240px; }
+.update-field-changes>div,.update-step-change { margin-bottom:18px; }
+.update-step-change>summary { cursor:pointer; font-weight:700; line-height:1.6; padding:12px 0; overflow-wrap:anywhere; }
+.wk-update-draft { padding:20px 28px; background:#fff8ee; border-top:1px solid #eddbbd; border-bottom:1px solid #eddbbd; }
+.wk-update-draft .wk-label { margin:14px 0 0; }
+@media(max-width:700px) { .update-versions { grid-template-columns:1fr; }.repair-update-review,.wk-update-draft { padding:18px 14px; } }
+
+.repair-update-review .wk-alert { margin:16px 0; }.repair-update-review .wk-alert .button { margin-top:10px; }
