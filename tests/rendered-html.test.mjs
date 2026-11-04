@@ -257,19 +257,15 @@ test("part information exposes copy controls for description and part number", a
 });
 
 
-test("portable backups include images, revisions and checksum preflight", async () => {
-  const source = await readFile(new URL("../components/backup-manager.tsx", import.meta.url), "utf8");
-  assert.match(source, /Portable ZIP v4/);
-  assert.match(source, /format_version: 4/);
-  assert.match(source, /machine-images/);
-  assert.match(source, /part-images/);
-  assert.match(source, /request-images/);
-  assert.match(source, /checksums\.sha256/);
-  assert.match(source, /SHA-256/);
-  assert.match(source, /Checksum failed/);
-  assert.match(source, /Stored image is missing/);
-  assert.match(source, /Missing user references are assigned/);
-  assert.match(source, /Authentication accounts, passwords and server secrets are deliberately excluded/);
+test("portable backups retain release revisions and explicit full scope", async () => {
+  const {buildBackup,validateBackup}=await import('../lib/backup-archive.ts');
+  const {allBackupSections,backupTables}=await import('../lib/backup-model.ts');
+  const snapshot={job_id:'test',sections:allBackupSections,tables:Object.fromEntries(backupTables.map(table=>[table.name,[]])),files:[],database_revision:'0.15.0'};
+  const prepared=await buildBackup(snapshot,'0.31.0',async()=>{throw new Error('No media expected');});
+  const restored=await validateBackup(new File([prepared.bytes],'backup.zip'));
+  assert.equal(restored.manifest.source.application_revision,'0.31.0');
+  assert.equal(restored.manifest.source.database_revision,'0.15.0');
+  assert.equal(restored.canReplace,true);
 });
 
 

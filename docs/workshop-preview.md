@@ -20,7 +20,7 @@ The default machine lookup loads up to 1000 machines. Parts are fetched in pages
 
 ## Backups and future hosting
 
-The per-job ZIP contains JSON records, compressed unmarked photos and editable annotation coordinates. Reference notes have a separate ZIP export including compressed photos. These are portable data exports; automated restore is not implemented. The existing v4 catalogue backup does not include private workshop records. A guard prevents full catalogue restore when any repair logs exist, before image deletion starts. A coordinated full workshop/catalogue restore must be implemented before production adoption.
+The per-job ZIP contains JSON records, compressed unmarked photos and editable annotation coordinates. Reference notes have a separate ZIP export including compressed photos. Individual job/reference ZIPs remain separate exports and are not imported by the main backup screen. Administrator portable ZIP v5 backups can include all selected Workshop records and their files, with merge or complete six-section replacement through a transactional restore. Older v4 catalogue ZIPs remain merge-only imports and do not contain Workshop records. See `docs/portable-backups.md` for ownership, scope and recovery limits.
 
 Keep PostgreSQL for relational data and private object storage for images. Self-hosted Supabase can retain current Auth/RLS/Storage interfaces. A move to another stack will need replacement authentication and storage adapters. No SharePoint or OneDrive dependency exists.
 
