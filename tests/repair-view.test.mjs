@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {shouldViewRepair,repairGuideSteps} from '../lib/repair-view.ts';
 test('own drafts stay in the editor; completed and approved records open as guides',()=>{
  assert.equal(shouldViewRepair({status:'draft',owner_id:'me',publication_status:'private'},'me'),false);
+ assert.equal(shouldViewRepair({status:'completed',owner_id:'me',publication_status:'private',update_of:'published'},'me'),false);
  assert.equal(shouldViewRepair({status:'completed',owner_id:'me',publication_status:'private'},'me'),true);
  assert.equal(shouldViewRepair({status:'draft',owner_id:'me',publication_status:'approved'},'me'),true);
 });

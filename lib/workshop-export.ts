@@ -31,13 +31,19 @@ export async function exportRepairArchive(logs: RepairLog[]) {
   const entries: Record<string,Uint8Array> = {}; let bytes = 0;
   const records = [];
   for (const log of logs) {
-    const steps = [];
-    for (const step of log.steps) {
-      const { imageUrl, ...saved } = step;
-      if (imageUrl) { const response = await fetch(imageUrl); if (!response.ok) throw new Error('A photo could not be downloaded; archive was not created.'); const image = new Uint8Array(await response.arrayBuffer()); bytes += image.length; if(bytes>100*1024*1024) throw new Error('Export exceeds 100 MB. Export individual jobs instead.'); const path = `photos/${log.id}/${step.id}.webp`; entries[path] = image; saved.image_path = path; }
-      steps.push(saved);
+    async function archiveSteps(steps:RepairStep[],folder:string){
+      const savedSteps=[];
+      for(const step of steps){
+        const {imageUrl,...saved}=step;
+        if(imageUrl){const response=await fetch(imageUrl);if(!response.ok)throw new Error('A photo could not be downloaded; archive was not created.');const image=new Uint8Array(await response.arrayBuffer());bytes+=image.length;if(bytes>100*1024*1024)throw new Error('Export exceeds 100 MB. Export individual jobs instead.');const path=folder+'/'+step.id+'.webp';entries[path]=image;saved.image_path=path;}
+        else if(saved.image_path)throw new Error('A saved repair photo is unavailable; archive was not created. Reload and try again.');
+        savedSteps.push(saved);
+      }
+      return savedSteps;
     }
-    records.push({...log,steps});
+    const steps=await archiveSteps(log.steps,'photos/'+log.id);
+    const update_baseline=log.update_baseline?{...log.update_baseline,steps:await archiveSteps(log.update_baseline.steps,'photos/'+log.id+'/approved-baseline')}:log.update_baseline;
+    records.push({...log,steps,update_baseline});
   }
   entries['repair-logs.json'] = strToU8(JSON.stringify({format:'PartsDB workshop archive',version:1,exported_at:new Date().toISOString(),logs:records},null,2));
   entries['README.txt'] = strToU8('PartsDB Workshop archive v1\nContains repair records, editable annotations and compressed unmarked photos.\nImage paths are relative to this archive. This is a portable export; automated restore is not yet implemented.\n');

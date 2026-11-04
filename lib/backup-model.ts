@@ -69,6 +69,10 @@ export function referencedFiles(tables:BackupTables):BackupFile[]{
   for(const row of tables.repair_logs??[]){
     if(!Array.isArray(row.steps))throw new Error('Invalid repair steps.');
     for(const step of row.steps) add('repair-images',step.image_path,row.id,row.owner_id);
+    if(row.update_baseline!=null){
+      if(typeof row.update_baseline!=='object'||!('steps' in row.update_baseline)||!Array.isArray(row.update_baseline.steps))throw new Error('Invalid repair update baseline.');
+      for(const step of row.update_baseline.steps)add('repair-images',step.image_path,row.id,row.owner_id);
+    }
   }
   for(const row of tables.bench_references??[]){
     if(!Array.isArray(row.photos)||!Array.isArray(row.documents))throw new Error('Invalid bench reference files.');

@@ -46,3 +46,5 @@ Legacy v4 catalogue ZIPs remain readable as merge-only imports. They do not cont
 Archive tests cover section dependencies, metadata-only estimates, exact prepared size, all tables and >1,000 rows, v4 imports, PDF round trips, unknown/changed sizes, checksums, missing/unexpected media, unsafe ZIP paths, upload failures and committed-operation cleanup.
 
 SQL tests run against a disposable database and check full/private export, scoped file permissions, partial merge, full replacement, ownership, retry idempotence, concurrent changes, protected defaults, cancellation, standby and ordinary-user denial. Existing Workshop/catalogue suites remain required. Browser checks use actual backup components and styling with a mocked authenticated shell and fictional server responses; production records are not mutated to test restore.
+
+Repair update proposals (database 0.16.0) stay within the repair section. Their original comparison photos are included alongside proposed photos, shared paths are transferred once, and restore rewrites both sets. Restore may advance the published revision; refresh an outstanding proposal’s comparison before resubmitting if it becomes stale.

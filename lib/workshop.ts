@@ -1,3 +1,4 @@
+import {cleanRepairSteps} from './repair-updates';
 import {readAllRows} from './machine-compatibility';
 import {repairStatus,type RepairStatus} from './repair-status';
 import { getSupabaseBrowserClient } from './supabase';
@@ -6,7 +7,8 @@ export type Mark = { kind: 'circle' | 'arrow' | 'double_arrow' | 'number'; x: nu
 export type RepairStep = { id: string; title: string; instruction: string; image_path: string; annotations: Mark[]; imageUrl?: string };
 export type RepairPart = { part_id: string; description: string; number: string; quantity: number };
 export type PublicationStatus = 'private' | 'pending' | 'approved' | 'returned';
-export type RepairLog = { owner_id?: string; publication_status?: PublicationStatus; submitted_at?: string | null; reviewed_at?: string | null; reviewed_by?: string | null; review_notes?: string; id: string; title: string; machine_id: string | null; machine_name: string; technician: string; job_date: string; fault: string; outcome: string; tests: string; tools: string; status: RepairStatus; revision: number; updated_at: string; steps: RepairStep[]; parts: RepairPart[] };
+export type RepairLog = { update_of?:string|null; update_base_revision?:number|null; update_baseline?:RepairUpdateSnapshot|null; change_summary?:string|null; applied_update_id?:string; author?:{display_name:string|null}|null; owner_id?: string; publication_status?: PublicationStatus; submitted_at?: string | null; reviewed_at?: string | null; reviewed_by?: string | null; review_notes?: string; id: string; title: string; machine_id: string | null; machine_name: string; technician: string; job_date: string; fault: string; outcome: string; tests: string; tools: string; status: RepairStatus; revision: number; updated_at: string; steps: RepairStep[]; parts: RepairPart[] };
+export type RepairUpdateSnapshot = Pick<RepairLog,'title'|'machine_id'|'machine_name'|'technician'|'job_date'|'fault'|'tools'|'tests'|'outcome'|'status'|'steps'|'parts'>;
 export type Choice = { id: string; name: string; number?: string };
 export const newLog = (): RepairLog => ({ id: crypto.randomUUID(), title: 'Untitled repair', machine_id: null, machine_name: '', technician: '', job_date: new Date().toLocaleDateString('en-CA'), fault: '', outcome: '', tests: '', tools: '', status: 'draft', revision: 0, updated_at: new Date().toISOString(), steps: [], parts: [] });
 export function checkLog(log: RepairLog) {
@@ -34,12 +36,12 @@ export async function savePreview(log: RepairLog): Promise<RepairLog> {
 export async function loadLive() {
   const db = getSupabaseBrowserClient(); if (!db) throw new Error('Database is not configured.');
   const [logs, machines] = await Promise.all([
-    readAllRows((from,to)=>db.from('repair_logs').select('*,repair_log_parts(part_id,quantity,part:parts(description,manufacturer_part_number))').order('updated_at', { ascending: false }).order('id').range(from,to)),
+    readAllRows((from,to)=>db.from('repair_logs').select('*,author:profiles!repair_logs_owner_id_fkey(display_name),repair_log_parts(part_id,quantity,part:parts(description,manufacturer_part_number))').order('updated_at', { ascending: false }).order('id').range(from,to)),
     readAllRows((from,to)=>db.from('machines').select('id,name').eq('is_active', true).order('name').order('id').range(from,to)),
   ]);
   if (logs.error) throw new Error('Workshop storage is not ready: ' + logs.error.message);
   if (machines.error) throw new Error('The parts or machine catalogue could not be loaded.');
-  const paths = [...new Set<string>(logs.data.flatMap(row => (row.steps ?? []).map((step: RepairStep) => step.image_path)).filter(Boolean))];
+  const paths = [...new Set<string>(logs.data.flatMap(row => [...(row.steps ?? []),...(row.update_baseline?.steps??[])].map((step: RepairStep) => step.image_path)).filter(Boolean))];
   const photoUrls = new Map<string, string>();
   for (let offset = 0; offset < paths.length; offset += 100) {
     const batch = paths.slice(offset, offset + 100);
@@ -54,16 +56,16 @@ export async function loadLive() {
     for (const step of row.steps ?? []) {
       steps.push({ ...step, imageUrl: photoUrls.get(step.image_path) ?? '' });
     }
-    records.push({ ...row, status:repairStatus(row.status), steps, parts: (row.repair_log_parts ?? []).map((p: { part_id: string; quantity: number; part: { description: string; manufacturer_part_number: string } }) => ({ part_id: p.part_id, quantity: p.quantity, description: p.part?.description ?? 'Unavailable part', number: p.part?.manufacturer_part_number ?? '' })) });
+    records.push({ ...row, update_baseline:row.update_baseline?{...row.update_baseline,steps:row.update_baseline.steps.map((step:RepairStep)=>({...step,imageUrl:photoUrls.get(step.image_path)??''}))}:null, status:repairStatus(row.status), steps, parts: (row.repair_log_parts ?? []).map((p: { part_id: string; quantity: number; part: { description: string; manufacturer_part_number: string } }) => ({ part_id: p.part_id, quantity: p.quantity, description: p.part?.description ?? 'Unavailable part', number: p.part?.manufacturer_part_number ?? '' })) });
   }
   return { records, machines: (machines.data ?? []) as Choice[] };
 }
 export async function saveLive(log: RepairLog) {
   checkLog(log); const db = getSupabaseBrowserClient(); if (!db) throw new Error('Database is not configured.');
-  const document = { ...log, status:repairStatus(log.status), steps: log.steps.map(step => ({ id: step.id, title: step.title, instruction: step.instruction, image_path: step.image_path, annotations: step.annotations })) };
+  const document = {id:log.id,title:log.title,machine_id:log.machine_id,machine_name:log.machine_name,technician:log.technician,job_date:log.job_date,fault:log.fault,tools:log.tools,tests:log.tests,outcome:log.outcome,status:repairStatus(log.status),steps:cleanRepairSteps(log.steps),parts:log.parts.map(({part_id,quantity})=>({part_id,quantity})),change_summary:log.change_summary??''};
   const { data, error } = await db.rpc('save_repair_log', { document, expected_revision: log.revision });
   if (error) throw new Error(error.message);
-  return { ...log, ...data, status:repairStatus(data.status??log.status), steps: log.steps, parts: log.parts } as RepairLog;
+  return { ...log, ...data, status:repairStatus(data.status??log.status), steps: log.steps, parts: log.parts,update_baseline:log.update_baseline } as RepairLog;
 }
 export async function imageDataUrl(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(new Error('Photo could not be read.')); reader.readAsDataURL(file); });
@@ -81,7 +83,22 @@ export async function transitionRepair(log: RepairLog, action: 'submit' | 'withd
   const db = getSupabaseBrowserClient(); if (!db) throw new Error('Database is not configured.');
   const {data,error} = await db.rpc('transition_repair_log',{log_id:log.id,expected_revision:log.revision,action,notes});
   if(error) throw new Error(error.message);
-  return {...log,...data,status:repairStatus(data.status??log.status),steps:log.steps,parts:log.parts};
+  return {...log,...data,status:repairStatus(data.status??log.status),steps:log.steps,parts:log.parts,update_baseline:data.update_of?log.update_baseline:null};
+}
+async function proposalResult(id:string){
+  const loaded=await loadLive(),draft=loaded.records.find(log=>log.id===id);
+  if(!draft)throw new Error('The update was saved but could not be reloaded. Open Update log again to recover it.');
+  return {draft,records:loaded.records};
+}
+export async function beginRepairUpdate(log:RepairLog){
+  const db=getSupabaseBrowserClient();if(!db)throw new Error('Database is not configured.');
+  const {data,error}=await db.rpc('begin_repair_update',{log_id:log.id,expected_revision:log.revision});
+  if(error)throw new Error(error.message);return proposalResult(data.id);
+}
+export async function refreshRepairUpdateBase(log:RepairLog,parentRevision:number){
+  const db=getSupabaseBrowserClient();if(!db)throw new Error('Database is not configured.');
+  const {data,error}=await db.rpc('refresh_repair_update_base',{update_id:log.id,expected_revision:log.revision,expected_parent_revision:parentRevision});
+  if(error)throw new Error(error.message);return proposalResult(data.id);
 }
 export type ApprovedRepair = {id:string;title:string;machine_id:string;machine_name:string;job_date:string};
 export async function approvedRepairs(machineId?:string): Promise<ApprovedRepair[]> {
@@ -108,13 +125,16 @@ export async function loadMachineParts(machineId: string): Promise<Choice[]> {
 export async function refreshRepairPhotos(log:RepairLog):Promise<RepairLog>{
   if(typeof navigator!=='undefined'&&!navigator.onLine)return log;
   const db=getSupabaseBrowserClient();if(!db)return log;
-  const steps=await Promise.all(log.steps.map(async step=>{
+  const photoBucket=db.storage.from('repair-images');
+  async function refresh(steps:RepairStep[]){return Promise.all(steps.map(async step=>{
     if(!step.image_path||step.imageUrl?.startsWith('data:'))return step;
-    try{const signed=await db.storage.from('repair-images').createSignedUrl(step.image_path,3600);
+    try{const signed=await photoBucket.createSignedUrl(step.image_path,3600);
       return signed.error?step:{...step,imageUrl:signed.data.signedUrl};
     }catch{return step;}
-  }));
-  return {...log,steps};
+  }));}
+  const steps=await refresh(log.steps);
+  const update_baseline=log.update_baseline?{...log.update_baseline,steps:await refresh(log.update_baseline.steps)}:log.update_baseline;
+  return {...log,steps,update_baseline};
 }
 
 export async function deleteRepair(log:RepairLog,preview=false):Promise<void>{

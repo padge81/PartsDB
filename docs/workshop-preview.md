@@ -3,7 +3,7 @@
 ## Review routes
 
 - `/workshop/preview`: isolated, fictional example with two demonstration catalogue parts. No Supabase calls are made by this route. Saved logs/photos and custom reference notes stay in this browser's IndexedDB. This is explicitly a device-local preview, not cross-device sync.
-- `/workshop`: existing PartsDB authentication, live machine/part lookup, private drafts and an approved shared library. Apply all migrations through `20261009100000_measurement_annotations.sql` for publishing and measurement arrows.
+- `/workshop`: existing PartsDB authentication, live machine/part lookup, private drafts and an approved shared library. Apply all migrations through `20261104220000_repair_update_proposals.sql` for publishing, reviewed updates and measurement arrows.
 - `/admin/workshop`: administrator-only submission review and shared-guide editing.
 
 The UI supports camera/gallery capture, text steps, step reordering, circles/arrows/numbers, undo/clear, existing part links, repair outcome/testing and completion checks. Photos reuse `prepareImage`: WebP at 0.78 quality, max 1600 px longest side, 15 MiB input limit. Unmarked compressed photos and normalized annotations remain separate. Original full-resolution camera files are not retained by the app.
@@ -14,11 +14,21 @@ PDF exports wait for the current editable record to save successfully, A4 pages,
 
 Submitted, approved and returned logs open in the read-only document viewer, including administrator review. All recorded steps appear together, in the same content order as the PDF. Use **Update log** to enter the same editor used to create a repair when permitted; personal private drafts still open in the editor. Submission switches immediately into viewing. **Submission and review** expands the existing approval, return and withdrawal controls separately from the document.
 
+## Updates to approved repairs
+
+Any active signed-in user can choose **Update log** on an approved repair. A separate private draft preserves the approved revision as its comparison baseline. Reopening Update log resumes the author's existing proposal. Original approved content remains available to readers during editing, submission and returns.
+
+The author records **What changed?** and submits actual content changes. The review shows old/new metadata, steps, photos and annotations, step order, and part quantities. Approve replaces the same approved record and part links in one transaction, retains the original creator, records the proposer/approver/summary in the audit trail, and removes the applied proposal. Return keeps the draft for correction. Even administrators propose updates rather than directly modifying published content.
+
+Submission and approval check the approved baseline revision. If it changes, withdraw or return the proposal; its author can refresh the comparison against the latest approved version, keeping draft content, and must review all differences before resubmitting. There is no automatic merge. Originals with outstanding proposals cannot be deleted until those proposals are removed. Administrators still cannot read another user's unsubmitted drafts.
+
+Sectioned backups include proposal metadata, baseline photos and proposed photos, deduplicating shared objects. Restore rewrites both photo sets. Restoring advances existing record revisions, so pending updates may need their comparison refreshed. Per-job ZIPs include baseline photos as well; audit history remains outside portable backups.
+
 ## Database and storage
 
 `repair_logs` links an optional machine and owns an ordered JSON step document. `repair_log_parts` links catalogue parts with quantities. `bench_references` contains the user's custom text references. Existing catalogue records are reused, not copied.
 
-RLS keeps unsubmitted repair drafts and bench references creator-only, including against other admins. Submitted/returned repairs are visible to their creator and active admins; approved repairs and their attached photos/parts are visible to all active signed-in users. Creators can edit private/returned logs; admins can edit submitted/returned/approved logs. Checked RPCs enforce revision-aware saves and submit/withdraw/approve/return transitions; direct repair-table mutation is revoked. The save RPC applies the log and part links atomically and verifies each new photo path or retains an existing attachment. Unattached photos are never shared, and referenced photos cannot be deleted through Storage. Standby prohibits mutations. Signed photo URLs are temporary presentation values and are never stored in the database. Photos are immutable unique objects; no overwrite permission is granted. Removed/replaced steps may leave unreferenced photos: garbage collection is a future maintenance feature.
+RLS keeps unsubmitted repair drafts and bench references creator-only, including against other admins. Submitted/returned repairs are visible to their creator and active admins; approved repairs and their attached photos/parts are visible to all active signed-in users. Creators can edit their private/returned drafts; admins can edit submitted/returned drafts. Approved content changes through reviewed update proposals. Checked RPCs enforce revision-aware saves and submit/withdraw/approve/return transitions; direct repair-table mutation is revoked. The save RPC applies the log and part links atomically and verifies each new photo path or retains an existing attachment. Unattached photos are never shared, and referenced photos cannot be deleted through Storage. Standby prohibits mutations. Signed photo URLs are temporary presentation values and are never stored in the database. Photos are immutable unique objects; no overwrite permission is granted. Removed/replaced steps may leave unreferenced photos: garbage collection is a future maintenance feature.
 
 The default machine lookup loads up to 1000 machines. Parts are fetched in pages for the selected machine only, restricted to active catalogue parts linked through part_machines. Larger machine catalogues still need paginated machine search. Live machine search and machine detail pages list approved repairs. Reverse repair lists on part pages remain a follow-up.
 

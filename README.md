@@ -7,7 +7,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 | Component | Revision |
 | --- | --- |
 | Application | `0.32.0` |
-| Database | `0.15.0` |
+| Database | `0.16.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
 
@@ -28,8 +28,6 @@ Ideas for consideration only; these are not approved or scheduled for implementa
 
 - **Repair-log photo crop tool:** movable/resizable crop rectangle with Apply, Cancel and Reset crop, usable with a mouse or touch. Preserve the original photo, keep annotations aligned, and carry the crop consistently into saved logs, PDF exports and backups. **Status: undecided; no implementation commitment.**
 
-- **Updates to approved repair logs:** consider a separate update draft while the current approved version stays published. Proposed review screen highlights old/new text, added/removed/reordered steps, replaced photos, changed annotations and parts, with an author summary of the update. Compare against the approved revision and detect intervening changes before approval. **Status: undecided; submission and approval workflow not approved for implementation.**
-
 ### Later expansion
 
 - Follow the remaining [frontend review](docs/frontend-review-2026-10-18.md) work: transactional part approval/editing, server-side search, lazy Workshop media and broader authenticated browser coverage. Company saves, machine-photo replacement and on-page part-upload retries are covered by 0.30.0.
@@ -49,12 +47,14 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 
 ## Updates
 
-### `0.32.0` / database `0.15.0` — 4 November 2026
+### `0.32.0` / database `0.16.0` — 4 November 2026
 
 - Submitted, approved and returned repair logs open in a document viewer by default, including administrator review. Successful submission immediately switches to viewing; editing is an explicit permitted action.
 - Replaced the one-step reader with a continuous PDF-style document: job metadata, fault, preparation, parts, numbered instructions/photos, testing and outcome. Portrait photos sit beside instructions on desktop and stack on phones. Viewer and PDF share empty-step filtering.
-- Added **Update log** as the explicit entry into the same editor used for creating a repair, under the existing editing permissions. The proposed approval workflow for updates remains undecided.
-- Kept submission/review actions in a separate expandable panel and retained existing permissions, standby protection and PDF export. No database changes.
+- Any active signed-in user can use **Update log** on an approved repair. It creates or resumes a separate private update draft in the same editor used to create a repair. The approved version stays published while changes are prepared and reviewed.
+- Updates require a What changed? note and actual repair changes. Administrators see before/after details, added/removed/reordered steps, replaced photos, changed annotations and part quantities before approving or returning an update.
+- Approval replaces the original approved record atomically, retaining its ID, creator, machine links and audit evidence. A stale approved revision blocks submission/approval; authors can withdraw/refresh their comparison without losing their draft. Shared comparison photos are protected and included in backup/restore.
+- Kept submission/review actions in a separate expandable panel and retained standby protection and PDF export. Database 0.16.0 adds update proposals and reviewed publication.
 
 ### `0.31.3` / database `0.15.0` — 4 November 2026
 
