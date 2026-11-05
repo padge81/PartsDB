@@ -127,4 +127,40 @@ details.wk-questions[open]>summary { margin-bottom:16px; }
 .wk-library-controls{border:0;padding:0;margin:0;min-width:0}.wk-library-controls:disabled .wk-log{cursor:default;opacity:.6}.wk-edit-lock{margin:0 0 16px;padding:12px;border-radius:8px;background:#fff3e7;color:#774016;font-size:14px;line-height:1.5}
 .wk-library{min-width:0}
 
-.wk-edit-session-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;background:#fff3e7;border-bottom:1px solid #efdbc6}.wk-edit-session-bar p{margin:5px 0 0;color:#61717e;font-size:14px;line-height:1.5}.wk-edit-session-bar>.button{flex-shrink:0}.wk-workspace .wk-back-to-library{display:none}@media(max-width:700px){.wk-edit-session-bar{align-items:flex-start;flex-direction:column;padding:16px 12px}.wk-workspace .wk-back-to-library{display:inline-flex}}
+.wk-workspace .wk-back-to-library{display:none}@media(max-width:700px){.wk-workspace .wk-back-to-library{display:inline-flex}}
+
+/* Compact Workshop controls. Routine actions keep their names at every size. */
+.wk-workspace{--wk-action:#c4511d;font-size:14px;padding:28px 24px 48px}
+.wk-workspace .wk-heading h1{font-size:28px;letter-spacing:-.7px}.wk-workspace .wk-heading{margin-bottom:20px}
+.wk-workspace .wk-layout{grid-template-columns:240px minmax(0,1fr);gap:18px}.wk-workspace .wk-library{padding:16px}
+.wk-workspace .button,.guide-toolbar .button{min-height:36px;padding:0 11px;font-size:13px;font-weight:600;border-radius:6px;gap:7px}
+.wk-workspace .button.primary{background:var(--wk-action)}.wk-workspace .button.primary:hover:not(:disabled){background:#ad4518}
+.wk-workspace .button:disabled,.wk-tool-button:disabled{cursor:default;opacity:.45}
+.wk-workspace .wk-panel{padding:20px}.wk-workspace .wk-tabs button{padding:12px 8px;font-size:13px}.wk-workspace .wk-tabs button>span{display:none}
+.wk-editor-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:18px 20px 12px}.wk-editor-heading>div{min-width:0}.wk-editor-heading h2{margin:4px 0;font-size:21px;line-height:1.35;overflow-wrap:anywhere}.wk-editor-heading .wk-done-editing{flex-shrink:0}
+.wk-mode-caption,.wk-editor-meta{margin:0;color:#64727e;font-size:12px;line-height:1.5}
+.wk-editor-tools{padding:0 20px 10px}.wk-tool-group{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.wk-action-wrap{display:inline-flex;position:relative;min-width:0;vertical-align:middle}.wk-action-wrap .button.wk-tool-button{display:inline-flex;align-items:center;justify-content:center;min-height:36px;gap:7px;padding:0 10px;font-size:13px;font-weight:500;border-radius:6px;white-space:nowrap;width:auto}
+.wk-tool-button svg,.wk-toolbar-save svg,.wk-text-action svg,.wk-done-editing svg{width:17px;height:17px;flex-shrink:0}
+.wk-tool-button[aria-disabled=true]{pointer-events:none;opacity:.45}.wk-tool-button:focus-visible,.wk-text-action:focus-visible,.wk-done-editing:focus-visible{outline:2px solid #c4511d;outline-offset:3px}
+.wk-action-tooltip{position:absolute;top:calc(100% + 6px);left:0;z-index:20;background:#173e58;color:#fff;padding:6px 9px;border-radius:5px;white-space:nowrap;font-size:12px;font-weight:400;visibility:hidden;opacity:0;pointer-events:none}.wk-action-wrap:last-child .wk-action-tooltip{left:auto;right:0}
+.wk-action-wrap:hover>.wk-action-tooltip,.wk-action-wrap:focus-within>.wk-action-tooltip{visibility:visible;opacity:1}
+.wk-toolbar-save{display:inline-flex;align-items:center;gap:5px;padding-left:10px;margin-left:3px;border-left:1px solid #dce3e8;color:#64727e;font-size:12px;line-height:1.4}.wk-toolbar-save.is-saved{color:#28734f}
+.wk-tool-spinner{display:inline-block;width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:wk-tool-spin .7s linear infinite;flex-shrink:0}@keyframes wk-tool-spin{to{transform:rotate(360deg)}}
+.wk-editor-decisions{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 20px 12px}
+.wk-workspace .wk-text-action{display:inline-flex;align-items:center;gap:5px;max-width:calc(50% - 4px);min-width:0;background:transparent;border:1px solid transparent;padding:0 4px;font-weight:500;white-space:normal;line-height:1.4;text-align:left}
+.wk-workspace .wk-discard-action{color:#ab3737}.wk-workspace .wk-submit-action{color:#28734f;margin-left:auto;text-align:right}.wk-workspace .wk-text-action:hover:not(:disabled){background:#f4f7f8}.wk-text-action>span{min-width:0}
+.wk-update-comparison{border-top:1px solid #dce3e8}.wk-update-comparison>summary{padding:14px 20px;font-size:13px;font-weight:600;cursor:pointer}.wk-update-comparison>summary>span{font-size:12px;font-weight:400;color:#64727e;margin-left:8px}.wk-update-comparison .repair-update-review{border-top:1px solid #dce3e8}
+.wk-edit-publication>summary{padding:14px 20px;font-size:13px}.wk-workspace .wk-update-draft{padding:16px 20px;background:#fffaf5}.wk-workspace .wk-update-draft>.wk-label{margin-top:10px}
+.guide-toolbar{padding:12px 18px;gap:12px}.wk-dialog-save .wk-action-wrap{flex-shrink:0}
+@media(prefers-reduced-motion:reduce){.wk-tool-spinner{animation:none}}
+@media(max-width:700px){
+ .wk-workspace{padding:18px 10px 28px;font-size:15px}.wk-workspace .wk-layout{grid-template-columns:minmax(0,1fr);gap:14px}.wk-workspace .wk-heading h1{font-size:25px}.wk-workspace .wk-library{padding:12px}
+ .wk-workspace .button,.guide-toolbar .button,.wk-action-wrap .button.wk-tool-button{min-height:44px}.wk-workspace .wk-panel{padding:18px 12px}
+ .wk-editor-heading{padding:16px 12px 12px;flex-wrap:wrap;gap:12px}.wk-editor-heading h2{font-size:20px}.wk-editor-heading>.wk-done-editing{width:100%}
+ .wk-editor-tools{padding:0 12px 8px}.wk-action-wrap .button.wk-tool-button{min-width:44px;padding:0;border-color:transparent}.wk-action-label{display:none}.wk-tool-group{gap:5px}
+ .wk-editor-decisions{padding:0 12px 12px}.wk-toolbar-save{padding-left:8px;font-size:12px}.wk-toolbar-save:not(.is-saved){max-width:130px}
+ .wk-workspace .wk-update-draft{padding:16px 12px}.wk-update-comparison>summary,.wk-edit-publication>summary{padding:14px 12px}.wk-update-comparison>summary>span{display:block;margin:5px 0 0}
+ .guide-toolbar{padding:12px}.guide-toolbar .wk-ref-actions{gap:6px}
+}
+@media(pointer:coarse){.wk-action-wrap .button.wk-tool-button,.wk-workspace .wk-text-action{min-height:44px;min-width:44px}}

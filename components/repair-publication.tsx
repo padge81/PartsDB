@@ -2,12 +2,18 @@
 import {useState} from 'react';
 import {repairUpdateChanges} from '../lib/repair-updates';
 import type {RepairLog} from '../lib/workshop';
+import {ArrowIcon} from './icons';
 
-export function RepairPublication({job,owner,admin,busy,standby,dirty,comparisonStale=false,onAction}:{job:RepairLog;owner:boolean;admin:boolean;busy:boolean;standby:boolean;dirty:boolean;comparisonStale?:boolean;onAction:(action:'submit'|'withdraw'|'approve'|'return',notes?:string)=>void}){
+const readyToSubmit=(job:RepairLog)=>!job.update_of||!!job.change_summary?.trim()&&!!job.update_baseline&&repairUpdateChanges(job.update_baseline,job).hasChanges;
+export function RepairSubmitButton({job,owner,busy,standby,comparisonStale=false,compact=false,onSubmit}:{job:RepairLog;owner:boolean;busy:boolean;standby:boolean;comparisonStale?:boolean;compact?:boolean;onSubmit:()=>void}){
+ if(!owner||!['private','returned'].includes(job.publication_status??'private'))return null;
+ return <button type="button" className={compact?'button wk-text-action wk-submit-action':'button primary'} disabled={busy||standby||comparisonStale||!readyToSubmit(job)} onClick={onSubmit}><span>{job.update_of?'Submit update':'Submit for approval'}</span><ArrowIcon aria-hidden="true"/></button>;
+}
+export function RepairPublication({job,owner,admin,busy,standby,dirty,comparisonStale=false,hideSubmit=false,onAction}:{job:RepairLog;owner:boolean;admin:boolean;busy:boolean;standby:boolean;dirty:boolean;comparisonStale?:boolean;hideSubmit?:boolean;onAction:(action:'submit'|'withdraw'|'approve'|'return',notes?:string)=>void}){
   const [notes,setNotes]=useState('');
   const status=job.publication_status??'private';
   const update=!!job.update_of;
-  const updateReady=!update||!!job.change_summary?.trim()&&!!job.update_baseline&&repairUpdateChanges(job.update_baseline,job).hasChanges;
+  const updateReady=readyToSubmit(job);
   const labels={private:'Private draft',pending:'Awaiting approval',approved:'Approved for everyone',returned:'Changes requested'};
   return <section className="wk-publication" aria-label="Repair publication">
     <strong>{labels[status]}</strong>
@@ -15,7 +21,7 @@ export function RepairPublication({job,owner,admin,busy,standby,dirty,comparison
     {update&&!updateReady&&['private','returned'].includes(status)&&<p className="wk-small">Make a repair change and describe it in What changed? before submitting.</p>}
     {job.review_notes&&<p><strong>Review note: </strong>{job.review_notes}</p>}
     <div className="wk-ref-actions">
-      {owner&&(status==='private'||status==='returned')&&<button className="button primary" disabled={busy||standby||comparisonStale||!updateReady} onClick={()=>onAction('submit')}>{update?'Save & submit update':'Save & submit for approval'}</button>}
+      {!hideSubmit&&<RepairSubmitButton job={job} owner={owner} busy={busy} standby={standby} comparisonStale={comparisonStale} onSubmit={()=>onAction('submit')}/>}
       {owner&&status==='pending'&&<button className="button secondary" disabled={busy||standby||dirty} onClick={()=>onAction('withdraw')}>{update?'Withdraw update':'Withdraw submission'}</button>}
     </div>
     {admin&&(status==='pending'||status==='approved')&&<div className="wk-review-controls">

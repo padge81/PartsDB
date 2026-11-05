@@ -2,6 +2,8 @@
 import {useState,type CSSProperties} from 'react';
 import type {RepairLog,RepairStep} from '../lib/workshop';
 import {repairGuideHref,repairGuideSteps} from '../lib/repair-view';
+import {WorkshopAction} from './workshop-action';
+import {BookOpenIcon,FileDownloadIcon,PencilIcon} from './icons';
 import {RepairPhoto} from './repair-photo';
 
 function GuideStep({step,number}:{step:RepairStep;number:number}){
@@ -21,7 +23,7 @@ export function RepairGuide({job,canEdit,busy,preview,onEdit,onExport,onOpenGuid
   const publication=job.publication_status??'private';
   const labels={private:'Private draft',pending:'Awaiting approval',approved:'Approved repair record',returned:'Changes requested'};
   return <article className="repair-guide" aria-label="Repair log document">
-    <div className="guide-toolbar"><span>Viewing repair log</span><div className="wk-ref-actions">{!standalone&&!preview&&(onOpenGuide?<button className="button secondary" disabled={busy} onClick={onOpenGuide}>Open guide</button>:<a className="button secondary" href={repairGuideHref(job.id)}>Open guide</a>)}<button className="button secondary" disabled={busy} onClick={onExport}>Download PDF</button>{canEdit&&<button className="button secondary" disabled={busy} onClick={onEdit}>Update log</button>}{job.machine_id&&!preview&&<a className="button secondary" href={`/machines/${job.machine_id}`}>Machine details</a>}</div></div>
+    <div className="guide-toolbar"><span>Viewing repair log</span><div className="wk-ref-actions">{!standalone&&!preview&&(onOpenGuide?<WorkshopAction label="Open guide" icon={<BookOpenIcon aria-hidden="true"/>} disabled={busy} onClick={onOpenGuide}/>:<WorkshopAction label="Open guide" icon={<BookOpenIcon aria-hidden="true"/>} disabled={busy} href={repairGuideHref(job.id)}/>)}<WorkshopAction label="Download PDF" icon={<FileDownloadIcon aria-hidden="true"/>} disabled={busy} onClick={onExport}/>{canEdit&&<button className="button secondary" disabled={busy} onClick={onEdit}><PencilIcon aria-hidden="true"/>Update log</button>}{job.machine_id&&!preview&&<a className="button secondary" href={`/machines/${job.machine_id}`}>Machine details</a>}</div></div>
     <div className="guide-document">
       <header className="guide-header">
         <p className="wk-eyebrow">WORKSHOP GUIDE</p><Title>{job.title}</Title>
