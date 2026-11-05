@@ -1,5 +1,7 @@
 'use client';
 import { useEffect, useRef, type ChangeEvent } from 'react';
+import {WorkshopAction} from './workshop-action';
+import {SaveIcon} from './icons';
 import { RepairPhoto } from './repair-photo';
 import type { RepairStep } from '../lib/workshop';
 
@@ -26,6 +28,6 @@ export function RepairStepDialog({step,index,count,busy,saving=false,readonly,di
         </div>
       </fieldset>
     </div>
-    <footer className="wk-dialog-footer"><div className="wk-dialog-navigation" aria-label="Step navigation"><button type="button" className="button secondary" disabled={busy||index===0} onClick={()=>onNavigate(index-1)}>← Previous</button><span aria-live="polite">{index+1} / {count}</span><button type="button" className={last?'button primary':'button secondary'} disabled={busy||(last&&(readonly||count>=60))} onClick={()=>last?onAdd():onNavigate(index+1)}>{last?'Add step →':'Next →'}</button></div>{last&&count>=60&&<p className="wk-small">This repair has reached the 60-step limit.</p>}<div className="wk-dialog-save"><span className="wk-small">{saveStatus}</span><button type="button" className="button primary" disabled={busy||saving||readonly||!dirty} onClick={onSave}>{saving?'Saving…':busy?'Working…':dirty?'Save changes':'Saved'}</button></div></footer>
+    <footer className="wk-dialog-footer"><div className="wk-dialog-navigation" aria-label="Step navigation"><button type="button" className="button secondary" disabled={busy||index===0} onClick={()=>onNavigate(index-1)}>← Previous</button><span aria-live="polite">{index+1} / {count}</span><button type="button" className={last?'button primary':'button secondary'} disabled={busy||(last&&(readonly||count>=60))} onClick={()=>last?onAdd():onNavigate(index+1)}>{last?'Add step →':'Next →'}</button></div>{last&&count>=60&&<p className="wk-small">This repair has reached the 60-step limit.</p>}<div className="wk-dialog-save"><span className="wk-small">{saveStatus}</span><WorkshopAction label="Save changes" icon={<SaveIcon aria-hidden="true"/>} disabled={busy||saving||readonly||!dirty} pending={saving} onClick={onSave}/></div></footer>
   </dialog>;
 }
