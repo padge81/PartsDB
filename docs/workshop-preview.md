@@ -20,6 +20,10 @@ Guide approval determines the workshop stage. **My work** includes the creator's
 
 `/workshop/guides/[id]` opens an independent reading page with the guide document, PDF download and permitted Update log action. It uses the same authentication and record privacy rules but loads only that repair and its attached photos. Machine/search links open this page, and old `view=guide` notebook links redirect there. Open guide in the notebook saves first; updating sends the reader back to the notebook, with returned/private drafts opening in the editor only when allowed. Administrator approval remains in the notebook review screen.
 
+## Machine manufacturer (0.36.1)
+
+Job details displays a read-only Machine manufacturer from the linked catalogue machine. The same name appears in the first metadata section of guide viewing and PDF export. It updates when the selected machine changes; machine-less records show a prompt and absent manufacturer data is left out of guides/PDFs. This is current catalogue information, not a new editable repair field or a revisioned historical snapshot. Existing guide content, approval state, and update comparisons are unchanged. No migration is required.
+
 ## Compact Workshop actions (0.36.0)
 
 The approved toolbar uses one outline icon style, 36px desktop controls and 44px mobile tap targets. Open guide, Save changes and Download PDF keep text labels on desktop and accessible icon controls on mobile; hints appear on hover and keyboard focus. Done editing remains orange and labelled at every size. Red × Discard update and green Submit update → remain labelled and aligned on the same row near the top. Submit still flushes edits and enforces the original workflow checks; no approval or privacy rules change. Detailed comparisons collapse in the editor, open automatically for a stale baseline and remain fully visible during review. The required What changed? field is retained. Guide reading typography and photos remain comfortably sized.

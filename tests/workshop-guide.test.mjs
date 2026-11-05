@@ -71,6 +71,12 @@ test('entered fault, preparation, parts, test and outcome are retained in the si
  const doc=await createWorkshopGuide(log({fault:'FAULT_MARKER',tools:'TOOLS_MARKER',tests:'TEST_MARKER',outcome:'OUTCOME_MARKER',parts:[{quantity:2,description:'PART_MARKER',number:'ABC-123'}]}),false,portrait);
  for(const marker of ['FAULT_MARKER','TOOLS_MARKER','TEST_MARKER','OUTCOME_MARKER','PART_MARKER','ABC-123'])assert.ok(doc.output().includes(marker),marker);
 });
+test('linked machine manufacturer is included in the guide introduction without changing the record',async()=>{
+ const existing=log({machine_name:'Example cabinet',machine_manufacturer:'MANUFACTURER_MARKER'}),before=structuredClone(existing);
+ const doc=await createWorkshopGuide(existing,false,portrait);
+ assert.ok(doc.output().includes('Manufacturer: MANUFACTURER_MARKER'));assert.deepEqual(existing,before);
+ const unlinked=await createWorkshopGuide(log(),false,portrait);assert.ok(!unlinked.output().includes('Manufacturer:'));
+});
 test('photo-only steps survive and empty gaps are renumbered only in the PDF',async()=>{
  const {doc,texts,images}=fixture();
  const steps=[{...step(1),title:'',instruction:''},{...step(2),imageUrl:undefined,title:' ',instruction:''},{...step(3),title:'',instruction:''}];
