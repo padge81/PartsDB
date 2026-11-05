@@ -7,9 +7,9 @@ export type Mark = { kind: 'circle' | 'arrow' | 'double_arrow' | 'number'; x: nu
 export type RepairStep = { id: string; title: string; instruction: string; image_path: string; annotations: Mark[]; imageUrl?: string };
 export type RepairPart = { part_id: string; description: string; number: string; quantity: number };
 export type PublicationStatus = 'private' | 'pending' | 'approved' | 'returned';
-export type RepairLog = { update_of?:string|null; update_base_revision?:number|null; update_baseline?:RepairUpdateSnapshot|null; change_summary?:string|null; applied_update_id?:string; author?:{display_name:string|null}|null; owner_id?: string; publication_status?: PublicationStatus; submitted_at?: string | null; reviewed_at?: string | null; reviewed_by?: string | null; review_notes?: string; id: string; title: string; machine_id: string | null; machine_name: string; technician: string; job_date: string; fault: string; outcome: string; tests: string; tools: string; status: RepairStatus; revision: number; updated_at: string; steps: RepairStep[]; parts: RepairPart[] };
+export type RepairLog = { machine_manufacturer?:string; update_of?:string|null; update_base_revision?:number|null; update_baseline?:RepairUpdateSnapshot|null; change_summary?:string|null; applied_update_id?:string; author?:{display_name:string|null}|null; owner_id?: string; publication_status?: PublicationStatus; submitted_at?: string | null; reviewed_at?: string | null; reviewed_by?: string | null; review_notes?: string; id: string; title: string; machine_id: string | null; machine_name: string; technician: string; job_date: string; fault: string; outcome: string; tests: string; tools: string; status: RepairStatus; revision: number; updated_at: string; steps: RepairStep[]; parts: RepairPart[] };
 export type RepairUpdateSnapshot = Pick<RepairLog,'title'|'machine_id'|'machine_name'|'technician'|'job_date'|'fault'|'tools'|'tests'|'outcome'|'status'|'steps'|'parts'>;
-export type Choice = { id: string; name: string; number?: string };
+export type Choice = { id: string; name: string; number?: string; manufacturer_name?:string };
 export const newLog = (): RepairLog => ({ id: crypto.randomUUID(), title: 'Untitled repair', machine_id: null, machine_name: '', technician: '', job_date: new Date().toLocaleDateString('en-CA'), fault: '', outcome: '', tests: '', tools: '', status: 'draft', revision: 0, updated_at: new Date().toISOString(), steps: [], parts: [] });
 export function checkLog(log: RepairLog) {
   if (!log.title.trim()) throw new Error('Give this repair a title.');
@@ -19,7 +19,7 @@ export function prompts(log: RepairLog) {
   return [!log.fault.trim() && 'What fault or task prompted this job?', !log.machine_name && 'Which machine did you work on?', !log.parts.length && 'Were any parts replaced? Link them if they are in the catalogue.', log.steps.some(s => !s.instruction.trim()) && 'What should a technician do in each photo step?', !log.tests.trim() && 'How did you test the repair?', !log.outcome.trim() && 'What was the final result?'].filter(Boolean) as string[];
 }
 export function demoLog(): RepairLog {
-  return { ...newLog(), id: 'preview-sample', machine_id: 'demo-machine', title: 'Prize meter signal check', machine_name: 'Example claw machine', technician: 'Demo technician', fault: 'Prize accounting does not match the number of prizes won.', tools: 'Multimeter, service manual', status: 'draft', steps: [{ id: 'sample-step', title: 'Record the meter connection', instruction: 'Add a photo of the meter wiring. Circle the connection you are describing and record the observed pulse count. This is a demonstration record, not a verified repair instruction.', image_path: '', annotations: [] }], tests: '', outcome: '' };
+  return { ...newLog(), id: 'preview-sample', machine_id: 'demo-machine', title: 'Prize meter signal check', machine_name: 'Example claw machine', machine_manufacturer:'Example manufacturer', technician: 'Demo technician', fault: 'Prize accounting does not match the number of prizes won.', tools: 'Multimeter, service manual', status: 'draft', steps: [{ id: 'sample-step', title: 'Record the meter connection', instruction: 'Add a photo of the meter wiring. Circle the connection you are describing and record the observed pulse count. This is a demonstration record, not a verified repair instruction.', image_path: '', annotations: [] }], tests: '', outcome: '' };
 }
 
 function previewDB(): Promise<IDBDatabase> {
@@ -36,15 +36,16 @@ export async function savePreview(log: RepairLog): Promise<RepairLog> {
 export async function loadLive() {
   const db = getSupabaseBrowserClient(); if (!db) throw new Error('Database is not configured.');
   const [logs, machines] = await Promise.all([
-    readAllRows((from,to)=>db.from('repair_logs').select('*,author:profiles!repair_logs_owner_id_fkey(display_name),repair_log_parts(part_id,quantity,part:parts(description,manufacturer_part_number))').order('updated_at', { ascending: false }).order('id').range(from,to)),
-    readAllRows((from,to)=>db.from('machines').select('id,name').eq('is_active', true).order('name').order('id').range(from,to)),
+    readAllRows((from,to)=>db.from('repair_logs').select('*,machine:machines(manufacturer:companies(name)),author:profiles!repair_logs_owner_id_fkey(display_name),repair_log_parts(part_id,quantity,part:parts(description,manufacturer_part_number))').order('updated_at', { ascending: false }).order('id').range(from,to)),
+    readAllRows((from,to)=>db.from('machines').select('id,name,manufacturer:companies(name)').eq('is_active', true).order('name').order('id').range(from,to)),
   ]);
   if (logs.error) throw new Error('Workshop storage is not ready: ' + logs.error.message);
   if (machines.error) throw new Error('The parts or machine catalogue could not be loaded.');
   const records=await hydrateRepairRows(logs.data as unknown as StoredRepair[]);
-  return {records,machines:(machines.data??[]) as Choice[]};
+  const catalogue=machines.data as unknown as Array<{id:string;name:string;manufacturer:{name:string}|null}>;
+  return {records,machines:(catalogue??[]).map(m=>({id:m.id,name:m.name,manufacturer_name:m.manufacturer?.name??''}))};
 }
-type StoredRepair = RepairLog & {repair_log_parts?:Array<{part_id:string;quantity:number;part:{description:string;manufacturer_part_number:string}|null}>};
+type StoredRepair = RepairLog & {machine?:{manufacturer:{name:string}|null}|null;repair_log_parts?:Array<{part_id:string;quantity:number;part:{description:string;manufacturer_part_number:string}|null}>};
 async function hydrateRepairRows(rows:StoredRepair[]){
   const db=getSupabaseBrowserClient();if(!db)throw new Error('Database is not configured.');
   const paths = [...new Set<string>(rows.flatMap(row => [...(row.steps ?? []),...(row.update_baseline?.steps??[])].map((step: RepairStep) => step.image_path)).filter(Boolean))];
@@ -62,13 +63,14 @@ async function hydrateRepairRows(rows:StoredRepair[]){
     for (const step of row.steps ?? []) {
       steps.push({ ...step, imageUrl: photoUrls.get(step.image_path) ?? '' });
     }
-    records.push({ ...row, update_baseline:row.update_baseline?{...row.update_baseline,steps:row.update_baseline.steps.map((step:RepairStep)=>({...step,imageUrl:photoUrls.get(step.image_path)??''}))}:null, status:repairStatus(row.status), steps, parts: (row.repair_log_parts ?? []).map(p => ({ part_id: p.part_id, quantity: p.quantity, description: p.part?.description ?? 'Unavailable part', number: p.part?.manufacturer_part_number ?? '' })) });
+    const {machine,...record}=row;
+    records.push({ ...record, machine_manufacturer:machine?.manufacturer?.name??'', update_baseline:row.update_baseline?{...row.update_baseline,steps:row.update_baseline.steps.map((step:RepairStep)=>({...step,imageUrl:photoUrls.get(step.image_path)??''}))}:null, status:repairStatus(row.status), steps, parts: (row.repair_log_parts ?? []).map(p => ({ part_id: p.part_id, quantity: p.quantity, description: p.part?.description ?? 'Unavailable part', number: p.part?.manufacturer_part_number ?? '' })) });
   }
   return records;
 }
 export async function loadRepairGuide(id:string):Promise<RepairLog>{
   const db=getSupabaseBrowserClient();if(!db)throw new Error('Database is not configured.');
-  const {data,error}=await db.from('repair_logs').select('*,author:profiles!repair_logs_owner_id_fkey(display_name),repair_log_parts(part_id,quantity,part:parts(description,manufacturer_part_number))').eq('id',id).single();
+  const {data,error}=await db.from('repair_logs').select('*,machine:machines(manufacturer:companies(name)),author:profiles!repair_logs_owner_id_fkey(display_name),repair_log_parts(part_id,quantity,part:parts(description,manufacturer_part_number))').eq('id',id).single();
   if(error||!data)throw new Error('This guide is unavailable or you do not have permission to view it.');
   return (await hydrateRepairRows([data as unknown as StoredRepair]))[0];
 }

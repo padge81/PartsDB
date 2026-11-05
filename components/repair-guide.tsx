@@ -29,7 +29,7 @@ export function RepairGuide({job,canEdit,busy,preview,onEdit,onExport,onOpenGuid
         <p className="wk-eyebrow">WORKSHOP GUIDE</p><Title>{job.title}</Title>
         <p className="guide-record-status">{preview?'Demonstration · ':''}{publication==='approved'?'Published guide — verify suitability before reuse':publication==='pending'?'Awaiting approval — not yet published':publication==='returned'?'Changes requested — not yet published':job.update_of?'Update draft — published guide unchanged':'Draft — not yet submitted'}</p>
         <span className={`wk-status ${publication}`}>{labels[publication]}</span>
-        <dl className="guide-metadata">{job.machine_name.trim()&&<div><dt>Machine</dt><dd>{job.machine_name}</dd></div>}{job.job_date&&<div><dt>Date</dt><dd>{job.job_date}</dd></div>}{job.technician.trim()&&<div><dt>Technician</dt><dd>{job.technician}</dd></div>}</dl>
+        <dl className="guide-metadata">{job.machine_manufacturer?.trim()&&<div><dt>Manufacturer</dt><dd>{job.machine_manufacturer}</dd></div>}{job.machine_name.trim()&&<div><dt>Machine</dt><dd>{job.machine_name}</dd></div>}{job.job_date&&<div><dt>Date</dt><dd>{job.job_date}</dd></div>}{job.technician.trim()&&<div><dt>Technician</dt><dd>{job.technician}</dd></div>}</dl>
       </header>
       <div className="guide-content">
         {job.fault.trim()&&<section className="guide-note"><h3>Fault / task</h3><p>{job.fault}</p></section>}

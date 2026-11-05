@@ -6,7 +6,7 @@ A technician workspace for parts, machines and workshop knowledge: approved orde
 
 | Component | Revision |
 | --- | --- |
-| Application | `0.36.0` |
+| Application | `0.36.1` |
 | Database | `0.16.0` |
 
 PartsDB uses semantic revisions: major revisions represent incompatible architectural changes, minor revisions represent new features or schema capabilities, and patch revisions represent compatible fixes. Every release must update the application revision, database revision when the schema changes, and this README.
@@ -46,6 +46,10 @@ Sign in opens **Home**, with separate **Parts**, **Machines** and **Workshop** l
 - Existing `/dashboard` search bookmarks remain valid. Existing `/workshop?log=...` links redirect to the matching repair in `/workshop/logs`.
 
 ## Updates
+
+### `0.36.1` / database `0.16.0` — 6 November 2026
+
+- Added the linked machine manufacturer to Workshop Job details as a read-only field, with the same name in guide metadata and PDF introductions. Selecting another machine updates its displayed manufacturer. Existing records resolve the current manufacturer through the machine catalogue, including linked inactive machines when visible, without rewriting any guide content or approvals. No migration or dependency changes.
 
 ### `0.36.0` / database `0.16.0` — 5 November 2026
 
